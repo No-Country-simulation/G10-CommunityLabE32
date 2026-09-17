@@ -1,0 +1,78 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+
+# =========================
+# Variables de entorno
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Testing / Coverage
+# =========================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# =========================
+# Type checking / linters
+# =========================
+.mypy_cache/
+.ruff_cache/
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Datos locales
+# =========================
+data/raw/*
+data/processed/*
+
+# Permitimos mantener las carpetas en Git
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# =========================
+# PostgreSQL / Docker
+# =========================
+*.sql
+postgres_data/
+
+# =========================
+# macOS
+# =========================
+.DS_Store
+
+# =========================
+# VS Code
+# =========================
+.vscode/
+*.code-workspace
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Archivos temporales
+# =========================
+*.tmp
+*.temp
