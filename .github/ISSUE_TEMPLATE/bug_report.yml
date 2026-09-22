@@ -1,0 +1,36 @@
+name: Reporte de Bug
+description: Crea un reporte para ayudarnos a mejorar
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción del problema
+      description: Describe de forma clara y concisa cuál es el error.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Pasos para reproducir
+      description: ¿Cómo podemos reproducir este error?
+      placeholder: |
+        1. Ir a '...'
+        2. Hacer clic en '....'
+        3. Bajar hasta '....'
+        4. Ver el error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamiento esperado
+      description: ¿Qué esperabas que pasara?
+    validations:
+      required: true
+  - type: input
+    id: screenshots
+    attributes:
+      label: Capturas de pantalla (Opcional)
+      description: Enlaces a capturas de pantalla si aplica.
