@@ -1,1275 +1,1004 @@
 # G10 CommunityLab E32
 
-> Motor inteligente para transformar interacciones de comunidades digitales en información estructurada, insights y activos de contenido listos para su distribución.
+## Community Radar — Hackathon No Country
 
-Proyecto desarrollado para la Hackathon G10 Oracle One de No Country.
+Sistema para transformar la actividad de una comunidad de Discord en información estructurada y activos de contenido para comunicación y marketing.
 
----
-
-## 🎯 Descripción del proyecto
-
-CommunityLab es una solución inteligente orientada a procesar información generada dentro de comunidades digitales.
-
-El sistema busca transformar conversaciones, preguntas, logros, dudas, bloqueos, testimonios y otras interacciones de una comunidad en:
-
-- Información estructurada.
-- Insights.
-- Contenido generado mediante IA.
-- Alertas internas.
-- Activos listos para revisión.
-- Paquetes de resultados almacenables en OCI Object Storage.
-
-La fuente principal de información considerada para el MVP es Discord, utilizando únicamente canales autorizados.
-
-El proyecto está diseñado para trabajar inicialmente con datos sintéticos y posteriormente integrar información real de la comunidad bajo las reglas de consentimiento definidas para el proyecto.
+El proyecto forma parte de la simulación de hackathon **No Country — G10 CommunityLab E32**.
 
 ---
 
-## 🚀 Objetivo del MVP
+# 1. Objetivo del proyecto
 
-El MVP busca construir un flujo completo capaz de:
+El objetivo de G10 CommunityLab E32 es construir un sistema capaz de:
 
-1. Recibir un lote de mensajes en JSON o CSV.
-2. Validar y normalizar los datos.
-3. Eliminar duplicados.
+1. Recibir datos provenientes de una comunidad.
+2. Ingerir lotes de mensajes en formato JSON/CSV.
+3. Validar, limpiar, normalizar y deduplicar la información.
 4. Analizar los mensajes mediante inteligencia artificial.
-5. Identificar sentimiento, temas, relevancia y fuentes.
-6. Calcular la relevancia de los momentos detectados.
-7. Clasificar cada interacción en una de las rutas definidas.
-8. Generar diferentes activos de contenido.
-9. Mantener las fuentes originales de cada activo.
-10. Permitir revisión, edición, rechazo y aprobación.
-11. Registrar las decisiones de curaduría.
-12. Almacenar los paquetes generados en OCI Object Storage.
-13. Exponer el procesamiento mediante una API.
-14. Visualizar resultados mediante un panel web.
-15. Integrar progresivamente Discord como fuente en vivo.
-
----
-
-## 🧠 Las 4 rutas principales del sistema
-
-El pipeline de CommunityLab se organiza alrededor de cuatro rutas:
-
-MENSAJE
-↓
-INGESTA
-↓
-ANÁLISIS
-↓
-SCORING
-↓
-ROUTER
-↓
-LOGRO / DUDAS / PERÍODO / BLOQUEO
-
-### 1. Logro
-
-Detecta momentos de logro o progreso.
-
-Salida principal:
-
-Post LinkedIn/X
-
-### 2. Dudas
-
-Detecta dudas recurrentes o preguntas de utilidad para la comunidad.
-
-Salida principal:
-
-FAQ / Tip técnico
-
-### 3. Período
-
-Agrupa información relevante de un período determinado.
-
-Salida principal:
-
-Community Highlights / Newsletter
-
-### 4. Bloqueo
-
-Detecta señales de bloqueo o dificultades que requieren atención.
-
-Salida principal:
-
-Alerta interna
-
-Las alertas de bloqueo son internas y no deben publicarse como contenido de distribución.
-
----
-
-## 🏗️ Arquitectura general
-
-La arquitectura propuesta para el MVP sigue el siguiente flujo:
-
-Discord / JSON / CSV
-↓
-INGESTA
-↓
-LIMPIEZA
-↓
-ANÁLISIS
-↓
-SCORING
-↓
-ROUTER
-↓
-LANGGRAPH
-↓
-LOGRO / DUDAS / PERÍODO / BLOQUEO
-↓
-GENERADORES
-↓
-CONSOLIDACIÓN
-↓
-PostgreSQL
-↓
-API
-↓
-FRONTEND
-↓
-CURADURÍA
-↓
-APROBACIÓN
-↓
-OCI OBJECT STORAGE
-
-LangGraph actúa como componente de orquestación del pipeline, coordinando los diferentes nodos de procesamiento, análisis, scoring, routing, generación y consolidación.
-
----
-
-## 🧩 Arquitectura de servicios
-
-La arquitectura de ejecución está diseñada alrededor de Docker Compose.
-
-Los servicios principales previstos son:
-
-Docker Compose
-↓
-Proxy
-↓
-Web
-↓
-API
-↓
-Worker
-↓
-PostgreSQL
-
-El Worker será responsable de ejecutar el procesamiento asíncrono y coordinar el pipeline de inteligencia artificial.
-
-Los componentes previstos son:
-
-- Proxy.
-- Web.
-- API.
-- Worker.
-- PostgreSQL.
-
-La configuración deberá contemplar:
-
-- Healthchecks.
-- Reinicio automático.
-- Red privada.
-- Imágenes compatibles con ARM64.
-- Variables de entorno.
-- Separación de secretos.
-
-Estos componentes se implementarán progresivamente de acuerdo con el plan de ejecución.
-
----
-
-## 🐳 Docker Compose
-
-El proyecto utiliza Docker Compose como mecanismo previsto para levantar el entorno de desarrollo y posteriormente el entorno de ejecución en OCI.
-
-Archivo principal:
-
-docker-compose.yml
-
-La estructura actual del repositorio mantiene además:
-
-infrastructure/
-└── docker/
-
-La carpeta infrastructure/docker/ queda destinada a configuraciones y recursos específicos de Docker que puedan incorporarse durante la implementación.
-
-El plan de ejecución contempla los siguientes servicios:
-
-proxy
-web
-api
-worker
-postgres
-
-Actualmente, la configuración de Docker Compose se encuentra en etapa inicial y será ampliada progresivamente conforme se implementen los servicios.
-
----
-
-## ⚙️ Stack tecnológico
-
-### Backend
-
-- Python
-- FastAPI
-- Pydantic
-- SQLAlchemy
-- PostgreSQL
-
-El backend será responsable de:
-
-- Exponer la API.
-- Recibir lotes de procesamiento.
-- Validar los contratos.
-- Gestionar los estados.
-- Comunicarse con PostgreSQL.
-- Coordinar el procesamiento.
-- Entregar resultados al frontend.
-
-### Frontend
-
-La arquitectura definida contempla:
-
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-
-La estructura inicial del frontend está preparada para desarrollar la interfaz del panel de CommunityLab.
-
-Entre las funcionalidades previstas se encuentran:
-
-- Pantalla de ingesta.
-- Carga de JSON/CSV.
-- Previsualización de mensajes.
-- Visualización de activos.
-- Visualización de fuentes.
-- Curaduría.
-- Edición de borradores.
-- Estados de contenido.
-- KPIs.
-- Alertas.
-
-### Inteligencia Artificial
-
-La arquitectura del plan contempla el uso de:
-
-- Gemini API.
-- LangGraph.
-- Modelos de lenguaje.
-- Prompts especializados.
-- Salidas JSON estructuradas.
-
-La API de Gemini será utilizada para analizar los mensajes y generar resultados estructurados.
-
-El sistema deberá contemplar:
-
-- Claves mediante variables de entorno.
-- Control de cuotas.
-- Manejo de errores.
-- Timeouts.
-- JSON inválido.
-- Modelo de respaldo cuando corresponda.
-
-Las credenciales nunca deben almacenarse directamente en el repositorio.
-
----
-
-## 🧠 LangGraph
-
-LangGraph será utilizado para construir el módulo central de orquestación del pipeline.
-
-El grafo contempla nodos para:
-
+5. Identificar sentimientos, temas, relevancia, preguntas frecuentes y testimonios.
+6. Generar activos de contenido a partir de la información analizada.
+7. Mantener las fuentes de los mensajes utilizados.
+8. Guardar los paquetes generados en OCI Object Storage.
+9. Exponer el procesamiento mediante una API.
+10. Mostrar los resultados mediante una interfaz web.
+
+Flujo general previsto:
+
+```text
+Discord
+   │
+   ▼
 Ingesta
-↓
-Análisis
-↓
-Scoring
-↓
-Router
-↓
-Generadores
-↓
-Consolidación
-
-El estado compartido permitirá transportar la información procesada entre los diferentes nodos.
+   │
+   ▼
+Limpieza y normalización
+   │
+   ▼
+Análisis / IA
+   │
+   ▼
+Generación de activos
+   │
+   ├── LinkedIn / X
+   ├── FAQ / Tip
+   └── Community Highlights
+   │
+   ▼
+PostgreSQL
+   │
+   ▼
+OCI Object Storage
+   │
+   ▼
+FastAPI
+   │
+   ▼
+Frontend Web
+```
 
 ---
 
-## 📊 Análisis de mensajes
+# 2. Estado actual del proyecto
 
-Cada mensaje será procesado para obtener información estructurada.
+El proyecto se encuentra en fase de construcción del MVP.
 
-El análisis contempla como mínimo:
+## Actualmente implementado
 
-- Sentimiento.
-- Temas.
-- Relevancia.
-- Fuentes.
-- Ruta esperada.
-- Información necesaria para la generación del activo.
+* Repositorio monorepo creado.
+* Estructura inicial del proyecto creada.
+* Flujo de trabajo mediante Git y GitHub.
+* Backend inicializado con FastAPI.
+* Endpoint de salud `GET /health`.
+* Endpoint mock `POST /api/v1/procesamientos`.
+* Documentación automática mediante Swagger/OpenAPI.
+* Entorno virtual Python local.
+* `.gitignore` configurado para archivos de Python y entornos virtuales.
+* Primer commit funcional del backend publicado en GitHub.
 
-La salida debe respetar el contrato JSON acordado.
+## En desarrollo / pendientes
 
-Ejemplo conceptual:
+* Docker Compose completo ARM64.
+* Frontend Next.js + React + TypeScript + Tailwind.
+* Módulo de ingestión JSON/CSV.
+* Limpieza, normalización y deduplicación.
+* Integración de Gemini.
+* Procesamiento mediante worker.
+* PostgreSQL para estados y procesamiento.
+* Generación de activos.
+* Almacenamiento en OCI Object Storage.
+* Endpoint real de procesamiento.
+* Pruebas End-to-End.
+* Despliegue completo en OCI.
 
+---
+
+# 3. Repositorio
+
+Repositorio oficial:
+
+```text
+https://github.com/No-Country-simulation/G10-CommunityLabE32
+```
+
+La rama utilizada actualmente para el trabajo del backend es:
+
+```text
+chore/github-workflow
+```
+
+Los cambios deben realizarse mediante commits claros y posteriormente sincronizarse con GitHub.
+
+---
+
+# 4. Estructura del proyecto
+
+La estructura principal del monorepo es:
+
+```text
+G10-CommunityLabE32/
+│
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   │
+│   │   ├── api/
+│   │   │   ├── __init__.py
+│   │   │   └── routes/
+│   │   │       ├── __init__.py
+│   │   │       └── procesamientos.py
+│   │   │
+│   │   ├── schemas/
+│   │   │   └── __init__.py
+│   │   │
+│   │   └── main.py
+│   │
+│   └── tests/
+│
+├── frontend/
+│
+├── data/
+│
+├── docs/
+│
+├── infrastructure/
+│
+├── pipelines/
+│   ├── ingestion/
+│   ├── cleaning/
+│   ├── analysis/
+│   └── embeddings/
+│
+├── .env.example
+├── .gitignore
+├── docker-compose.yml
+├── LICENSE
+└── README.md
+```
+
+La estructura se irá completando a medida que cada módulo del MVP sea implementado.
+
+---
+
+# 5. Backend
+
+El backend utiliza:
+
+* Python
+* FastAPI
+* Uvicorn
+* Pydantic
+* PostgreSQL como base de datos prevista
+* Docker como mecanismo de ejecución previsto
+
+Actualmente FastAPI está funcionando localmente.
+
+## Estructura actual
+
+```text
+backend/
+└── app/
+    ├── main.py
+    ├── api/
+    │   └── routes/
+    │       └── procesamientos.py
+    └── schemas/
+```
+
+---
+
+# 6. Endpoint de salud
+
+Actualmente existe:
+
+```text
+GET /health
+```
+
+Su objetivo es verificar que la API está funcionando.
+
+Respuesta actual:
+
+```json
 {
-  "mensaje_id": "m-01",
-  "sentimiento": "positivo",
-  "temas": [
-    "proyecto",
-    "aprendizaje"
-  ],
-  "relevancia": 0.92,
-  "fuentes": [
-    "discord"
-  ],
-  "ruta": "logro"
+  "estado": "ok",
+  "servicio": "communitylab-api"
 }
-
-El esquema definitivo será documentado y validado antes de integrarse al pipeline definitivo.
-
----
-
-## 📈 Scoring de relevancia
-
-El sistema contará con un puntuador para identificar los momentos más relevantes de la comunidad.
-
-Los criterios contemplados son:
-
-- Hito logrado.
-- Emoción.
-- Utilidad.
-- Recurrencia.
-
-Los umbrales deberán ser configurables.
-
-El scoring permitirá seleccionar los mensajes o grupos de mensajes con mayor potencial para generar contenido útil.
+```
 
 ---
 
-## 📦 Contrato de entrada
+# 7. Endpoint mock de procesamiento
 
-El sistema recibirá lotes de información mediante JSON o CSV.
+Como parte de la inicialización del backend se implementó:
 
-El esquema común deberá permitir representar información como:
-
-{
-  "mensaje_id": "m-01",
-  "autor": "usuario_demo",
-  "canal": "testimonios",
-  "fecha": "2026-09-22T10:00:00",
-  "texto": "Finalmente terminé mi proyecto."
-}
-
-Los datos deberán ser:
-
-- Validados.
-- Normalizados.
-- Deduplicados.
-
-El lote común será utilizado tanto por los datos sintéticos como por la futura integración con Discord.
-
----
-
-## 🧪 Dataset del MVP
-
-Para la evaluación inicial se utilizará un dataset controlado con autores ficticios.
-
-El plan contempla:
-
-- Casos m-01 a m-06.
-- Entre 30 y 50 mensajes etiquetados de referencia.
-- Datos estructurados en JSON/CSV.
-- Uso del lote para evaluar el comportamiento de las cuatro rutas.
-
-El dataset etiquetado permitirá comparar:
-
-Resultado esperado
-↓
-Resultado producido por IA
-↓
-Ajuste de prompts y umbrales
-
----
-
-## 🔄 Pipeline de procesamiento
-
-El pipeline general es:
-
-1. INGESTA
-↓
-2. VALIDACIÓN
-↓
-3. NORMALIZACIÓN
-↓
-4. DEDUPLICACIÓN
-↓
-5. ANÁLISIS IA
-↓
-6. SCORING
-↓
-7. ROUTER
-↓
-8. GENERACIÓN
-↓
-9. CONSOLIDACIÓN
-↓
-10. CURADURÍA
-↓
-11. APROBACIÓN
-↓
-12. ALMACENAMIENTO OCI
-
----
-
-## 🧵 Worker
-
-El procesamiento será ejecutado de forma asíncrona mediante un Worker.
-
-El Worker será integrado dentro de Docker Compose.
-
-Responsabilidades previstas:
-
-- Recibir trabajos.
-- Procesar lotes.
-- Ejecutar el pipeline.
-- Coordinar LangGraph.
-- Gestionar llamadas de IA.
-- Actualizar estados.
-- Manejar errores.
-- Registrar resultados.
-
-El Worker también servirá como punto de integración para componentes de Discord e inteligencia artificial.
-
----
-
-## 🗄️ PostgreSQL
-
-PostgreSQL será la base de datos principal del proyecto.
-
-El modelo contempla entidades relacionadas con:
-
-- Interacciones.
-- Activos.
-- Estados.
-- Decisiones.
-- Consentimiento.
-- Procesamientos.
-
-Los estados de curaduría deberán diferenciar claramente:
-
-Generado
-↓
-Revisado
-↓
-Aprobado
-
-Generación, aprobación y consentimiento son conceptos diferentes y deberán mantenerse separados.
-
----
-
-## 📝 Curaduría
-
-El panel permitirá gestionar los activos generados por el sistema.
-
-Las operaciones contempladas son:
-
-Listar
-↓
-Editar
-↓
-Rechazar
-↓
-Aprobar
-
-Cada decisión deberá registrarse en PostgreSQL.
-
-La versión aprobada deberá poder almacenarse posteriormente en OCI Object Storage.
-
----
-
-## 🔐 Consentimiento
-
-Para versiones identificables se contempla un mecanismo de consentimiento verificable.
-
-Durante la demostración se utilizarán:
-
-- Autores ficticios.
-- Datos sintéticos.
-- Etiqueta visible de aprobación de demostración.
-
-El objetivo es separar claramente el contenido generado de cualquier publicación real sin consentimiento.
-
----
-
-## ☁️ Oracle Cloud Infrastructure
-
-El proyecto contempla desplegar la solución utilizando Oracle Cloud Infrastructure (OCI).
-
-La infraestructura prevista incluye:
-
-OCI
-↓
-VM Always Free
-↓
-Red
-↓
-Docker Compose
-↓
-Object Storage
-
-La VM prevista en el plan es:
-
-Ampere A1 ARM64
-Ubuntu
-
-La infraestructura deberá utilizar recursos compatibles con la capa Always Free cuando sea posible.
-
----
-
-## 📦 OCI Object Storage
-
-Object Storage será utilizado para almacenar los paquetes generados y las versiones aprobadas.
-
-La estructura prevista incluye:
-
-demo/
-└── {periodo}/
-    └── lotes/
-        └── {id}/
-            └── paquete.json
-
-aprobados/
-
-El paquete generado deberá almacenarse y confirmarse únicamente después de haber sido escrito correctamente.
-
----
-
-## 🌐 API
-
-La API será desarrollada con FastAPI.
-
-El contrato inicial contempla:
-
+```text
 POST /api/v1/procesamientos
+```
 
-Durante la primera etapa podrá utilizarse una respuesta simulada para desbloquear el desarrollo paralelo de frontend y backend.
+Actualmente es un **endpoint mock**.
 
-Posteriormente se implementará el procesamiento real.
+Su función es permitir que frontend y backend puedan comenzar a trabajar en paralelo antes de que esté terminado el procesamiento real.
 
-La respuesta final deberá contemplar información como:
+Respuesta actual:
 
+```json
+{
+  "procesamiento_id": "mock-001",
+  "estado": "recibido",
+  "mensaje": "Procesamiento recibido correctamente"
+}
+```
+
+Este contrato es provisional para la etapa mock.
+
+El contrato completo del procesamiento real deberá respetar los campos acordados para el MVP.
+
+Entre los campos previstos para la respuesta real están:
+
+```text
 procesamiento_id
 resumen
 activos
 alertas
 almacenamiento_oci
+```
+
+No se debe asumir que el contrato definitivo está cerrado hasta que sea documentado y acordado por el equipo.
 
 ---
 
-## 📡 Integración con Discord
+# 8. Ejecutar el backend localmente
 
-Durante las siguientes etapas se integrará Discord como fuente de información en vivo.
+## Requisitos
 
-El sistema deberá:
+Se necesita:
 
-1. Leer únicamente canales autorizados.
-2. Obtener los mensajes.
-3. Normalizarlos al mismo esquema utilizado por el lote JSON/CSV.
-4. Enviarlos al pipeline.
-5. Analizarlos.
-6. Generar las rutas correspondientes.
-
-También se contempla un bot de Discord capaz de:
-
-- Responder dudas técnicas.
-- Detectar testimonios.
-- Detectar bloqueos.
-- Disparar alertas internas.
+* Python
+* Git
+* Visual Studio Code recomendado
 
 ---
 
-## 📊 Dashboard y KPIs
+## Crear entorno virtual
 
-El panel deberá mostrar información real proveniente del backend.
+Desde la raíz del proyecto:
 
-KPIs previstos:
+```bash
+python3 -m venv .venv
+```
 
-- Mensajes.
-- Activos.
-- Alertas.
-- Paquete OCI.
-- Sentimiento.
-- Temas en tendencia.
+Activar el entorno:
 
-También se contempla mostrar las fuentes asociadas a cada activo.
+```bash
+source .venv/bin/activate
+```
 
----
+Cuando esté activo deberá aparecer algo similar a:
 
-## 📁 Estructura actual del repositorio
-
-La estructura actual del repositorio es:
-
-G10-CommunityLabE32/
-├── .github/
-│   └── PULL_REQUEST_TEMPLATE.md
-│
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   │   └── routes/
-│   │   ├── database/
-│   │   ├── models/
-│   │   ├── schemas/
-│   │   └── services/
-│   │
-│   └── tests/
-│
-├── data/
-│   ├── examples/
-│   ├── processed/
-│   │   └── .gitkeep
-│   └── raw/
-│       └── .gitkeep
-│
-├── docs/
-│   └── .gitkeep
-│
-├── frontend/
-│   └── .gitkeep
-│
-├── infrastructure/
-│   ├── docker/
-│   │   └── .gitkeep
-│   └── oci/
-│       └── .gitkeep
-│
-├── pipelines/
-│
-├── .env.example
-├── .gitignore
-├── CONTRIBUTING.md
-├── docker-compose.yml
-├── LICENSE
-└── README.md
-
-Esta estructura corresponde al estado actual del repositorio y está preparada para que cada componente se implemente progresivamente.
+```text
+(.venv) TARECK ~/G10-CommunityLabE32 %
+```
 
 ---
 
-## 📂 Organización del Backend
+# 9. Instalar dependencias iniciales
 
-El backend está preparado con una separación por responsabilidades:
+Con el entorno virtual activo:
 
-backend/
-└── app/
-    ├── api/
-    │   └── routes/
-    │
-    ├── database/
-    │
-    ├── models/
-    │
-    ├── schemas/
-    │
-    └── services/
+```bash
+python -m pip install fastapi uvicorn
+```
 
-### api/routes
-
-Contendrá los endpoints de FastAPI.
-
-### database
-
-Configuración y conexión con PostgreSQL.
-
-### models
-
-Modelos de datos mediante SQLAlchemy.
-
-### schemas
-
-Contratos de entrada y salida mediante Pydantic.
-
-### services
-
-Lógica de negocio y comunicación con otros componentes.
-
-### tests
-
-Pruebas automatizadas del backend.
+Las dependencias adicionales se irán incorporando conforme avance el proyecto.
 
 ---
 
-## 📂 Datos
+# 10. Ejecutar FastAPI
 
-La estructura de datos está dividida en:
+Desde la raíz:
 
-data/
-├── examples/
-├── processed/
-└── raw/
+```bash
+python -m uvicorn backend.app.main:app --reload
+```
 
-### raw
+La API quedará disponible localmente en:
 
-Datos originales sin procesar.
-
-### processed
-
-Datos limpiados y preparados.
-
-### examples
-
-Ejemplos y datos utilizados para pruebas o documentación.
+```text
+http://127.0.0.1:8000
+```
 
 ---
 
-## 📂 Infraestructura
+# 11. Swagger / documentación de la API
 
-infrastructure/
-├── docker/
-└── oci/
+FastAPI genera automáticamente la documentación interactiva.
 
-### Docker
+Abrir:
 
-Configuraciones relacionadas con contenedores y despliegue.
+```text
+http://127.0.0.1:8000/docs
+```
 
-### OCI
+En Swagger actualmente debe aparecer:
 
-Configuraciones y recursos relacionados con Oracle Cloud Infrastructure.
+```text
+GET  /health
+POST /api/v1/procesamientos
+```
 
-El archivo principal de orquestación se encuentra actualmente en la raíz:
+El endpoint `POST /api/v1/procesamientos` puede ejecutarse desde Swagger utilizando:
 
-docker-compose.yml
+```text
+Try it out
+```
+
+y posteriormente:
+
+```text
+Execute
+```
 
 ---
 
-## 📂 Pipelines
+# 12. Arquitectura prevista
 
-La carpeta:
+La arquitectura general del MVP está organizada por componentes:
 
-pipelines/
+```text
+                  ┌─────────────────┐
+                  │    Frontend     │
+                  │ Next.js / React │
+                  └────────┬────────┘
+                           │
+                           ▼
+                  ┌─────────────────┐
+                  │    FastAPI      │
+                  │      API        │
+                  └────────┬────────┘
+                           │
+                           ▼
+                  ┌─────────────────┐
+                  │     Worker      │
+                  │ procesamiento   │
+                  └────────┬────────┘
+                           │
+             ┌─────────────┼─────────────┐
+             ▼             ▼             ▼
+        PostgreSQL      Pipelines        IA
+                         │              Gemini
+                         │
+                         ▼
+                  Generación de
+                     activos
+                           │
+                           ▼
+                  OCI Object Storage
+```
 
-está destinada a contener los diferentes procesos de transformación de datos e inteligencia artificial.
+---
 
-La arquitectura contempla componentes relacionados con:
+# 13. Pipeline de datos
 
-Ingesta
-↓
-Limpieza
-↓
+El pipeline previsto para el MVP es:
+
+```text
+Lote JSON / CSV
+      │
+      ▼
+Validación
+      │
+      ▼
+Normalización
+      │
+      ▼
+Deduplicación
+      │
+      ▼
 Análisis
-↓
-Embeddings
-↓
-Scoring
-↓
-Router
-↓
-Generadores
-↓
-Consolidación
+      │
+      ├── Sentimiento
+      ├── Temas
+      ├── Relevancia
+      └── Fuentes
+      │
+      ▼
+Generación de contenido
+      │
+      ├── LinkedIn / X
+      ├── FAQ / Tip
+      └── Community Highlights
+      │
+      ▼
+Paquete de resultados
+      │
+      ▼
+OCI Object Storage
+```
 
 ---
 
-## 🔐 Variables de entorno
+# 14. LangGraph
 
-Las credenciales y configuraciones sensibles deben mantenerse fuera del repositorio.
+LangGraph está previsto para organizar el flujo de procesamiento y los diferentes pasos del pipeline.
 
-Archivo de referencia:
+La arquitectura definitiva del grafo será documentada en:
 
-.env.example
+```text
+docs/
+```
 
-Nunca deben subirse al repositorio:
+El grafo deberá permitir organizar etapas como:
 
+```text
+Ingesta
+   ↓
+Limpieza
+   ↓
+Análisis
+   ↓
+Generación
+   ↓
+Validación
+   ↓
+Almacenamiento
+```
+
+Los nodos de error y reintentos para problemas de IA también forman parte del desarrollo posterior.
+
+---
+
+# 15. Inteligencia Artificial
+
+El proyecto contempla el uso de **Gemini** para el análisis de los mensajes.
+
+El análisis deberá contemplar información como:
+
+* Sentimiento.
+* Temas.
+* Relevancia.
+* Fuentes.
+* Preguntas frecuentes.
+* Testimonios.
+* Información útil para generación de contenido.
+
+La salida del análisis deberá mantenerse estructurada para poder ser procesada por los siguientes componentes del pipeline.
+
+---
+
+# 16. Generación de activos
+
+Uno de los objetivos principales del proyecto es convertir la información de la comunidad en activos reutilizables.
+
+Los activos contemplados para el MVP incluyen:
+
+### LinkedIn / X
+
+Generación de contenido para redes sociales a partir de los hallazgos de la comunidad.
+
+### FAQ / Tip
+
+Conversión de preguntas o conocimientos frecuentes en contenido útil.
+
+### Community Highlights
+
+Identificación de momentos, opiniones o aportes relevantes de la comunidad.
+
+Los activos deben conservar las fuentes utilizadas para generarlos.
+
+---
+
+# 17. PostgreSQL
+
+PostgreSQL está contemplado como la base de datos del sistema.
+
+Será utilizada para manejar información relacionada con:
+
+* Procesamientos.
+* Estados.
+* Mensajes o datos normalizados según el diseño definitivo.
+* Resultados del procesamiento.
+* Información necesaria para coordinar el worker.
+
+La implementación completa de PostgreSQL forma parte de las siguientes etapas del proyecto.
+
+---
+
+# 18. Worker
+
+El proyecto contempla un worker para ejecutar el procesamiento de los lotes de forma asíncrona.
+
+El worker tendrá responsabilidad sobre el procesamiento del lote y la ejecución de los componentes correspondientes del pipeline.
+
+La implementación se realizará dentro de Docker Compose.
+
+---
+
+# 19. Docker Compose
+
+El objetivo es disponer de una arquitectura compuesta por servicios independientes.
+
+La configuración prevista contempla:
+
+```text
+proxy
+web
+api
+worker
+postgres
+```
+
+Además se contemplan:
+
+* Healthchecks.
+* Reinicio automático.
+* Red privada entre servicios.
+* Imágenes compatibles con ARM64.
+* Secretos fuera del repositorio.
+
+La configuración de Docker Compose se encuentra actualmente en desarrollo.
+
+---
+
+# 20. OCI
+
+OCI será utilizado como infraestructura de despliegue y almacenamiento del proyecto.
+
+La arquitectura contempla:
+
+```text
+OCI
+│
+├── VM Always Free
+│
+└── Object Storage
+```
+
+La VM prevista utiliza:
+
+```text
+Ampere A1
+ARM64
+Ubuntu
+```
+
+La configuración contempla:
+
+* VCN.
+* Subred.
+* IP pública.
+* Claves SSH.
+* Reglas de entrada.
+* Docker.
+* Servicios del proyecto.
+
+---
+
+# 21. Estado de OCI
+
+Actualmente la creación de la VM Always Free está bloqueada por disponibilidad de capacidad en la región utilizada.
+
+Por esta razón, el equipo continúa desarrollando localmente mientras se intenta nuevamente el aprovisionamiento.
+
+Esto **no bloquea el desarrollo del código**.
+
+La estrategia actual es:
+
+```text
+Desarrollo local
+       │
+       ▼
+Git / GitHub
+       │
+       ▼
+Pruebas
+       │
+       ▼
+OCI cuando la infraestructura esté disponible
+```
+
+---
+
+# 22. OCI Object Storage
+
+El proyecto contempla almacenar los paquetes generados en Object Storage.
+
+La estructura prevista es:
+
+```text
+demo/
+└── {periodo}/
+    └── lotes/
+        └── {id}/
+            └── paquete.json
+```
+
+También se contempla una ruta:
+
+```text
+aprobados/
+```
+
+El almacenamiento del paquete deberá confirmarse solamente después de que el archivo haya sido escrito correctamente.
+
+Esta parte todavía está pendiente de implementación.
+
+---
+
+# 23. Variables de entorno y secretos
+
+Los secretos **no deben subirse al repositorio**.
+
+Utilizar:
+
+```text
 .env
-API Keys
-Secret Keys
-Tokens
-Credenciales de OCI
-Credenciales de PostgreSQL
-Credenciales de Discord
+```
 
-Las claves deben gestionarse mediante variables de entorno.
+para valores locales y secretos.
+
+El repositorio solamente debe contener:
+
+```text
+.env.example
+```
+
+como referencia de las variables necesarias.
+
+Nunca subir:
+
+```text
+.env
+```
+
+ni claves API, credenciales, claves SSH u otros secretos.
 
 ---
 
-## 🌿 Git y GitHub
+# 24. Git y flujo de trabajo
 
-El proyecto utiliza Git y GitHub para el control de versiones y colaboración.
+El proyecto utiliza Git y GitHub para trabajar en equipo.
 
-El repositorio cuenta con:
+Cada integrante debe:
 
-.github/
-└── PULL_REQUEST_TEMPLATE.md
+1. Actualizar su repositorio.
+2. Trabajar en su rama correspondiente.
+3. Realizar cambios pequeños y relacionados.
+4. Probar los cambios localmente.
+5. Crear commits descriptivos.
+6. Hacer push de la rama.
+7. Crear Pull Request cuando corresponda.
+8. Revisar conflictos antes de integrar cambios.
 
-También cuenta con:
+---
 
-CONTRIBUTING.md
+# 25. Convención de commits
 
-Estos archivos establecen las reglas de colaboración iniciales del equipo.
-
-### Rama principal
-
-La rama principal actual es:
-
-master
-
-Esta rama representa la versión principal y estable del proyecto.
-
-No se deben realizar cambios directamente sobre master.
-
-### Convención de ramas
-
-Las ramas se crean según el tipo de trabajo:
-
-feature/<nombre-tarea>
-fix/<nombre-error>
-chore/<nombre-tarea>
-docs/<nombre-tarea>
+Se recomienda utilizar commits siguiendo una convención tipo Conventional Commits.
 
 Ejemplos:
 
-feature/backend-api
-feature/database-model
-feature/data-ingestion
-fix/postgres-connection
-chore/docker-config
-docs/architecture
+```text
+feat: agregar endpoint de procesamiento
+fix: corregir validación del lote
+docs: actualizar README
+refactor: reorganizar servicio de ingesta
+test: agregar pruebas de procesamiento
+chore: actualizar configuración docker
+```
 
-Las ramas representan tareas concretas. No es necesario crear ramas permanentes o vacías para cada categoría.
+El primer commit funcional del backend realizado en esta etapa fue:
 
-La estrategia definitiva de organización de ramas queda sujeta al acuerdo del equipo.
-
-### Convención de commits
-
-Los commits utilizan la estructura:
-
-tipo: descripción breve
-
-Tipos:
-
-- feat → nueva funcionalidad.
-- fix → corrección.
-- docs → documentación.
-- test → pruebas.
-- refactor → reorganización.
-- chore → configuración o mantenimiento.
-
-Ejemplo:
-
-feat: agregar endpoint de procesamientos
-
-### Pull Request
-
-Los cambios destinados a master deben realizarse mediante Pull Request.
-
-El Pull Request debe indicar:
-
-- Qué cambio se realizó.
-- Qué tarea del cronograma corresponde.
-- Qué archivos fueron modificados.
-- Qué pruebas se realizaron.
-- Si fue necesario actualizar la documentación.
-
-La plantilla se encuentra en:
-
-.github/PULL_REQUEST_TEMPLATE.md
-
-### Revisión
-
-Antes del merge, el Pull Request debe ser revisado por otro integrante del equipo.
-
-La revisión debe comprobar:
-
-- Correspondencia con la tarea.
-- Ausencia de errores evidentes.
-- Respeto por la estructura del proyecto.
-- Ausencia de credenciales o información sensible.
-- Cumplimiento de las convenciones establecidas.
-
-La persona responsable de la aprobación final y del merge será definida por el equipo.
+```text
+feat: inicializar backend FastAPI y endpoint mock
+```
 
 ---
 
-## 👥 Equipo
+# 26. Estado del backend actual
 
-### Catálogo de integrantes
+Actualmente el backend tiene:
 
-| ID | Integrante | Rol principal |
-|---|---|---|
-| EQ-01 | Jose Angel Olan de los Santos | Data Engineer |
-| EQ-02 | Ianjaner Alfonso Beltran Guañarita | Full Stack Developer |
-| EQ-03 | Fredy Pachon | Backend Developer |
-| EQ-04 | Zeus Adonis Javier Diaz Herrera | AI Engineer |
-| EQ-05 | Paulo Andres Escobar Solorzano | Autonomous Agent Engineer |
-| EQ-06 | Santiago Horta Hurtado | Autonomous Agent Engineer |
-| EQ-07 | Fabian Hernández Alejandro | Prompt Engineer |
-| EQ-08 | Vania Sherel Cruz Hernandez | Vibe Coder |
-| EQ-09 | Elizabeth Aguilar | Project Manager |
+```text
+backend/app/
+│
+├── __init__.py
+│
+├── main.py
+│
+├── api/
+│   ├── __init__.py
+│   └── routes/
+│       ├── __init__.py
+│       └── procesamientos.py
+│
+└── schemas/
+    └── __init__.py
+```
 
-Los roles corresponden a la organización definida en el plan de ejecución.
+El backend puede ejecutarse localmente mediante:
 
----
-
-## 📅 Plan de ejecución
-
-El proyecto se desarrolla mediante un plan de ejecución de:
-
-5 semanas de ejecución
-+
-Demo Day
-
-El plan contempla las siguientes etapas principales:
-
-SEMANA 0
-Organización y kickoff
-↓
-SEMANA 1
-Infraestructura y bases del MVP
-↓
-SEMANA 2
-Pipeline, IA y generación
-↓
-SEMANA 3
-Discord, curaduría y diferenciales
-↓
-SEMANA 4
-Pruebas cloud y estabilización
-↓
-SEMANA 5
-Correcciones, evidencia y entrega
-↓
-DEMO DAY
-Presentación final
-
-El plan establece además reuniones de:
-
-- Sprint Planning.
-- Reunión diaria.
-- Sprint Demo.
-- Pre Demo.
-- Demo Day.
+```bash
+python -m uvicorn backend.app.main:app --reload
+```
 
 ---
 
-## 🗓️ Semana 1
+# 27. Estado del frontend
 
-Los objetivos principales incluyen:
+El frontend forma parte de la arquitectura prevista y será construido utilizando:
 
-- Finalizar el repositorio GitHub.
-- Definir ramas y convenciones.
-- Configurar .gitignore.
-- Configurar OCI.
-- Crear VM Always Free.
-- Crear Object Storage.
-- Preparar Docker Compose.
-- Inicializar FastAPI.
-- Publicar el contrato inicial de la API.
-- Inicializar frontend.
-- Diseñar modelo PostgreSQL.
-- Definir esquema JSON/CSV.
-- Preparar dataset etiquetado.
-- Configurar Gemini.
-- Diseñar el pipeline de cuatro rutas.
-- Definir prompts iniciales.
-- Definir identidad visual.
-
----
-
-## 🗓️ Semana 2
-
-Los objetivos principales incluyen:
-
-- Implementar ingesta JSON/CSV.
-- Validar y normalizar datos.
-- Deduplicar mensajes.
-- Integrar Gemini.
-- Analizar sentimiento, temas, relevancia y fuentes.
-- Implementar scoring.
-- Construir grafo LangGraph.
-- Implementar router.
-- Crear generadores.
-- Manejar errores de Gemini.
-- Implementar worker.
-- Gestionar estados en PostgreSQL.
-- Guardar paquetes en OCI.
-- Implementar endpoint real.
-- Probar el sistema con Postman.
-
----
-
-## 🗓️ Semana 3
-
-Los objetivos principales incluyen:
-
-- Integrar Discord.
-- Leer canales autorizados.
-- Normalizar mensajes.
-- Implementar bot.
-- Detectar testimonios.
-- Detectar bloqueos.
-- Implementar endpoints de curaduría.
-- Implementar aprobación y rechazo.
-- Registrar decisiones.
-- Implementar editor de borradores.
-- Gestionar consentimiento.
-- Mostrar KPIs.
-- Generar las tres transformaciones principales.
-- Validar las cuatro rutas.
-
----
-
-## 🗓️ Semana 4
-
-La prioridad será estabilizar el sistema.
-
-Se contemplan:
-
-- Pruebas end-to-end.
-- Pruebas de reinicio.
-- Persistencia de PostgreSQL.
-- Persistencia de OCI.
-- Pruebas de fallos.
-- JSON inválido.
-- Errores de Gemini.
-- Falta de cuota.
-- OCI inaccesible.
-- Pruebas de escala.
-- Endurecimiento del despliegue.
-- HTTPS.
-- Gestión de secretos.
-- Respaldo de PostgreSQL.
-- Pulido visual.
-
-Desde el 12/10 se contempla el congelamiento de funcionalidades:
-
-Solo pruebas
-+
-Correcciones
-+
-Mejoras visuales
-
----
-
-## 🗓️ Semana 5
-
-La última etapa estará enfocada en:
-
-- Correcciones finales.
-- Evidencia.
-- Documentación.
-- README final.
-- Guía de despliegue.
-- Prueba desde una VM limpia.
-- Evidencia de OCI.
-- Preparación del pitch.
-- Grabación del video demo.
-- Edición del video.
-- Verificación de enlaces.
-- Checklist final.
-- Preparación del Demo Day.
-
----
-
-## 🎬 Demo del MVP
-
-La demostración final deberá mostrar un flujo completo:
-
-6 mensajes sintéticos
-↓
-Ingesta
-↓
-Análisis
-↓
-Scoring
-↓
-Router
-↓
-4 rutas
-↓
-Generación
-↓
-Curaduría
-↓
-Aprobación
-↓
-OCI
-↓
-Panel
-
-El plan contempla como demostración principal:
-
-Logro
-↓
-LinkedIn/X
-
-Duda
-↓
-FAQ/Tip
-
-Período
-↓
-Newsletter / Highlights
-
-Bloqueo
-↓
-Alerta interna
-
----
-
-## 🧪 Pruebas
-
-El sistema deberá contar progresivamente con pruebas para:
-
-- Validación de JSON.
-- Validación de CSV.
-- Duplicados.
-- Mensajes incompletos.
-- IA.
-- JSON inválido.
-- Timeouts.
-- Cuotas.
-- Router.
-- Generadores.
-- API.
-- PostgreSQL.
-- Worker.
-- OCI.
-- Discord.
-- Curaduría.
-- Persistencia.
-- Reinicio de servicios.
-
----
-
-## 📦 Estado del proyecto
-
-El repositorio se encuentra actualmente en la etapa inicial de ejecución.
-
-La base estructural del monorepo ya está creada y organizada para comenzar la implementación progresiva de los componentes definidos en el plan.
-
-Actualmente se dispone de:
-
-✓ Repositorio GitHub
-✓ Estructura de monorepo
-✓ Backend estructurado
-✓ Estructura inicial del frontend preparada
-✓ Data organizada
-✓ Docs preparada
-✓ Infrastructure preparada
-✓ Docker Compose en raíz
-✓ .env.example
-✓ .gitignore
-✓ CONTRIBUTING.md
-✓ Pull Request Template
-
-Los componentes funcionales serán implementados progresivamente de acuerdo con el plan de ejecución.
-
----
-
-## 🎯 Objetivo final
-
-El objetivo de CommunityLab es convertir:
-
-CONVERSACIONES
-↓
-DATOS
-↓
-ANÁLISIS
-↓
-INSIGHTS
-↓
-DECISIONES
-↓
-CONTENIDO
-↓
-CURADURÍA
-↓
-ACTIVOS APROBADOS
-↓
-DISTRIBUCIÓN
-
-utilizando:
-
-IA
-+
-LangGraph
-+
-FastAPI
-+
+```text
 Next.js
-+
+React
+TypeScript
+Tailwind CSS
+```
+
+La interfaz deberá permitir posteriormente:
+
+* Subir lotes JSON/CSV.
+* Previsualizar mensajes.
+* Enviar el lote al backend.
+* Mostrar el procesamiento.
+* Mostrar los activos generados.
+* Mostrar las fuentes asociadas.
+
+Durante el desarrollo inicial podrán utilizarse mocks mientras el endpoint real del backend no esté terminado.
+
+---
+
+# 28. Datos de prueba
+
+Para el MVP se contempla trabajar inicialmente con datos sintéticos que representen mensajes de una comunidad de Discord.
+
+Esto permite desarrollar y probar el pipeline sin depender inicialmente de una comunidad real.
+
+La demostración prevista contempla una corrida con mensajes sintéticos y generación de activos.
+
+---
+
+# 29. MVP
+
+El objetivo de la primera demostración funcional es conseguir un flujo completo:
+
+```text
+Mensajes sintéticos
+        │
+        ▼
+      Ingesta
+        │
+        ▼
+     Limpieza
+        │
+        ▼
+     Análisis IA
+        │
+        ▼
+Generación de activos
+        │
+        ├── Post
+        ├── FAQ
+        └── Highlights
+        │
+        ▼
+     OCI Storage
+```
+
+La demostración debe permitir comprobar que el procesamiento completo funciona de extremo a extremo.
+
+---
+
+# 30. Próximas tareas
+
+El desarrollo continuará siguiendo el cronograma del proyecto.
+
+Orden general de trabajo:
+
+```text
+1. Repositorio y workflow Git
+        ↓
+2. Infraestructura OCI
+        ↓
+3. Object Storage
+        ↓
+4. Docker Compose ARM64
+        ↓
+5. Herramientas / stack
+        ↓
+6. Backend FastAPI + endpoint mock
+        ↓
+7. Frontend Next.js
+        ↓
+8. Ingesta JSON / CSV
+        ↓
+9. Integración Gemini
+        ↓
+10. Worker + PostgreSQL
+        ↓
+11. Almacenamiento OCI
+        ↓
+12. Endpoint real
+        ↓
+13. UI conectada al backend
+        ↓
+14. Demo End-to-End
+```
+
+Las tareas de infraestructura que dependan de disponibilidad de OCI podrán continuar en local hasta que la VM esté disponible.
+
+---
+
+# 31. Documentación
+
+La documentación técnica del proyecto se encuentra en:
+
+```text
+docs/
+```
+
+Se documentarán progresivamente:
+
+* Arquitectura.
+* Pipeline.
+* LangGraph.
+* Contratos de API.
+* Configuración de infraestructura.
+* Flujo de despliegue.
+* Pruebas.
+* Decisiones técnicas.
+
+---
+
+# 32. Cómo empezar a trabajar en el proyecto
+
+Clonar el repositorio:
+
+```bash
+git clone git@github.com:No-Country-simulation/G10-CommunityLabE32.git
+```
+
+Entrar al proyecto:
+
+```bash
+cd G10-CommunityLabE32
+```
+
+Crear entorno virtual:
+
+```bash
+python3 -m venv .venv
+```
+
+Activarlo:
+
+```bash
+source .venv/bin/activate
+```
+
+Instalar dependencias iniciales:
+
+```bash
+python -m pip install fastapi uvicorn
+```
+
+Ejecutar backend:
+
+```bash
+python -m uvicorn backend.app.main:app --reload
+```
+
+Abrir Swagger:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+---
+
+# 33. Importante para el equipo
+
+Actualmente el proyecto está en desarrollo.
+
+No asumir que todos los módulos descritos en esta documentación están terminados.
+
+### Implementado actualmente
+
+```text
+Git / GitHub
+        ↓
+Backend FastAPI
+        ↓
+GET /health
+        ↓
+POST /api/v1/procesamientos
+        ↓
+Swagger /docs
+```
+
+### En construcción
+
+```text
+Frontend
+Ingesta
+Limpieza
+Gemini
+LangGraph
+Worker
 PostgreSQL
-+
-Docker Compose
-+
-Discord
-+
-OCI
+OCI Object Storage
+Docker Compose completo
+Endpoint real
+Pruebas E2E
+```
+
+Antes de modificar una parte del proyecto, revisar la estructura existente y coordinar los cambios con el equipo para evitar conflictos entre ramas.
 
 ---
 
-## 🏁 Resultado esperado
+# 34. Equipo
 
-Al finalizar el proyecto, CommunityLab deberá demostrar un flujo funcional capaz de:
+Proyecto:
 
-Recibir información
-↓
-Procesarla
-↓
-Comprenderla
-↓
-Clasificarla
-↓
-Seleccionar los momentos relevantes
-↓
-Generar contenido
-↓
-Mostrar las fuentes
-↓
-Permitir curaduría
-↓
-Registrar aprobación
-↓
-Almacenar el resultado
-↓
-Demostrarlo mediante una interfaz web
+**G10 CommunityLab E32**
+
+Organización:
+
+**No Country — Simulation**
+
+Repositorio:
+
+```text
+No-Country-simulation/G10-CommunityLabE32
+```
+
+El trabajo se desarrolla de manera colaborativa mediante GitHub, ramas, commits y Pull Requests.
 
 ---
 
-## 📌 Nota
+# 35. Visión del producto
 
-Este README refleja la arquitectura y el plan de ejecución definidos para G10 CommunityLab E32.
+Community Radar busca convertir las conversaciones de una comunidad en información accionable.
 
-La implementación se realizará progresivamente y el repositorio evolucionará conforme cada componente sea desarrollado, probado e integrado.
+La idea central es:
 
-Las funcionalidades descritas como futuras o planificadas no deben interpretarse como funcionalidades ya implementadas.
+```text
+Conversaciones
+      ↓
+Datos estructurados
+      ↓
+Información útil
+      ↓
+Inteligencia artificial
+      ↓
+Contenido
+      ↓
+Activos de comunicación
+```
 
-El objetivo es mantener el README alineado con el estado real del repositorio y actualizarlo conforme avance la ejecución del proyecto.
+El sistema permitirá que la información generada por la comunidad pueda convertirse en contenido reutilizable, manteniendo trazabilidad hacia las fuentes originales.
 
 ---
 
-## 📄 Documentación relacionada
+# 36. Estado de esta documentación
 
-### Guía de contribución
+Este README corresponde al estado actual del proyecto durante la construcción del MVP.
 
-CONTRIBUTING.md
+Se actualizará conforme se incorporen:
 
-### Plantilla de Pull Request
+* Nuevos servicios.
+* Nuevos endpoints.
+* Procesamiento real.
+* Integración con IA.
+* Base de datos.
+* Docker.
+* OCI.
+* Frontend.
+* Pruebas End-to-End.
+* Nuevas decisiones de arquitectura.
 
-.github/PULL_REQUEST_TEMPLATE.md
+---
 
-### Variables de entorno
+**G10 CommunityLab E32 — Community Radar**
 
-.env.example
-
-### Docker Compose
-
-docker-compose.yml
-
-### Licencia
-
-LICENSE
+Construyendo el MVP paso a paso. 🚀
