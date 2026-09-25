@@ -27,21 +27,26 @@ export default function Home() {
   const probarApiBackend = async () => {
     setCargando(true);
     try {
-      const respuesta = await fetch("http://127.0.0.1:8000/api/v1/procesamientos", {
+      const respuesta = await fetch("/api/v1/procesamientos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           origen_comunidad: "discord_comunidad_alura",
           periodo_referencia: "2026-W38",
           interacciones: [
-            {
-              id: "m-01",
-              autor: "carlos_dev",
-              canal: "logros",
-              fecha: "2026-09-23T10:00:00Z",
-              texto: "Conseguí trabajo como Dev Jr tras publicar mi app con IA."
-            }
-          ]
+            "Conseguí mi primer empleo como Dev Jr.",
+            "¿Cómo configuro reintentos en LangGraph?",
+            "Tengo la misma duda sobre reintentos.",
+            "Participé en una mentoría de portafolios.",
+            "Esta semana compartimos avances de OCI.",
+            "Tengo un bloqueo con un timeout de OCI."
+          ].map((texto, index) => ({
+            id: `m-0${index + 1}`,
+            autor: `persona_demo_${index + 1}`,
+            canal: "pruebas",
+            fecha: "2026-09-23T10:00:00Z",
+            texto
+          }))
         })
       });
 
@@ -51,15 +56,15 @@ export default function Home() {
       setResumen(data.resumen_comunidad);
       setActivos(data.activos_distribucion_generados);
       setAlertas(data.alertas_internas);
-    } catch (error) {
-      alert("No se pudo conectar con FastAPI en http://127.0.0.1:8000. Revisa que el backend esté encendido.");
+    } catch {
+      alert("No se pudo consultar el backend. Revisa que los servicios locales estén disponibles.");
     } finally {
       setCargando(false);
     }
   };
 
-  const activosFiltrados = filtro === "todos" 
-    ? activos 
+  const activosFiltrados = filtro === "todos"
+    ? activos
     : activos.filter(a => a.formato.toLowerCase() === filtro.toLowerCase());
 
   return (
@@ -85,10 +90,10 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-slate-300 font-medium">OCI Compute A1</span>
+              <span className="text-slate-300 font-medium">Prueba local</span>
             </div>
             <div className="px-3 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 text-xs font-semibold">
-              Bucket Always Free
+              OCI simulado
             </div>
           </div>
         </div>
@@ -106,7 +111,7 @@ export default function Home() {
               Panel de Ingesta y Curaduría Comunitaria
             </h2>
             <p className="text-slate-300 text-sm leading-relaxed">
-              Transformación automatizada de mensajes de Discord hacia copys listos para redes, bases técnicas FAQ y resúmenes semanales con persistencia en Oracle Cloud.
+              Transformación automatizada de mensajes de Discord hacia copys listos para redes, bases técnicas FAQ y resúmenes semanales con respuestas de ejemplo. Esta prueba no guarda datos en Oracle Cloud.
             </p>
             <div className="pt-2">
               <button
@@ -130,6 +135,8 @@ export default function Home() {
           </div>
         </div>
 
+        {resumen && <p role="status">{resumen}</p>}
+
         {/* Tarjetas KPI de Estado */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-slate-900/70 border border-slate-800/80 rounded-xl p-4">
@@ -150,7 +157,7 @@ export default function Home() {
           <div className="bg-slate-900/70 border border-slate-800/80 rounded-xl p-4">
             <div className="text-xs font-medium text-slate-400">Destino Storage</div>
             <div className="text-sm font-semibold text-emerald-400 mt-2 truncate">OCI /lotes/paquete.json</div>
-            <div className="text-[11px] text-slate-500 mt-1">Persistencia activa</div>
+            <div className="text-[11px] text-slate-500 mt-1">Almacenamiento simulado</div>
           </div>
         </div>
 
@@ -181,7 +188,7 @@ export default function Home() {
               <h3 className="text-lg font-bold text-white">Borradores Generados para Curaduría</h3>
               <p className="text-xs text-slate-400">Revisa, edita o aprueba antes de sincronizar con OCI</p>
             </div>
-            
+
             {/* Filtros */}
             <div className="flex gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
               {["todos", "linkedin", "faq", "newsletter"].map((tab) => (
@@ -229,10 +236,10 @@ export default function Home() {
                   </div>
 
                   <div className="pt-4 mt-4 border-t border-slate-800/80 flex gap-2">
-                    <button className="flex-1 py-1.5 px-3 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold transition-colors">
+                    <button disabled title="Disponible en una etapa posterior de curaduría" className="flex-1 py-1.5 px-3 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold transition-colors">
                       ✓ Aprobar
                     </button>
-                    <button className="flex-1 py-1.5 px-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition-colors">
+                    <button disabled title="Disponible en una etapa posterior de curaduría" className="flex-1 py-1.5 px-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition-colors">
                       ✎ Editar
                     </button>
                   </div>
@@ -243,7 +250,7 @@ export default function Home() {
                 <div className="text-2xl">⚡</div>
                 <div className="text-sm font-medium text-slate-300">No hay activos cargados todavía</div>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Presiona el botón superior <strong className="text-indigo-400">"Disparar Ingesta Mock"</strong> para consultar el backend y ver la generación en vivo.
+                  Presiona el botón superior <strong className="text-indigo-400">&quot;Disparar Ingesta Mock&quot;</strong> para consultar el backend y ver la generación en vivo.
                 </p>
               </div>
             )}
