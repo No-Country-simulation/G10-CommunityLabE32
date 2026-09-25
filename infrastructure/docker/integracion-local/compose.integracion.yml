@@ -1,0 +1,19 @@
+# Prueba local: backend/frontend de Ian, PostgreSQL real y worker SONDA.
+# No usar como evidencia de procesamiento IA ni de despliegue OCI.
+services:
+  api:
+    build:
+      context: ../../../backend
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+  web:
+    build:
+      context: ../../../frontend
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      start_period: 60s
+  worker:
+    build:
+      context: ./fixtures
+    environment:
+      FIXTURE_ROLE: worker

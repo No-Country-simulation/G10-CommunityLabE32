@@ -1,0 +1,5 @@
+docs/integracion-*.json
+docs/integracion-*.log
+docs/lote-prueba.json
+.env.integration-empty
+__pycache__/
