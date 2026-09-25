@@ -76,3 +76,26 @@ postgres_data/
 # =========================
 *.tmp
 *.temp
+
+# =========================
+# Node / Frontend / Web
+# =========================
+node_modules/
+dist/
+build/
+.next/
+out/
+.nuxt/
+coverage/
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# IDEs / OS Adicionales
+# =========================
+.idea/
+*.swp
+Thumbs.db

@@ -1,0 +1,24 @@
+name: Nueva Funcionalidad
+description: Sugiere una idea o funcionalidad nueva para este proyecto
+title: "[FEAT] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: ¿Tu idea está relacionada con un problema?
+      description: Describe de forma clara si esta nueva funcionalidad resuelve alguna frustración. Ejemplo "Me frustra cuando [...]"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe la solución que te gustaría
+      description: Una descripción clara de lo que quieres que pase.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas (Opcional)
+      description: Otras soluciones o características que hayas considerado.

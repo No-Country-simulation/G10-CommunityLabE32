@@ -1,0 +1,30 @@
+name: "Validar Convención de Commits/PR"
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+
+jobs:
+  main:
+    name: Validar Título del PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Tipos permitidos basados en tu CONTRIBUTING.md
+          types: |
+            feat
+            fix
+            docs
+            test
+            refactor
+            chore
+          requireScope: false
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            El título debe empezar con una letra minúscula, ejemplo: "feat: agregar login"
