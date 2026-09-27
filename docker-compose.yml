@@ -6,15 +6,73 @@ services:
     restart: unless-stopped
 
     environment:
-      POSTGRES_DB: communitylab
-      POSTGRES_USER: communitylab
-      POSTGRES_PASSWORD: communitylab_dev
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
     ports:
       - "5432:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+
+    container_name: g10-communitylab-api
+    restart: unless-stopped
+
+    ports:
+      - "8000:8000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    container_name: g10-communitylab-web
+    restart: unless-stopped
+
+    expose:
+      - "3000"
+
+  proxy:
+    image: nginx:alpine
+    container_name: g10-communitylab-proxy
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
 
 volumes:
   postgres_data:
