@@ -24,3 +24,15 @@ export const obtenerMensajes = async (canal?: string): Promise<Mensaje[]> => {
   const response = await apiClient.get('/mensajes', { params: { canal } });
   return response.data;
 };
+
+export const subirLote = async (archivo: File) => {
+  const formData = new FormData();
+  formData.append('file', archivo);
+
+  const response = await apiClient.post('/mensajes/procesamientos', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
