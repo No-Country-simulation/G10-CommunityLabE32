@@ -1,3 +1,7 @@
+## Compose de cinco servicios
+
+Configuración y pruebas locales sobre el backend modular: [guía](docs/compose-cinco-servicios.md). El worker incluido es una sonda; la API conserva la respuesta mock.
+
 # G10 CommunityLab E32
 
 ## Community Radar — Hackathon No Country
