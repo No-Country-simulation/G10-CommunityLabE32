@@ -7,6 +7,8 @@ from backend.app.schemas.procesamientos import (
     AlertaInterna,
     AlmacenamientoOCI,
 )
+from fastapi import File, UploadFile, Form
+from backend.app.services.ingestion import procesar_lote
 
 router = APIRouter(
     prefix="/api/v1/procesamientos",
@@ -72,6 +74,37 @@ def crear_procesamiento(lote: IngestaRequest):
             ruta=(
                 f"demo/{lote.periodo_referencia}/lotes/"
                 "proc-mock-2026-001/paquete.json"
+            ),
+            estado="simulado_pendiente_worker",
+        ),
+    )
+
+
+@router.post("/upload", response_model=IngestaResponse)
+async def procesar_lote_archivo(
+    file: UploadFile = File(...),
+    origen_comunidad: str = Form(...),
+    periodo_referencia: str = Form(...)
+):
+    content = await file.read()
+    
+    # Llamada al módulo de ingestión (Validar, Normalizar, Deduplicar)
+    interacciones = procesar_lote(content, file.filename)
+    
+    # Retornar una respuesta mock basada en el lote procesado
+    return IngestaResponse(
+        procesamiento_id="proc-mock-2026-002",
+        resumen_comunidad=(
+            f"Archivo {file.filename} procesado: {len(interacciones)} interacciones "
+            f"válidas y únicas para el período {periodo_referencia}."
+        ),
+        activos_distribucion_generados=[],
+        alertas_internas=[],
+        almacenamiento_oci=AlmacenamientoOCI(
+            bucket="communitylab-alwaysfree-bucket",
+            ruta=(
+                f"demo/{periodo_referencia}/lotes/"
+                f"proc-mock-2026-002/{file.filename}"
             ),
             estado="simulado_pendiente_worker",
         ),

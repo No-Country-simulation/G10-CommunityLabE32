@@ -1,7 +1,10 @@
 from typing import List
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+# Importamos nuestro nuevo módulo de ingestión
+from backend.app.services.ingestion import procesar_lote
 
 app = FastAPI(
     title="CommunityLab API",
@@ -101,6 +104,37 @@ async def procesar_lote_comunidad(lote: IngestaRequest):
         almacenamiento_oci=AlmacenamientoOCI(
             bucket="communitylab-alwaysfree-bucket",
             ruta=f"demo/{lote.periodo_referencia}/lotes/proc-mock-2026-001/paquete.json",
+            estado="simulado_pendiente_worker"
+        )
+    )
+
+@app.post("/api/v1/procesamientos/upload", response_model=IngestaResponse)
+async def procesar_lote_archivo(
+    file: UploadFile = File(...),
+    origen_comunidad: str = Form("mock_comunidad"),
+    periodo_referencia: str = Form("2026-W38")
+):
+    """
+    Endpoint para subir un lote de interacciones en formato JSON o CSV.
+    El módulo de ingestión se encargará de validar, normalizar y deduplicar.
+    """
+    content = await file.read()
+    
+    # 1. Usar nuestro nuevo módulo de ingestión
+    interacciones = procesar_lote(content, file.filename)
+    
+    # 2. Retornar mock de respuesta con la cantidad real de registros procesados
+    return IngestaResponse(
+        procesamiento_id="proc-mock-2026-002",
+        resumen_comunidad=(
+            f"Archivo {file.filename} procesado con éxito. "
+            f"Se obtuvieron {len(interacciones)} interacciones válidas y únicas."
+        ),
+        activos_distribucion_generados=[],
+        alertas_internas=[],
+        almacenamiento_oci=AlmacenamientoOCI(
+            bucket="communitylab-alwaysfree-bucket",
+            ruta=f"demo/{periodo_referencia}/lotes/proc-mock-2026-002/{file.filename}",
             estado="simulado_pendiente_worker"
         )
     )
