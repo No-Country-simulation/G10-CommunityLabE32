@@ -38,7 +38,8 @@ class AlertaInterna(BaseModel):
     fuente: str
 
 
-class AlmacenamientoOCI(BaseModel):
+class Almacenamiento(BaseModel):
+    proveedor: str
     bucket: str
     ruta: str
     estado: str
@@ -49,4 +50,4 @@ class IngestaResponse(BaseModel):
     resumen_comunidad: str
     activos_distribucion_generados: List[ActivoGenerado]
     alertas_internas: List[AlertaInterna]
-    almacenamiento_oci: AlmacenamientoOCI
+    almacenamiento: Almacenamiento

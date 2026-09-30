@@ -5,7 +5,7 @@ from backend.app.schemas.procesamientos import (
     IngestaResponse,
     ActivoGenerado,
     AlertaInterna,
-    AlmacenamientoOCI,
+    Almacenamiento,
 )
 
 router = APIRouter(
@@ -67,8 +67,9 @@ def crear_procesamiento(lote: IngestaRequest):
                 fuente="m-06",
             )
         ],
-        almacenamiento_oci=AlmacenamientoOCI(
-            bucket="communitylab-alwaysfree-bucket",
+        almacenamiento=Almacenamiento(
+            proveedor="pendiente",
+            bucket="pendiente",
             ruta=(
                 f"demo/{lote.periodo_referencia}/lotes/"
                 "proc-mock-2026-001/paquete.json"
