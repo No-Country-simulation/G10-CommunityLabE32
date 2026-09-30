@@ -16,7 +16,7 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=IngestaResponse)
+@router.post("", response_model=IngestaResponse)
 async def crear_procesamiento(
     request: IngestaRequest,
 ) -> IngestaResponse:
