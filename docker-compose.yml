@@ -1,103 +1,128 @@
+# Cinco servicios sobre el backend modular de main. Worker = sonda; no ejecuta IA.
+x-runtime: &runtime
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-database: &database
+  PGHOST: postgres
+  PGPORT: "5432"
+  PGDATABASE: ${POSTGRES_DB:-communitylab}
+  PGUSER: ${POSTGRES_USER:-communitylab}
+  PGPASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD en un archivo .env privado}
+
 services:
-
-  postgres:
-    image: postgres:16
-    container_name: g10-communitylab-postgres
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
+  proxy:
+    <<: *runtime
+    image: ${PROXY_IMAGE:-nginx:stable-alpine}
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
     ports:
-      - "5432:5432"
-
+      - "${HTTP_BIND_ADDRESS:-127.0.0.1}:${HTTP_PORT:-8080}:80"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-
+      - ./proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [frontend, outbound]
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
+
+  web:
+    <<: *runtime
+    image: ${WEB_IMAGE:-communitylab-web:local}
+    build:
+      context: ./frontend
+      args:
+        API_PROXY_TARGET: http://api:8000
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
+    environment:
+      NODE_ENV: production
+      API_PROXY_TARGET: http://api:8000
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    networks: [frontend]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   api:
+    <<: *runtime
+    image: ${API_IMAGE:-communitylab-api:local}
     build:
       context: .
       dockerfile: backend/Dockerfile
-
-    container_name: g10-communitylab-api
-    restart: unless-stopped
-
-    ports:
-      - "8000:8000"
-
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
+    networks: [frontend, database, outbound]
     depends_on:
       postgres:
         condition: service_healthy
-
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   worker:
+    <<: *runtime
+    image: ${WORKER_IMAGE:-communitylab-worker-probe:local}
     build:
       context: ./worker
-      dockerfile: Dockerfile
-
-    container_name: g10-communitylab-worker
-    restart: unless-stopped
-
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
+    environment:
+      <<: *database
+    networks: [database, outbound]
     depends_on:
       postgres:
         condition: service_healthy
-
-    environment:
-      PGHOST: postgres
-      PGPORT: "5432"
-      PGDATABASE: ${POSTGRES_DB}
-      PGUSER: ${POSTGRES_USER}
-      PGPASSWORD: ${POSTGRES_PASSWORD}
-
     healthcheck:
       test: ["CMD", "python", "/app/healthcheck.py"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
-  web:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-
-    container_name: g10-communitylab-web
-    restart: unless-stopped
-
-    expose:
-      - "3000"
-
-  proxy:
-    image: nginx:alpine
-    container_name: g10-communitylab-proxy
-    restart: unless-stopped
-
-    ports:
-      - "80:80"
-
+  postgres:
+    <<: *runtime
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-communitylab}
+      POSTGRES_USER: ${POSTGRES_USER:-communitylab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD en un archivo .env privado}
     volumes:
-      - ./proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - postgres_data:/var/lib/postgresql/data
+    networks: [database]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
-    depends_on:
-      api:
-        condition: service_healthy
-      web:
-        condition: service_started
+networks:
+  frontend:
+    driver: bridge
+    internal: true
+  database:
+    driver: bridge
+    internal: true
+  outbound:
+    driver: bridge
 
 volumes:
   postgres_data:

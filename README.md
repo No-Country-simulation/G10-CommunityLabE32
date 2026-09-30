@@ -1,3 +1,7 @@
+## Compose de cinco servicios
+
+Configuración y pruebas locales sobre el backend modular: [guía](docs/compose-cinco-servicios.md). El worker incluido es una sonda; la API conserva la respuesta mock.
+
 # G10 CommunityLab E32
 
 ## Community Radar — Hackathon No Country
@@ -1002,3 +1006,8 @@ Se actualizará conforme se incorporen:
 **G10 CommunityLab E32 — Community Radar**
 
 Construyendo el MVP paso a paso. 🚀
+
+
+## Configuración de Gemini API
+
+La [guía de configuración y verificación de Gemini](infrastructure/gemini/README.md) incluye una plantilla sin secretos y una prueba independiente de conexión. La clave se configura de forma privada; la comprobación desde la VM continúa pendiente.
