@@ -1,26 +1,28 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import mensajes
 
-# Inicialización profesional de la App
+# 1. Importar los routers de la carpeta app/routers
+from app.routers import mensajes, curaduria, dashboard
+
 app = FastAPI(
-    title="CommunityLab API Enterprise",
-    description="API robusta para el procesamiento de interacciones y recursos híbridos",
-    version="1.0.0"
+    title="CommunityLab API",
+    version="1.0.0",
+    description="Motor backend para procesamiento, curaduría y distribución comunitaria."
 )
 
-# Configuración estricta de CORS para seguridad
-# Esto permite que Next.js consuma tu API sin ser bloqueado por el navegador
+# Configuración CORS para conectar con Next.js (puerto 3000)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, esto se cambia a ["https://tudominio.com"]
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Ensamblaje de Routers modulares
+# 2. Registrar los routers
 app.include_router(mensajes.router)
+app.include_router(curaduria.router)
+app.include_router(dashboard.router)
 
 @app.get("/", tags=["Health Check"])
 async def root():

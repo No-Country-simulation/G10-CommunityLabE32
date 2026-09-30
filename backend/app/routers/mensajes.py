@@ -1,40 +1,51 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from typing import List
 
-# Importamos tu inyector de dependencias (con el nombre exacto que le pusiste)
+# Importamos tu inyector de dependencias
 from app.core.dependencias import get_db
 from app.models.mensaje import Mensaje
-from app.schemas.mensaje import MensajeResponse
+# IMPORTAMOS EL NUEVO ESQUEMA PAGINADO
+from app.schemas.mensaje import MensajeResponse, PaginatedMensajesResponse
 
-# Creamos el Router modular
 router = APIRouter(prefix="/api/mensajes", tags=["Mensajes"])
 
-@router.get("", response_model=List[MensajeResponse])
+# AÑADIMOS EL RESPONSE_MODEL CORRECTO AQUÍ
+@router.get("", response_model=PaginatedMensajesResponse)
 async def obtener_mensajes(
-    canal: str = Query(None, description="Filtrar por canal (ej. #dudas-tecnicas)"),
-    limit: int = Query(50, ge=1, le=100, description="Protección: Límite máximo de 100"),
+    canal: str = Query(None, description="Filtrar por canal"),
+    skip: int = Query(0, ge=0, description="Registros a saltar (offset)"),
+    limit: int = Query(10, ge=1, le=100, description="Registros por página"),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Obtiene el listado de interacciones y repositorios.
-    Implementa filtros dinámicos y protección de paginación.
+    Obtiene listado de interacciones con paginación real en Base de Datos (O(1) en RAM).
     """
     query = select(Mensaje)
+    count_query = select(func.count(Mensaje.id_mensaje))
     
-    # Filtro dinámico: Si el frontend pide un canal específico, lo filtramos
     if canal:
         query = query.where(Mensaje.canal == canal)
+        count_query = count_query.where(Mensaje.canal == canal)
         
-    query = query.limit(limit)
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    query = query.offset(skip).limit(limit)
     
     try:
         result = await db.execute(query)
         mensajes = result.scalars().all()
-        return mensajes
+        
+        return {
+            "items": mensajes,
+            "total": total
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error interno en la base de datos")
+
+
     
 @router.post("/procesamientos")
 async def procesar_lote_nuevo(

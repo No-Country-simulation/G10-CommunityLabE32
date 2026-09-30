@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { Database, LayoutDashboard, MessageSquare, UploadCloud, FileJson, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Database, LayoutDashboard, MessageSquare, UploadCloud, FileJson, CheckCircle2, AlertCircle, Loader2, Edit3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { subirLote } from '@/services/api';
 
@@ -98,6 +98,13 @@ export default function IngestaPage() {
           >
             <MessageSquare className="w-4 h-4" /> Interacciones
           </Link>
+          <Link
+          href="/curaduria"
+          className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent px-3 py-2.5 rounded-xl transition-colors text-sm font-medium"
+          >
+            <Edit3 className="w-4 h-4" /> Curaduría
+        </Link>
+          
         </nav>
       </aside>
 

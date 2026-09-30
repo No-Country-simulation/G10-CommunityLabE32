@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
-
+from typing import List
 class MensajeBase(BaseModel):
     """Esquema base con validaciones estrictas de longitud y tipo de dato."""
     autor: str = Field(..., min_length=1, max_length=150, description="Autor del mensaje")
@@ -20,3 +20,9 @@ class MensajeResponse(MensajeBase):
 
     # Configuración de Pydantic V2 para leer objetos de SQLAlchemy
     model_config = ConfigDict(from_attributes=True)
+    
+   
+
+class PaginatedMensajesResponse(BaseModel):
+    items: List[MensajeResponse]
+    total: int

@@ -10,8 +10,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from app.core.database import AsyncSessionLocal, engine, Base
-# Importamos el modelo para que SQLAlchemy registre la tabla 
+
+# Importamos los modelos para que SQLAlchemy registre TODAS las tablas 
 from app.models.mensaje import Mensaje 
+from app.models.activo import Activo  # 
 
 # Configuración de Logging Empresarial
 logging.basicConfig(
