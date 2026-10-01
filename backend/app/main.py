@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# 1. Importar los routers de la carpeta app/routers
+# Routers del Frontend (Ian)
 from app.routers import mensajes, curaduria, dashboard
+# Router de Procesamientos (Tareck)
+from backend.app.api.routes.procesamientos import router as procesamientos_router
 
 app = FastAPI(
     title="CommunityLab API",
@@ -19,14 +21,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 2. Registrar los routers
+# Registrar todos los routers (Unión de Ian y Tareck)
 app.include_router(mensajes.router)
 app.include_router(curaduria.router)
 app.include_router(dashboard.router)
+app.include_router(procesamientos_router)
 
 @app.get("/", tags=["Health Check"])
 async def root():
     return {
         "status": "online",
         "mensaje": "El motor Backend de CommunityLab está operativo y seguro. 🚀"
+    }
+
+@app.get("/health", tags=["Health Check"])
+def health_check():
+    return {
+        "estado": "ok",
+        "servicio": "communitylab-api"
     }

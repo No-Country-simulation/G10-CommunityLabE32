@@ -13,9 +13,9 @@ export default function CommunityDashboard() {
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [cargandoMock, setCargandoMock] = useState(false); // Estado de Tareck
 
   useEffect(() => {
-    // Carga paralela de KPIs y Mensajes (Motor PostgreSQL)
     Promise.all([obtenerKPIs(), obtenerMensajes()])
       .then(([kpiData, msgsData]) => {
         setKpis(kpiData);
@@ -28,6 +28,43 @@ export default function CommunityDashboard() {
       });
   }, []);
 
+  // Funcionalidad de pruebas de Tareck preservada
+  const probarApiBackend = async () => {
+    setCargandoMock(true);
+    try {
+      const respuesta = await fetch("/api/v1/procesamientos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          origen_comunidad: "discord_comunidad_alura",
+          periodo_referencia: "2026-W38",
+          interacciones: [
+            "Conseguí mi primer empleo como Dev Jr.",
+            "¿Cómo configuro reintentos en LangGraph?",
+            "Tengo la misma duda sobre reintentos.",
+            "Participé en una mentoría de portafolios.",
+            "Esta semana compartimos avances de OCI.",
+            "Tengo un bloqueo con un timeout de OCI."
+          ].map((texto, index) => ({
+            id: `m-0${index + 1}`,
+            autor: `persona_demo_${index + 1}`,
+            canal: "pruebas",
+            fecha: "2026-09-23T10:00:00Z",
+            texto
+          }))
+        })
+      });
+
+      if (!respuesta.ok) throw new Error("Error en la respuesta del backend");
+      alert("¡Ingesta de prueba (Mock) ejecutada con éxito! Revisa la base de datos.");
+      window.location.reload();
+    } catch {
+      alert("No se pudo consultar el backend. Revisa que los servicios locales estén disponibles.");
+    } finally {
+      setCargandoMock(false);
+    }
+  };
+
   const sentimentStyles: Record<string, string> = {
     positivo: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
     negativo: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
@@ -35,11 +72,9 @@ export default function CommunityDashboard() {
 
   return (
     <div className="min-h-screen bg-[#0A0714] flex text-slate-200 selection:bg-purple-500/30 relative overflow-hidden">
-      {/* Glow ambiental */}
       <div className="absolute -top-40 left-1/3 w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-indigo-600/15 rounded-full blur-[120px] pointer-events-none" />
 
-      {/* Sidebar */}
       <aside className="w-60 border-r border-white/10 bg-white/[0.02] backdrop-blur-xl p-5 flex-col gap-8 hidden md:flex relative z-10 shrink-0">
         <div className="flex items-center gap-2.5 px-2 pt-1">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.5)]">
@@ -50,34 +85,21 @@ export default function CommunityDashboard() {
           </span>
         </div>
         <nav className="flex flex-col gap-1.5">
-          <Link
-            href="/"
-            className="flex items-center gap-3 text-white bg-gradient-to-r from-indigo-500/20 to-purple-500/10 border border-purple-500/30 px-3 py-2.5 rounded-xl text-sm font-medium shadow-[0_0_20px_rgba(139,92,246,0.15)]"
-          >
+          <Link href="/" className="flex items-center gap-3 text-white bg-gradient-to-r from-indigo-500/20 to-purple-500/10 border border-purple-500/30 px-3 py-2.5 rounded-xl text-sm font-medium shadow-[0_0_20px_rgba(139,92,246,0.15)]">
             <LayoutDashboard className="w-4 h-4 text-purple-300" /> Dashboard
           </Link>
-          <Link
-            href="/ingesta"
-            className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent px-3 py-2.5 rounded-xl transition-colors text-sm font-medium"
-          >
+          <Link href="/ingesta" className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent px-3 py-2.5 rounded-xl transition-colors text-sm font-medium">
             <UploadCloud className="w-4 h-4" /> Ingesta de datos
           </Link>
-          <Link
-            href="/interacciones"
-            className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent px-3 py-2.5 rounded-xl transition-colors text-sm font-medium"
-          >
+          <Link href="/interacciones" className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent px-3 py-2.5 rounded-xl transition-colors text-sm font-medium">
             <MessageSquare className="w-4 h-4" /> Interacciones
           </Link>
-          <Link
-            href="/curaduria"
-            className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent px-3 py-2.5 rounded-xl transition-colors text-sm font-medium"
-          >
+          <Link href="/curaduria" className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent px-3 py-2.5 rounded-xl transition-colors text-sm font-medium">
             <Edit3 className="w-4 h-4" /> Curaduría
           </Link>
         </nav>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 p-10 relative z-10 h-screen overflow-y-auto">
         <header className="mb-8 flex justify-between items-end">
           <div>
@@ -86,9 +108,20 @@ export default function CommunityDashboard() {
             </h1>
             <p className="text-slate-400 text-[15px]">Métricas en tiempo real e interacciones procesadas.</p>
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold shadow-[0_0_20px_rgba(16,185,129,0.15)]">
-            <Wifi className="w-3.5 h-3.5" />
-            API conectada
+          <div className="flex gap-3">
+            {/* Botón de Tareck Integrado */}
+            <button 
+              onClick={probarApiBackend} 
+              disabled={cargandoMock}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
+            >
+              {cargandoMock ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Activity className="w-3.5 h-3.5" />}
+              Test Ingesta (Tareck)
+            </button>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+              <Wifi className="w-3.5 h-3.5" />
+              API conectada
+            </div>
           </div>
         </header>
 
@@ -101,8 +134,6 @@ export default function CommunityDashboard() {
           </div>
         ) : (
           <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }} className="space-y-8">
-            
-            {/* TAREA 3: TARJETAS DE KPIs */}
             {kpis && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }} className="bg-white/[0.03] backdrop-blur-xl p-5 rounded-2xl border border-white/10 relative overflow-hidden group">
@@ -150,18 +181,13 @@ export default function CommunityDashboard() {
               </div>
             )}
 
-            {/* SECCIÓN INFERIOR: FLUJO EN TIEMPO REAL */}
             <div>
               <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-indigo-400" /> Flujo en tiempo real
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {mensajes.slice(0, 9).map((msg) => (
-                  <motion.div
-                    variants={{ hidden: { opacity: 0, scale: 0.95 }, show: { opacity: 1, scale: 1 } }}
-                    key={msg.id_mensaje}
-                    className="bg-white/[0.03] backdrop-blur-xl p-5 rounded-2xl border border-white/10 hover:border-purple-500/40 transition-all duration-300 flex flex-col justify-between hover:shadow-[0_0_35px_rgba(139,92,246,0.15)] hover:-translate-y-0.5"
-                  >
+                  <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, show: { opacity: 1, scale: 1 } }} key={msg.id_mensaje} className="bg-white/[0.03] backdrop-blur-xl p-5 rounded-2xl border border-white/10 hover:border-purple-500/40 transition-all duration-300 flex flex-col justify-between hover:shadow-[0_0_35px_rgba(139,92,246,0.15)] hover:-translate-y-0.5">
                     <div>
                       <div className="flex justify-between items-start mb-4">
                         <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
