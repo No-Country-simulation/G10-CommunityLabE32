@@ -8,7 +8,7 @@ from pathlib import Path
 # Inyección del path raíz para que Python encuentre el módulo 'app' sin errores
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.core.database import AsyncSessionLocal, engine, Base
 
 # Importamos los modelos para que SQLAlchemy registre TODAS las tablas 
@@ -48,7 +48,7 @@ async def upsert_mensajes(session, mensajes_data: list[dict]):
     if not mensajes_data:
         return
 
-    stmt = sqlite_insert(Mensaje).values(mensajes_data)
+    stmt = pg_insert(Mensaje).values(mensajes_data)
     
     # Lógica de Upsert en SQLite
     update_dict = {c.name: c for c in stmt.excluded if not c.primary_key}
