@@ -8,7 +8,10 @@ from backend.app.schemas.procesamientos import (
     AlmacenamientoOCI,
 )
 from fastapi import File, UploadFile, Form
+import uuid
+
 from backend.app.services.ingestion import procesar_lote
+from backend.app.services.relevancia import evaluar_interaccion
 
 router = APIRouter(
     prefix="/api/v1/procesamientos",
@@ -88,17 +91,35 @@ async def procesar_lote_archivo(
 ):
     content = await file.read()
     
-    # Llamada al módulo de ingestión (Validar, Normalizar, Deduplicar)
+    # 1. Llamada al módulo de ingestión (Validar, Normalizar, Deduplicar)
     interacciones = procesar_lote(content, file.filename)
+    
+    # 2. Evaluar relevancia de cada interacción
+    interacciones_evaluadas = [evaluar_interaccion(i) for i in interacciones]
+    
+    # 3. Filtrar las destacadas y crear activos mockeados
+    activos_generados = []
+    destacadas = [ie for ie in interacciones_evaluadas if ie.relevancia.es_destacado]
+    
+    for ie in destacadas:
+        activos_generados.append(
+            ActivoGenerado(
+                id_activo=f"act-{uuid.uuid4().hex[:6]}",
+                formato="post_destacado",
+                copy=f"¡Atención comunidad! Momento destacado: {ie.interaccion.texto[:50]}... \n(Puntaje: {ie.relevancia.total})",
+                fuentes=[ie.interaccion.id],
+                estado="generado"
+            )
+        )
     
     # Retornar una respuesta mock basada en el lote procesado
     return IngestaResponse(
         procesamiento_id="proc-mock-2026-002",
         resumen_comunidad=(
             f"Archivo {file.filename} procesado: {len(interacciones)} interacciones "
-            f"válidas y únicas para el período {periodo_referencia}."
+            f"válidas, {len(destacadas)} destacadas para el período {periodo_referencia}."
         ),
-        activos_distribucion_generados=[],
+        activos_distribucion_generados=activos_generados,
         alertas_internas=[],
         almacenamiento_oci=AlmacenamientoOCI(
             bucket="communitylab-alwaysfree-bucket",
