@@ -6,10 +6,10 @@ import requests
 # MOTOR LLM CON FALLBACK (OPENROUTER)
 # ==========================================
 def llamar_llm_openrouter(prompt: str) -> dict:
-    """Llama a Gemini 2.5 Flash gratuito. Si falla, salta a Llama 3."""
+    """Llama a OpenRouter con modelos estables."""
     api_key = os.environ.get("OPENROUTER_API_KEY")
     payload = {
-        "models": ["google/gemini-2.5-flash:free", "meta-llama/llama-3-8b-instruct:free"],
+        "models": ["meta-llama/llama-3-8b-instruct", "deepseek/deepseek-chat"],
         "messages": [{"role": "user", "content": prompt}],
         "response_format": {"type": "json_object"}
     }
@@ -23,7 +23,17 @@ def llamar_llm_openrouter(prompt: str) -> dict:
         json=payload
     )
     
-    return json.loads(response.json()['choices'][0]['message']['content'])
+    data = response.json()
+    if 'choices' not in data:
+        return {}
+        
+    contenido_str = data['choices'][0]['message']['content']
+    contenido_str = contenido_str.replace("```json", "").replace("```", "").strip()
+    
+    try:
+        return json.loads(contenido_str)
+    except json.JSONDecodeError:
+        return {}
 
 # ==========================================
 # NODOS DE CLASIFICACIÓN Y PUNTUACIÓN
@@ -31,7 +41,6 @@ def llamar_llm_openrouter(prompt: str) -> dict:
 def analizar_real(lote: dict) -> dict:
     """Devuelve un mapa por ID con los booleanos de ruta y el tema."""
     interacciones = lote.get("interacciones", [])
-    # Extraemos solo lo necesario para ahorrar tokens
     contexto = [{"id": m.get("id"), "texto": m.get("texto")} for m in interacciones]
     
     prompt = f"""
@@ -48,13 +57,27 @@ def analizar_real(lote: dict) -> dict:
     respuesta = llamar_llm_openrouter(prompt)
     
     mapa = {}
-    for res in respuesta.get("resultados", []):
-        mapa[res["id"]] = {
-            "es_logro": res.get("es_logro", False),
-            "es_duda": res.get("es_duda", False),
-            "es_bloqueo": res.get("es_bloqueo", False),
-            "tema": res.get("tema", "General")
-        }
+    lista_resultados = respuesta.get("resultados", [])
+    if not lista_resultados and isinstance(respuesta, list):
+        lista_resultados = respuesta
+        
+    for res in lista_resultados:
+        msg_id = res.get("id", res.get("id_mensaje"))
+        if msg_id:
+            mapa[msg_id] = {
+                "es_logro": res.get("es_logro", False),
+                "es_duda": res.get("es_duda", False),
+                "es_bloqueo": res.get("es_bloqueo", False),
+                "tema": res.get("tema", "General")
+            }
+            
+    # Seguro anti-KeyError para cumplir estrictamente con el contrato
+    for m in interacciones:
+        if m["id"] not in mapa:
+            mapa[m["id"]] = {
+                "es_logro": False, "es_duda": False, "es_bloqueo": False, "tema": "General"
+            }
+            
     return mapa
 
 def puntuar_real(peticion: dict) -> dict:
@@ -74,15 +97,28 @@ def puntuar_real(peticion: dict) -> dict:
     respuesta = llamar_llm_openrouter(prompt)
     
     mapa_puntos = {}
-    for res in respuesta.get("resultados", []):
-        mapa_puntos[res["id"]] = res.get("relevancia", 0.0)
+    lista_resultados = respuesta.get("resultados", [])
+    if not lista_resultados and isinstance(respuesta, list):
+        lista_resultados = respuesta
+        
+    for res in lista_resultados:
+        msg_id = res.get("id", res.get("id_mensaje"))
+        if msg_id:
+            try:
+                mapa_puntos[msg_id] = float(res.get("relevancia", 0.0))
+            except (ValueError, TypeError):
+                mapa_puntos[msg_id] = 0.0
+
+    # Seguro anti-KeyError
+    for m in interacciones:
+        if m["id"] not in mapa_puntos:
+            mapa_puntos[m["id"]] = 0.0
+            
     return mapa_puntos
 
 # ==========================================
 # NODOS GENERADORES DE CONTENIDO
 # ==========================================
-# El contrato exige devolver exactamente las fuentes recibidas sin alterarlas
-
 def post_real(peticion: dict) -> dict:
     interacciones = peticion.get("interacciones_seleccionadas", [])
     fuentes_recibidas = peticion.get("fuentes", [])
