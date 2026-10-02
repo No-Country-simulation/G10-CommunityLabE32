@@ -117,10 +117,11 @@ def puntuar_real(peticion: dict) -> dict:
     return mapa_puntos
 
 # ==========================================
-# NODOS GENERADORES DE CONTENIDO
+# NODOS GENERADORES DE CONTENIDO CORREGIDOS
 # ==========================================
 def post_real(peticion: dict) -> dict:
-    interacciones = peticion.get("interacciones_seleccionadas", [])
+    # Usamos interacciones_seleccionadas o caemos en interacciones si viene plano
+    interacciones = peticion.get("interacciones_seleccionadas", []) or peticion.get("interacciones", [])
     fuentes_recibidas = peticion.get("fuentes", [])
     
     prompt = f"Crea un copy inspirador para LinkedIn usando estos mensajes: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
@@ -129,7 +130,7 @@ def post_real(peticion: dict) -> dict:
     return {"copy": respuesta.get("copy", ""), "fuentes": fuentes_recibidas}
 
 def faq_real(peticion: dict) -> dict:
-    interacciones = peticion.get("interacciones_seleccionadas", [])
+    interacciones = peticion.get("interacciones_seleccionadas", []) or peticion.get("interacciones", [])
     fuentes_recibidas = peticion.get("fuentes", [])
     
     prompt = f"Crea un FAQ o Tip educativo técnico resolviendo estas dudas: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
@@ -138,10 +139,11 @@ def faq_real(peticion: dict) -> dict:
     return {"copy": respuesta.get("copy", ""), "fuentes": fuentes_recibidas}
 
 def highlights_real(peticion: dict) -> dict:
-    interacciones = peticion.get("interacciones_seleccionadas", [])
+    interacciones = peticion.get("interacciones_seleccionadas", []) or peticion.get("interacciones", [])
     fuentes_recibidas = peticion.get("fuentes", [])
     
     prompt = f"Redacta un resumen semanal (Community Highlights) cohesionado con estos eventos: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
     respuesta = llamar_llm_openrouter(prompt)
     
     return {"copy": respuesta.get("copy", ""), "fuentes": fuentes_recibidas}
+
