@@ -1,23 +1,12 @@
 import os
 import json
 import requests
-from typing import TypedDict, List, Dict, Any
 
 # ==========================================
-# 1. EL ESTADO DEL GRAFO (GraphState)
-# ==========================================
-class GraphState(TypedDict):
-    lote_mensajes: List[Dict[str, Any]]        # Viene del módulo de ingesta de José
-    analisis_resultados: List[Dict[str, Any]]  # Salida de análisis
-    puntuaciones: Dict[str, int]               # Scores de relevancia
-    rutas_elegidas: List[str]                  # Decisiones del router
-    borradores_generados: List[Dict[str, Any]] # Los posts finales
-
-# ==========================================
-# 2. MOTOR LLM CON FALLBACK (OPENROUTER)
+# MOTOR LLM CON FALLBACK (OPENROUTER)
 # ==========================================
 def llamar_llm_openrouter(prompt: str) -> dict:
-    """Llama a Gemini gratuito. Si falla, salta a Llama 3 automáticamente."""
+    """Llama a Gemini 2.5 Flash gratuito. Si falla, salta a Llama 3."""
     api_key = os.environ.get("OPENROUTER_API_KEY")
     payload = {
         "models": ["google/gemini-2.5-flash:free", "meta-llama/llama-3-8b-instruct:free"],
@@ -37,51 +26,86 @@ def llamar_llm_openrouter(prompt: str) -> dict:
     return json.loads(response.json()['choices'][0]['message']['content'])
 
 # ==========================================
-# 3. NODO DE ANÁLISIS Y PUNTUACIÓN
+# NODOS DE CLASIFICACIÓN Y PUNTUACIÓN
 # ==========================================
-def nodo_analisis(state: GraphState) -> GraphState:
-    mensajes = state.get("lote_mensajes", [])
-    
-    # Recortamos a los primeros 10 para probar sin gastar cuota de golpe
-    contexto = [{"id": m.get("id_mensaje"), "texto": m.get("texto")} for m in mensajes[:10]]
+def analizar_real(lote: dict) -> dict:
+    """Devuelve un mapa por ID con los booleanos de ruta y el tema."""
+    interacciones = lote.get("interacciones", [])
+    # Extraemos solo lo necesario para ahorrar tokens
+    contexto = [{"id": m.get("id"), "texto": m.get("texto")} for m in interacciones]
     
     prompt = f"""
-    Analiza estos mensajes. Devuelve un JSON con una clave 'resultados' que contenga una lista de objetos.
-    Cada objeto debe tener: 'id_mensaje', 'sentimiento', 'tema', y 'score_relevancia' (1 al 10).
+    Evalúa estos mensajes y devuelve un JSON estricto con una clave 'resultados' que contenga una lista de objetos.
+    Cada objeto DEBE tener exactamente estas claves:
+    - 'id': (mantener original)
+    - 'es_logro': bool (True si comparte un hito o éxito)
+    - 'es_duda': bool (True si es consulta técnica)
+    - 'es_bloqueo': bool (True si expresa frustración o no puede avanzar)
+    - 'tema': string breve (normaliza temas similares bajo la misma cadena)
     Mensajes: {json.dumps(contexto)}
     """
     
-    respuesta_llm = llamar_llm_openrouter(prompt)
-    resultados = respuesta_llm.get("resultados", [])
+    respuesta = llamar_llm_openrouter(prompt)
     
-    # Extraer puntuaciones para el router
-    puntuaciones = {m["id_mensaje"]: m["score_relevancia"] for m in resultados}
-    
-    return {"analisis_resultados": resultados, "puntuaciones": puntuaciones}
+    mapa = {}
+    for res in respuesta.get("resultados", []):
+        mapa[res["id"]] = {
+            "es_logro": res.get("es_logro", False),
+            "es_duda": res.get("es_duda", False),
+            "es_bloqueo": res.get("es_bloqueo", False),
+            "tema": res.get("tema", "General")
+        }
+    return mapa
 
-# ==========================================
-# 4. NODO GENERADOR (CONSERVANDO FUENTES)
-# ==========================================
-def nodo_generador(state: GraphState) -> GraphState:
-    mensajes = state.get("lote_mensajes", [])
-    puntuaciones = state.get("puntuaciones", {})
-    
-    # Filtramos solo los mensajes más relevantes (Score > 7)
-    mensajes_top = [m for m in mensajes if puntuaciones.get(m.get("id_mensaje"), 0) > 7]
-    fuentes_ids = [m.get("id_mensaje") for m in mensajes_top]
+def puntuar_real(peticion: dict) -> dict:
+    """Devuelve un mapa por ID con un float de relevancia entre 0.0 y 1.0."""
+    lote = peticion.get("lote", {})
+    interacciones = lote.get("interacciones", [])
+    contexto = [{"id": m.get("id"), "texto": m.get("texto")} for m in interacciones]
     
     prompt = f"""
-    Crea un post para LinkedIn inspirador usando esta información base. 
-    Devuelve un JSON con la clave 'contenido_post'.
-    Información: {json.dumps([m.get('texto') for m in mensajes_top])}
+    Evalúa la relevancia de estos mensajes. Devuelve un JSON con una clave 'resultados' conteniendo una lista de objetos.
+    Cada objeto DEBE tener:
+    - 'id': (mantener original)
+    - 'relevancia': float entre 0.0 y 1.0 (Asigna > 0.60 solo a mensajes muy útiles, hitos o problemas graves)
+    Mensajes: {json.dumps(contexto)}
     """
     
-    respuesta_llm = llamar_llm_openrouter(prompt)
+    respuesta = llamar_llm_openrouter(prompt)
     
-    borrador = {
-        "tipo_activo": "Post LinkedIn",
-        "contenido": respuesta_llm.get("contenido_post", "Error al generar"),
-        "fuentes_utilizadas": fuentes_ids # <- Trazabilidad exigida en el MVP
-    }
+    mapa_puntos = {}
+    for res in respuesta.get("resultados", []):
+        mapa_puntos[res["id"]] = res.get("relevancia", 0.0)
+    return mapa_puntos
+
+# ==========================================
+# NODOS GENERADORES DE CONTENIDO
+# ==========================================
+# El contrato exige devolver exactamente las fuentes recibidas sin alterarlas
+
+def post_real(peticion: dict) -> dict:
+    interacciones = peticion.get("interacciones_seleccionadas", [])
+    fuentes_recibidas = peticion.get("fuentes", [])
     
-    return {"borradores_generados": [borrador]}
+    prompt = f"Crea un copy inspirador para LinkedIn usando estos mensajes: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
+    respuesta = llamar_llm_openrouter(prompt)
+    
+    return {"copy": respuesta.get("copy", ""), "fuentes": fuentes_recibidas}
+
+def faq_real(peticion: dict) -> dict:
+    interacciones = peticion.get("interacciones_seleccionadas", [])
+    fuentes_recibidas = peticion.get("fuentes", [])
+    
+    prompt = f"Crea un FAQ o Tip educativo técnico resolviendo estas dudas: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
+    respuesta = llamar_llm_openrouter(prompt)
+    
+    return {"copy": respuesta.get("copy", ""), "fuentes": fuentes_recibidas}
+
+def highlights_real(peticion: dict) -> dict:
+    interacciones = peticion.get("interacciones_seleccionadas", [])
+    fuentes_recibidas = peticion.get("fuentes", [])
+    
+    prompt = f"Redacta un resumen semanal (Community Highlights) cohesionado con estos eventos: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
+    respuesta = llamar_llm_openrouter(prompt)
+    
+    return {"copy": respuesta.get("copy", ""), "fuentes": fuentes_recibidas}
