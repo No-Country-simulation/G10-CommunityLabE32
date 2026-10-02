@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Routers del Frontend (Ian)
 from app.routers import mensajes, curaduria, dashboard
 # Router de Procesamientos (Tareck)
-from backend.app.api.routes.procesamientos import router as procesamientos_router
+from app.api.routes.procesamientos import router as procesamientos_router
 
 app = FastAPI(
     title="CommunityLab API",
