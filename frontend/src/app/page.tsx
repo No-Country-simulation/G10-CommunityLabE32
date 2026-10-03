@@ -1,31 +1,36 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { obtenerMensajes, obtenerKPIs, Mensaje, DashboardKPIs } from '@/services/api';
+import { 
+  Database, LayoutDashboard, MessageSquare, UploadCloud, 
+  Loader2, Wifi, Edit3, Layers, CheckCircle2, AlertTriangle, Activity 
+} from 'lucide-react';
+import { motion } from 'framer-motion';
 
-interface Activo {
-  id_activo: string;
-  formato: string;
-  copy: string;
-  fuentes: string[];
-  estado: string;
-}
+export default function CommunityDashboard() {
+  const [mensajes, setMensajes] = useState<Mensaje[]>([]);
+  const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
+  const [cargando, setCargando] = useState(true);
+  const [cargandoMock, setCargandoMock] = useState(false); // Estado de Tareck
 
-interface Alerta {
-  id_alerta: string;
-  nivel: string;
-  mensaje: string;
-  fuente: string;
-}
+  useEffect(() => {
+    Promise.all([obtenerKPIs(), obtenerMensajes()])
+      .then(([kpiData, msgsData]) => {
+        setKpis(kpiData);
+        setMensajes(msgsData.items);
+        setCargando(false);
+      })
+      .catch((err) => {
+        console.error("Error conectando al backend:", err);
+        setCargando(false);
+      });
+  }, []);
 
-export default function Home() {
-  const [cargando, setCargando] = useState(false);
-  const [activos, setActivos] = useState<Activo[]>([]);
-  const [alertas, setAlertas] = useState<Alerta[]>([]);
-  const [resumen, setResumen] = useState("");
-  const [filtro, setFiltro] = useState<string>("todos");
-
+  // Funcionalidad de pruebas de Tareck preservada
   const probarApiBackend = async () => {
-    setCargando(true);
+    setCargandoMock(true);
     try {
       const respuesta = await fetch("/api/v1/procesamientos", {
         method: "POST",
@@ -51,217 +56,167 @@ export default function Home() {
       });
 
       if (!respuesta.ok) throw new Error("Error en la respuesta del backend");
-
-      const data = await respuesta.json();
-      setResumen(data.resumen_comunidad);
-      setActivos(data.activos_distribucion_generados);
-      setAlertas(data.alertas_internas);
+      alert("¡Ingesta de prueba (Mock) ejecutada con éxito! Revisa la base de datos.");
+      window.location.reload();
     } catch {
       alert("No se pudo consultar el backend. Revisa que los servicios locales estén disponibles.");
     } finally {
-      setCargando(false);
+      setCargandoMock(false);
     }
   };
 
-  const activosFiltrados = filtro === "todos"
-    ? activos
-    : activos.filter(a => a.formato.toLowerCase() === filtro.toLowerCase());
+  const sentimentStyles: Record<string, string> = {
+    positivo: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    negativo: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Barra de navegación superior */}
-      <nav className="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50 px-6 py-3.5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center font-black text-white text-lg shadow-lg shadow-indigo-500/20">
-              CL
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-white tracking-tight">CommunityLab</span>
-                <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                  MVP v0.1
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 hidden sm:block">Motor de Transformación y Curaduría</p>
-            </div>
-          </div>
+    <div className="min-h-screen bg-[#0A0714] flex text-slate-200 selection:bg-purple-500/30 relative overflow-hidden">
+      <div className="absolute -top-40 left-1/3 w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-indigo-600/15 rounded-full blur-[120px] pointer-events-none" />
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-slate-300 font-medium">Prueba local</span>
-            </div>
-            <div className="px-3 py-1.5 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-emerald-400 text-xs font-semibold">
-              OCI simulado
-            </div>
+      <aside className="w-60 border-r border-white/10 bg-white/[0.02] backdrop-blur-xl p-5 flex-col gap-8 hidden md:flex relative z-10 shrink-0">
+        <div className="flex items-center gap-2.5 px-2 pt-1">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.5)]">
+            <Database className="w-4 h-4 text-white" />
           </div>
+          <span className="font-semibold text-[15px] bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
+            CommunityLab
+          </span>
         </div>
-      </nav>
+        <nav className="flex flex-col gap-1.5">
+          <Link href="/" className="flex items-center gap-3 text-white bg-gradient-to-r from-indigo-500/20 to-purple-500/10 border border-purple-500/30 px-3 py-2.5 rounded-xl text-sm font-medium shadow-[0_0_20px_rgba(139,92,246,0.15)]">
+            <LayoutDashboard className="w-4 h-4 text-purple-300" /> Dashboard
+          </Link>
+          <Link href="/ingesta" className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent px-3 py-2.5 rounded-xl transition-colors text-sm font-medium">
+            <UploadCloud className="w-4 h-4" /> Ingesta de datos
+          </Link>
+          <Link href="/interacciones" className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent px-3 py-2.5 rounded-xl transition-colors text-sm font-medium">
+            <MessageSquare className="w-4 h-4" /> Interacciones
+          </Link>
+          <Link href="/curaduria" className="flex items-center gap-3 text-slate-400 hover:text-white hover:bg-white/[0.05] border border-transparent px-3 py-2.5 rounded-xl transition-colors text-sm font-medium">
+            <Edit3 className="w-4 h-4" /> Curaduría
+          </Link>
+        </nav>
+      </aside>
 
-      {/* Contenedor principal */}
-      <main className="max-w-7xl mx-auto px-6 py-8 flex-1 w-full space-y-8">
-        {/* Banner de Bienvenida y Disparador de Mock */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-800 p-8 shadow-2xl">
-          <div className="max-w-2xl relative z-10 space-y-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 bg-indigo-950/60 px-2.5 py-1 rounded-md border border-indigo-800/50">
-              Sprint 1 • Tarea 8 & 9
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Panel de Ingesta y Curaduría Comunitaria
-            </h2>
-            <p className="text-slate-300 text-sm leading-relaxed">
-              Transformación automatizada de mensajes de Discord hacia copys listos para redes, bases técnicas FAQ y resúmenes semanales con respuestas de ejemplo. Esta prueba no guarda datos en Oracle Cloud.
-            </p>
-            <div className="pt-2">
-              <button
-                onClick={probarApiBackend}
-                disabled={cargando}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-semibold text-sm transition-all shadow-lg shadow-indigo-600/30 disabled:opacity-50"
-              >
-                {cargando ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                    </svg>
-                    Procesando con FastAPI...
-                  </>
-                ) : (
-                  <>⚡ Disparar Ingesta Mock (API POST)</>
-                )}
-              </button>
+      <main className="flex-1 p-10 relative z-10 h-screen overflow-y-auto">
+        <header className="mb-8 flex justify-between items-end">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight mb-1.5 bg-gradient-to-r from-white via-indigo-200 to-purple-300 bg-clip-text text-transparent">
+              Centro de Operaciones
+            </h1>
+            <p className="text-slate-400 text-[15px]">Métricas en tiempo real e interacciones procesadas.</p>
+          </div>
+          <div className="flex gap-3">
+            {/* Botón de Tareck Integrado */}
+            <button 
+              onClick={probarApiBackend} 
+              disabled={cargandoMock}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs font-semibold hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
+            >
+              {cargandoMock ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Activity className="w-3.5 h-3.5" />}
+              Test Ingesta (Tareck)
+            </button>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+              <Wifi className="w-3.5 h-3.5" />
+              API conectada
             </div>
           </div>
-        </div>
+        </header>
 
-        {resumen && <p role="status">{resumen}</p>}
-
-        {/* Tarjetas KPI de Estado */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-slate-900/70 border border-slate-800/80 rounded-xl p-4">
-            <div className="text-xs font-medium text-slate-400">Total Mensajes</div>
-            <div className="text-2xl font-bold text-white mt-1">{activos.length > 0 ? "6" : "0"}</div>
-            <div className="text-[11px] text-slate-500 mt-1">Lote 2026-W38</div>
-          </div>
-          <div className="bg-slate-900/70 border border-slate-800/80 rounded-xl p-4">
-            <div className="text-xs font-medium text-slate-400">Activos Creados</div>
-            <div className="text-2xl font-bold text-indigo-400 mt-1">{activos.length}</div>
-            <div className="text-[11px] text-slate-500 mt-1">Rutas 1, 2 y 3</div>
-          </div>
-          <div className="bg-slate-900/70 border border-slate-800/80 rounded-xl p-4">
-            <div className="text-xs font-medium text-slate-400">Alertas Internas</div>
-            <div className="text-2xl font-bold text-rose-400 mt-1">{alertas.length}</div>
-            <div className="text-[11px] text-slate-500 mt-1">Ruta 4 (Bloqueos)</div>
-          </div>
-          <div className="bg-slate-900/70 border border-slate-800/80 rounded-xl p-4">
-            <div className="text-xs font-medium text-slate-400">Destino Storage</div>
-            <div className="text-sm font-semibold text-emerald-400 mt-2 truncate">OCI /lotes/paquete.json</div>
-            <div className="text-[11px] text-slate-500 mt-1">Almacenamiento simulado</div>
-          </div>
-        </div>
-
-        {/* Alerta Interna (Ruta 4 de Zeus) */}
-        {alertas.length > 0 && (
-          <div className="bg-rose-950/20 border border-rose-900/60 rounded-xl p-5 shadow-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping"></span>
-              <h4 className="text-rose-400 font-bold text-sm tracking-wide uppercase">
-                Alerta Crítica Interna Detectada (Ruta 4 — No para publicación)
-              </h4>
-            </div>
-            {alertas.map((alerta) => (
-              <div key={alerta.id_alerta} className="flex justify-between items-center text-xs text-rose-200/90 bg-rose-950/40 p-3 rounded-lg border border-rose-900/30">
-                <span>{alerta.mensaje}</span>
-                <span className="font-mono bg-rose-900/40 px-2 py-0.5 rounded text-rose-300">
-                  Fuente: {alerta.fuente}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Sección de Activos de Marketing */}
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
-            <div>
-              <h3 className="text-lg font-bold text-white">Borradores Generados para Curaduría</h3>
-              <p className="text-xs text-slate-400">Revisa, edita o aprueba antes de sincronizar con OCI</p>
-            </div>
-
-            {/* Filtros */}
-            <div className="flex gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
-              {["todos", "linkedin", "faq", "newsletter"].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setFiltro(tab)}
-                  className={`text-xs px-3 py-1.5 rounded-lg capitalize font-medium transition-all ${
-                    filtro === tab
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
+        {cargando ? (
+          <div className="flex items-center justify-center h-72 rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl">
+            <div className="text-slate-400 flex items-center gap-3 text-sm">
+              <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+              Sincronizando datos…
             </div>
           </div>
-
-          {/* Grilla de Activos */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {activosFiltrados.length > 0 ? (
-              activosFiltrados.map((activo) => (
-                <div
-                  key={activo.id_activo}
-                  className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-700 transition-all shadow-md hover:shadow-indigo-950/20"
-                >
-                  <div>
-                    <div className="flex justify-between items-start mb-3">
-                      <span className={`text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-1 rounded-lg border ${
-                        activo.formato === "linkedin"
-                          ? "bg-blue-950/60 text-blue-400 border-blue-800/60"
-                          : activo.formato === "faq"
-                          ? "bg-amber-950/60 text-amber-400 border-amber-800/60"
-                          : "bg-purple-950/60 text-purple-400 border-purple-800/60"
-                      }`}>
-                        {activo.formato}
-                      </span>
-                      <span className="text-[11px] font-mono text-slate-500">
-                        {activo.fuentes.join(", ")}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-200 leading-relaxed font-normal">
-                      {activo.copy}
-                    </p>
+        ) : (
+          <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }} className="space-y-8">
+            {kpis && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }} className="bg-white/[0.03] backdrop-blur-xl p-5 rounded-2xl border border-white/10 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all" />
+                  <div className="flex items-center gap-3 mb-2 text-slate-400">
+                    <MessageSquare className="w-5 h-5 text-blue-400" />
+                    <span className="text-sm font-medium">Total Mensajes</span>
                   </div>
-
-                  <div className="pt-4 mt-4 border-t border-slate-800/80 flex gap-2">
-                    <button disabled title="Disponible en una etapa posterior de curaduría" className="flex-1 py-1.5 px-3 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold transition-colors">
-                      ✓ Aprobar
-                    </button>
-                    <button disabled title="Disponible en una etapa posterior de curaduría" className="flex-1 py-1.5 px-3 bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition-colors">
-                      ✎ Editar
-                    </button>
+                  <h3 className="text-3xl font-bold text-white">{kpis.total_mensajes}</h3>
+                  <div className="mt-3 text-xs text-slate-500 flex justify-between">
+                    <span className="text-emerald-400">+{kpis.distribucion_sentimiento?.positivo || 0} positivos</span>
+                    <span className="text-rose-400">{kpis.distribucion_sentimiento?.negativo || 0} quejas</span>
                   </div>
-                </div>
-              ))
-            ) : (
-              <div className="col-span-3 text-center py-16 border-2 border-dashed border-slate-800/80 rounded-2xl bg-slate-900/20 space-y-2">
-                <div className="text-2xl">⚡</div>
-                <div className="text-sm font-medium text-slate-300">No hay activos cargados todavía</div>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Presiona el botón superior <strong className="text-indigo-400">&quot;Disparar Ingesta Mock&quot;</strong> para consultar el backend y ver la generación en vivo.
-                </p>
+                </motion.div>
+
+                <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }} className="bg-white/[0.03] backdrop-blur-xl p-5 rounded-2xl border border-white/10 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all" />
+                  <div className="flex items-center gap-3 mb-2 text-slate-400">
+                    <Layers className="w-5 h-5 text-purple-400" />
+                    <span className="text-sm font-medium">Borradores IA</span>
+                  </div>
+                  <h3 className="text-3xl font-bold text-white">{kpis.activos_generados}</h3>
+                  <p className="mt-3 text-xs text-slate-500">Activos listos para revisión en el panel</p>
+                </motion.div>
+
+                <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }} className="bg-white/[0.03] backdrop-blur-xl p-5 rounded-2xl border border-white/10 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all" />
+                  <div className="flex items-center gap-3 mb-2 text-slate-400">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    <span className="text-sm font-medium">Publicaciones</span>
+                  </div>
+                  <h3 className="text-3xl font-bold text-white">{kpis.activos_aprobados}</h3>
+                  <p className="mt-3 text-xs text-slate-500">Aprobados listos para OCI Storage</p>
+                </motion.div>
+
+                <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }} className="bg-white/[0.03] backdrop-blur-xl p-5 rounded-2xl border border-rose-500/20 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-2xl group-hover:bg-rose-500/20 transition-all" />
+                  <div className="flex items-center gap-3 mb-2 text-rose-300">
+                    <AlertTriangle className="w-5 h-5 text-rose-400" />
+                    <span className="text-sm font-medium">Alertas Internas</span>
+                  </div>
+                  <h3 className="text-3xl font-bold text-white">{kpis.alertas_internas}</h3>
+                  <p className="mt-3 text-xs text-slate-400">Bloqueos que requieren atención manual</p>
+                </motion.div>
               </div>
             )}
-          </div>
-        </div>
-      </main>
 
-      {/* Pie de página */}
-      <footer className="border-t border-slate-800/80 py-4 px-6 text-center text-xs text-slate-500">
-        CommunityLab MVP • Hackathon ONE G10-LATAM • Oracle Cloud Infrastructure
-      </footer>
+            <div>
+              <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-indigo-400" /> Flujo en tiempo real
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                {mensajes.slice(0, 9).map((msg) => (
+                  <motion.div variants={{ hidden: { opacity: 0, scale: 0.95 }, show: { opacity: 1, scale: 1 } }} key={msg.id_mensaje} className="bg-white/[0.03] backdrop-blur-xl p-5 rounded-2xl border border-white/10 hover:border-purple-500/40 transition-all duration-300 flex flex-col justify-between hover:shadow-[0_0_35px_rgba(139,92,246,0.15)] hover:-translate-y-0.5">
+                    <div>
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                          {msg.canal}
+                        </span>
+                        {msg.sentimiento_ref && (
+                          <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${sentimentStyles[msg.sentimiento_ref] ?? 'bg-white/5 text-slate-300 border-white/10'}`}>
+                            {msg.sentimiento_ref}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-slate-300 text-sm leading-relaxed mb-5 line-clamp-4">{msg.texto}</p>
+                    </div>
+                    <div className="pt-4 border-t border-white/10 flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-[0_0_15px_rgba(139,92,246,0.4)]">
+                        {msg.autor.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-slate-200">{msg.autor}</span>
+                        <span className="text-xs text-slate-500">{new Date(msg.fecha).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </main>
     </div>
   );
 }
