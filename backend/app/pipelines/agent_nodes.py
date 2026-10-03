@@ -1,22 +1,19 @@
 import os
 import json
 import requests
-
 # ==========================================
 # MOTOR LLM CON FALLBACK (OPENROUTER)
 # ==========================================
-import os
-import json
-import requests
-
-# ==========================================
-# MOTOR LLM CON FALLBACK (OPENROUTER)
 # ==========================================
 def llamar_llm_openrouter(prompt: str) -> dict:
     """Llama a OpenRouter con modelos gratuitos y manejo estricto de errores."""
     api_key = os.environ.get("OPENROUTER_API_KEY")
     payload = {
-        "models": ["google/gemma-4-31b:free", "nvidia/nemotron-3-super:free"],
+        "models": [
+            "google/gemma-4-31b-it:free",
+            "cohere/north-mini-code:free",
+            "nvidia/nemotron-3-ultra-550b-a55b:free"
+        ],
         "messages": [{"role": "user", "content": prompt}],
         "response_format": {"type": "json_object"}
     }
@@ -29,18 +26,19 @@ def llamar_llm_openrouter(prompt: str) -> dict:
                 "HTTP-Referer": "https://github.com/No-Country-simulation/G10-CommunityLabE32"
             },
             json=payload,
-            timeout=25 # Añadido el timeout solicitado por Paulo
+            timeout=25
         )
     except requests.exceptions.RequestException as e:
-        # Corta el flujo si hay timeout o problema de red
+        print(f"\n💥 ERROR CRÍTICO DE RED: {e}")
         raise Exception(f"Fallo de conexión HTTP con OpenRouter: {e}")
     
-    # Corta el flujo si la API devuelve un código de error (ej. 429 Rate Limit)
     if response.status_code != 200:
+        print(f"\n💥 ERROR DE API OPENROUTER (Status {response.status_code}): {response.text}")
         raise Exception(f"Error API OpenRouter (Status {response.status_code}): {response.text}")
         
     data = response.json()
     if 'choices' not in data:
+        print(f"\n💥 ERROR SIN CHOICES (Posible Rate Limit): {data}")
         raise Exception(f"Respuesta sin 'choices' (posible Rate Limit silencioso): {data}")
         
     contenido_str = data['choices'][0]['message']['content']
@@ -49,9 +47,8 @@ def llamar_llm_openrouter(prompt: str) -> dict:
     try:
         return json.loads(contenido_str)
     except json.JSONDecodeError:
-        # Corta el flujo si la IA alucinó y no entregó un JSON válido
+        print(f"\n💥 ERROR DE FORMATO JSON: {contenido_str}")
         raise Exception(f"El modelo no generó un JSON válido. Salida cruda: {contenido_str}")
-
 # ==========================================
 # NODOS DE CLASIFICACIÓN Y PUNTUACIÓN
 # ==========================================
@@ -61,7 +58,7 @@ def analizar_real(lote: dict) -> dict:
     contexto = [{"id": m.get("id"), "texto": m.get("texto")} for m in interacciones]
     
     prompt = f"""
-    Evalúa estos mensajes y devuelve un JSON estricto con una clave 'resultados' que contenga una lista de objetos.
+    Siempre reponde en español.Evalúa estos mensajes y devuelve un JSON estricto con una clave 'resultados' que contenga una lista de objetos.
     Cada objeto DEBE tener exactamente estas claves:
     - 'id': (mantener original)
     - 'es_logro': bool (True si comparte un hito o éxito)
@@ -137,30 +134,31 @@ def puntuar_real(peticion: dict) -> dict:
 # NODOS GENERADORES DE CONTENIDO CORREGIDOS
 # ==========================================
 def post_real(peticion: dict) -> dict:
-    # Usamos interacciones_seleccionadas o caemos en interacciones si viene plano
     interacciones = peticion.get("interacciones_seleccionadas", []) or peticion.get("interacciones", [])
     fuentes_recibidas = peticion.get("fuentes", [])
     
-    prompt = f"Crea un copy inspirador para LinkedIn usando estos mensajes: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
+    prompt = f"Crea un copy inspirador para LinkedIn en español usando estos mensajes: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
     respuesta = llamar_llm_openrouter(prompt)
     
-    return {"copy": respuesta.get("copy", ""), "fuentes": fuentes_recibidas}
+    copy_text = respuesta.get("copy", "") if isinstance(respuesta, dict) else str(respuesta)
+    return {"copy": copy_text, "fuentes": fuentes_recibidas}
 
 def faq_real(peticion: dict) -> dict:
     interacciones = peticion.get("interacciones_seleccionadas", []) or peticion.get("interacciones", [])
     fuentes_recibidas = peticion.get("fuentes", [])
     
-    prompt = f"Crea un FAQ o Tip educativo técnico resolviendo estas dudas: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
+    prompt = f"Crea un FAQ o Tip educativo técnico en español resolviendo estas dudas: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
     respuesta = llamar_llm_openrouter(prompt)
     
-    return {"copy": respuesta.get("copy", ""), "fuentes": fuentes_recibidas}
+    copy_text = respuesta.get("copy", "") if isinstance(respuesta, dict) else str(respuesta)
+    return {"copy": copy_text, "fuentes": fuentes_recibidas}
 
 def highlights_real(peticion: dict) -> dict:
     interacciones = peticion.get("interacciones_seleccionadas", []) or peticion.get("interacciones", [])
     fuentes_recibidas = peticion.get("fuentes", [])
     
-    prompt = f"Redacta un resumen semanal (Community Highlights) cohesionado con estos eventos: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
+    prompt = f"Redacta un resumen semanal (Community Highlights) cohesionado en español con estos eventos: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
     respuesta = llamar_llm_openrouter(prompt)
     
-    return {"copy": respuesta.get("copy", ""), "fuentes": fuentes_recibidas}
-
+    copy_text = respuesta.get("copy", "") if isinstance(respuesta, dict) else str(respuesta)
+    return {"copy": copy_text, "fuentes": fuentes_recibidas}
