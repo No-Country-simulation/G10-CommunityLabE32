@@ -5,27 +5,43 @@ import requests
 # ==========================================
 # MOTOR LLM CON FALLBACK (OPENROUTER)
 # ==========================================
+import os
+import json
+import requests
+
+# ==========================================
+# MOTOR LLM CON FALLBACK (OPENROUTER)
+# ==========================================
 def llamar_llm_openrouter(prompt: str) -> dict:
-    """Llama a OpenRouter con modelos estables."""
+    """Llama a OpenRouter con modelos gratuitos y manejo estricto de errores."""
     api_key = os.environ.get("OPENROUTER_API_KEY")
     payload = {
-        "models": ["meta-llama/llama-3-8b-instruct", "deepseek/deepseek-chat"],
+        "models": ["google/gemma-4-31b:free", "nvidia/nemotron-3-super:free"],
         "messages": [{"role": "user", "content": prompt}],
         "response_format": {"type": "json_object"}
     }
     
-    response = requests.post(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {api_key}", 
-            "HTTP-Referer": "https://github.com/No-Country-simulation/G10-CommunityLabE32"
-        },
-        json=payload
-    )
+    try:
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}", 
+                "HTTP-Referer": "https://github.com/No-Country-simulation/G10-CommunityLabE32"
+            },
+            json=payload,
+            timeout=25 # Añadido el timeout solicitado por Paulo
+        )
+    except requests.exceptions.RequestException as e:
+        # Corta el flujo si hay timeout o problema de red
+        raise Exception(f"Fallo de conexión HTTP con OpenRouter: {e}")
     
+    # Corta el flujo si la API devuelve un código de error (ej. 429 Rate Limit)
+    if response.status_code != 200:
+        raise Exception(f"Error API OpenRouter (Status {response.status_code}): {response.text}")
+        
     data = response.json()
     if 'choices' not in data:
-        return {}
+        raise Exception(f"Respuesta sin 'choices' (posible Rate Limit silencioso): {data}")
         
     contenido_str = data['choices'][0]['message']['content']
     contenido_str = contenido_str.replace("```json", "").replace("```", "").strip()
@@ -33,7 +49,8 @@ def llamar_llm_openrouter(prompt: str) -> dict:
     try:
         return json.loads(contenido_str)
     except json.JSONDecodeError:
-        return {}
+        # Corta el flujo si la IA alucinó y no entregó un JSON válido
+        raise Exception(f"El modelo no generó un JSON válido. Salida cruda: {contenido_str}")
 
 # ==========================================
 # NODOS DE CLASIFICACIÓN Y PUNTUACIÓN
