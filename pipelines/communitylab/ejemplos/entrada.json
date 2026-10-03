@@ -1,0 +1,49 @@
+{
+  "origen_comunidad": "discord_demo_local",
+  "periodo_referencia": "2026-W40",
+  "cierre_periodo": true,
+  "interacciones": [
+    {
+      "id": "m-01",
+      "autor": "persona_demo_01",
+      "canal": "logros",
+      "fecha": "2026-09-28T10:00:00Z",
+      "texto": "Conseguí mi primer empleo como Dev Jr."
+    },
+    {
+      "id": "m-02",
+      "autor": "persona_demo_02",
+      "canal": "dudas",
+      "fecha": "2026-09-29T10:00:00Z",
+      "texto": "¿Cómo configuro reintentos en LangGraph?"
+    },
+    {
+      "id": "m-03",
+      "autor": "persona_demo_03",
+      "canal": "dudas",
+      "fecha": "2026-09-29T11:00:00Z",
+      "texto": "También necesito entender los reintentos de LangGraph."
+    },
+    {
+      "id": "m-04",
+      "autor": "persona_demo_04",
+      "canal": "comunidad",
+      "fecha": "2026-09-30T10:00:00Z",
+      "texto": "Participé en una mentoría de portafolios."
+    },
+    {
+      "id": "m-05",
+      "autor": "persona_demo_05",
+      "canal": "comunidad",
+      "fecha": "2026-09-30T11:00:00Z",
+      "texto": "Esta semana compartimos avances del proyecto."
+    },
+    {
+      "id": "m-06",
+      "autor": "persona_demo_06",
+      "canal": "soporte",
+      "fecha": "2026-10-01T10:00:00Z",
+      "texto": "Tengo un bloqueo con un timeout al guardar el paquete."
+    }
+  ]
+}

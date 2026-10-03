@@ -1,0 +1,46 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	inicializar(inicializar)
+	ingesta(ingesta)
+	analizar(analizar)
+	puntuar(puntuar)
+	router(router)
+	despachar(despachar)
+	alerta_interna(alerta_interna)
+	generador_post_linkedin_x(generador_post_linkedin_x)
+	generador_faq_tip(generador_faq_tip)
+	generador_highlights(generador_highlights)
+	consolidacion(consolidacion)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> inicializar;
+	alerta_interna -.-> consolidacion;
+	alerta_interna -.-> despachar;
+	analizar -.-> consolidacion;
+	analizar -.-> puntuar;
+	despachar -.-> alerta_interna;
+	despachar -.-> consolidacion;
+	despachar -.-> generador_faq_tip;
+	despachar -.-> generador_highlights;
+	despachar -.-> generador_post_linkedin_x;
+	generador_faq_tip -.-> consolidacion;
+	generador_faq_tip -.-> despachar;
+	generador_highlights -.-> consolidacion;
+	generador_highlights -.-> despachar;
+	generador_post_linkedin_x -.-> consolidacion;
+	generador_post_linkedin_x -.-> despachar;
+	ingesta -.-> analizar;
+	ingesta -.-> consolidacion;
+	inicializar --> ingesta;
+	puntuar -.-> consolidacion;
+	puntuar -.-> router;
+	router -.-> consolidacion;
+	router -.-> despachar;
+	consolidacion --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
