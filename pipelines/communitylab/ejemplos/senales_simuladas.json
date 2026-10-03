@@ -1,0 +1,44 @@
+{
+  "m-01": {
+    "es_logro": true,
+    "es_duda": false,
+    "es_bloqueo": false,
+    "tema": "empleo",
+    "relevancia": 0.95
+  },
+  "m-02": {
+    "es_logro": false,
+    "es_duda": true,
+    "es_bloqueo": false,
+    "tema": "reintentos_langgraph",
+    "relevancia": 0.8
+  },
+  "m-03": {
+    "es_logro": false,
+    "es_duda": true,
+    "es_bloqueo": false,
+    "tema": "reintentos_langgraph",
+    "relevancia": 0.8
+  },
+  "m-04": {
+    "es_logro": false,
+    "es_duda": false,
+    "es_bloqueo": false,
+    "tema": "mentoria",
+    "relevancia": 0.7
+  },
+  "m-05": {
+    "es_logro": false,
+    "es_duda": false,
+    "es_bloqueo": false,
+    "tema": "avances",
+    "relevancia": 0.75
+  },
+  "m-06": {
+    "es_logro": false,
+    "es_duda": false,
+    "es_bloqueo": true,
+    "tema": "almacenamiento",
+    "relevancia": 0.2
+  }
+}
