@@ -56,7 +56,7 @@ export default function CommunityDashboard() {
       });
 
       if (!respuesta.ok) throw new Error("Error en la respuesta del backend");
-      alert("¡Ingesta de prueba (Mock) ejecutada con éxito! Revisa la base de datos.");
+      alert("Respuesta de demostración recibida. Esta prueba no guarda datos.");
       window.location.reload();
     } catch {
       alert("No se pudo consultar el backend. Revisa que los servicios locales estén disponibles.");

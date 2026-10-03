@@ -9,11 +9,11 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from app.core.database import AsyncSessionLocal, engine, Base
+from backend.app.core.database import AsyncSessionLocal, engine, Base
 
-# Importamos los modelos para que SQLAlchemy registre TODAS las tablas 
-from app.models.mensaje import Mensaje 
-from app.models.activo import Activo  # 
+# Importamos los modelos para que SQLAlchemy registre TODAS las tablas
+from backend.app.models.mensaje import Mensaje
+from backend.app.models.activo import Activo  #
 
 # Configuración de Logging Empresarial
 logging.basicConfig(
@@ -49,14 +49,14 @@ async def upsert_mensajes(session, mensajes_data: list[dict]):
         return
 
     stmt = pg_insert(Mensaje).values(mensajes_data)
-    
+
     # Lógica de Upsert en SQLite
     update_dict = {c.name: c for c in stmt.excluded if not c.primary_key}
     stmt = stmt.on_conflict_do_update(
         index_elements=['id_mensaje'],
         set_=update_dict
     )
-    
+
     await session.execute(stmt)
 
 async def seed_database():
@@ -69,14 +69,14 @@ async def seed_database():
             continue
 
         logger.info(f"Leyendo dataset: {file_path.name}")
-        
+
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
         except Exception as e:
             logger.error(f"Fallo al decodificar {file_path.name}: {str(e)}")
             continue
-        
+
         BATCH_SIZE = 500
         total_records = len(data)
         inserted_count = 0
@@ -89,7 +89,7 @@ async def seed_database():
                     await upsert_mensajes(session, chunk)
                     inserted_count += len(chunk)
                     logger.info(f"Progreso: {inserted_count}/{total_records} registros procesados.")
-            
+
         logger.info(f"✅ Finalizado con éxito: {file_path.name}\n")
 
 if __name__ == "__main__":

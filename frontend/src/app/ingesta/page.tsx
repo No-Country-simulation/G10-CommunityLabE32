@@ -7,6 +7,10 @@ import { motion } from 'framer-motion';
 import { subirLote } from '@/services/api';
 
 export default function IngestaPage() {
+  const [origen, setOrigen] = useState('panel_local');
+  const [periodo, setPeriodo] = useState('Semana 2');
+  const [cierre, setCierre] = useState(false);
+  const [trabajoId, setTrabajoId] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [procesando, setProcesando] = useState(false);
@@ -52,9 +56,10 @@ export default function IngestaPage() {
     setProcesando(true);
 
     try {
-      const respuesta = await subirLote(file);
+      const respuesta = await subirLote(file, origen, periodo, cierre);
       console.log("Respuesta del servidor:", respuesta);
       setProcesando(false);
+      setTrabajoId(respuesta.procesamiento_id);
       setCompletado(true);
     } catch (error) {
       console.error("Error subiendo el archivo:", error);
@@ -123,6 +128,11 @@ export default function IngestaPage() {
             <p className="text-sm text-slate-400 mt-1">El esquema del dataset se normaliza automáticamente antes de entrar al pipeline.</p>
           </div>
 
+          <div className="flex flex-col gap-3 mb-5">
+            <label>Comunidad <input className="bg-white/10 rounded p-2 ml-2" value={origen} onChange={e => setOrigen(e.target.value)} /></label>
+            <label>Período <input className="bg-white/10 rounded p-2 ml-2" value={periodo} onChange={e => setPeriodo(e.target.value)} /></label>
+            <label><input type="checkbox" checked={cierre} onChange={e => setCierre(e.target.checked)} /> Cerrar período y generar resumen</label>
+          </div>
           <form onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
             <input type="file" id="file-upload" className="hidden" accept=".json,.jsonl,.csv" onChange={handleChange} />
             <label
@@ -165,6 +175,7 @@ export default function IngestaPage() {
             </label>
           </form>
 
+          {trabajoId && <p className="text-xs mt-3">Trabajo: {trabajoId}. <a className="underline" href={`/api/v1/trabajos/${trabajoId}`} target="_blank" rel="noreferrer">Consultar estado y resultado</a></p>}
           <div className="mt-7 pt-6 border-t border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-2.5 text-sm">
               {procesando && (
@@ -179,7 +190,7 @@ export default function IngestaPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="flex items-center gap-2 text-emerald-300"
                 >
-                  <CheckCircle2 className="w-4 h-4" /> Pipeline finalizado con éxito
+                  <CheckCircle2 className="w-4 h-4" /> Lote recibido; pendiente de procesamiento
                 </motion.span>
               )}
               {!procesando && !completado && !file && (
@@ -198,7 +209,7 @@ export default function IngestaPage() {
                   : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-[0_0_25px_rgba(139,92,246,0.35)] hover:shadow-[0_0_35px_rgba(139,92,246,0.55)] hover:-translate-y-0.5'
               }`}
             >
-              {procesando ? 'Procesando…' : completado ? 'Completado' : 'Iniciar procesamiento'}
+              {procesando ? 'Procesando…' : completado ? 'Recibido' : 'Iniciar procesamiento'}
             </button>
           </div>
         </div>

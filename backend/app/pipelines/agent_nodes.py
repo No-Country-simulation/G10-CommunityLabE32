@@ -10,7 +10,7 @@ def llamar_llm_openrouter(prompt: str) -> dict:
     api_key = os.environ.get("OPENROUTER_API_KEY")
 
     if not api_key:
-        return {}
+        raise ValueError("Respuesta de OpenRouter no disponible o inválida")
 
     payload = {
         "models": ["meta-llama/llama-3-8b-instruct", "deepseek/deepseek-chat"],
@@ -31,18 +31,21 @@ def llamar_llm_openrouter(prompt: str) -> dict:
         response.raise_for_status()
         data = response.json()
     except (requests.RequestException, ValueError):
-        return {}
+        raise ValueError("Respuesta de OpenRouter no disponible o inválida")
 
-    if "choices" not in data or not data["choices"]:
-        return {}
+    if not isinstance(data, dict) or not data.get("choices"):
+        raise ValueError("Respuesta de OpenRouter no disponible o inválida")
 
     contenido_str = data["choices"][0]["message"].get("content", "")
     contenido_str = contenido_str.replace("```json", "").replace("```", "").strip()
 
     try:
-        return json.loads(contenido_str)
+        resultado = json.loads(contenido_str)
+        if not isinstance(resultado, dict):
+            raise ValueError("OpenRouter debe devolver un objeto JSON")
+        return resultado
     except json.JSONDecodeError:
-        return {}
+        raise ValueError("Respuesta de OpenRouter no disponible o inválida")
 
 # ==========================================
 # NODOS DE CLASIFICACIÓN Y PUNTUACIÓN
@@ -74,18 +77,14 @@ def analizar_real(lote: dict) -> dict:
         msg_id = res.get("id", res.get("id_mensaje"))
         if msg_id:
             mapa[msg_id] = {
-                "es_logro": res.get("es_logro", False),
-                "es_duda": res.get("es_duda", False),
-                "es_bloqueo": res.get("es_bloqueo", False),
+                "es_logro": res["es_logro"],
+                "es_duda": res["es_duda"],
+                "es_bloqueo": res["es_bloqueo"],
                 "tema": res.get("tema", "General")
             }
 
-    # Seguro anti-KeyError para cumplir estrictamente con el contrato
-    for m in interacciones:
-        if m["id"] not in mapa:
-            mapa[m["id"]] = {
-                "es_logro": False, "es_duda": False, "es_bloqueo": False, "tema": "General"
-            }
+    if set(mapa) != {m["id"] for m in interacciones}:
+        raise ValueError("Análisis incompleto")
 
     return mapa
 
@@ -114,14 +113,12 @@ def puntuar_real(peticion: dict) -> dict:
         msg_id = res.get("id", res.get("id_mensaje"))
         if msg_id:
             try:
-                mapa_puntos[msg_id] = float(res.get("relevancia", 0.0))
+                mapa_puntos[msg_id] = res["relevancia"]
             except (ValueError, TypeError):
-                mapa_puntos[msg_id] = 0.0
+                raise ValueError("Puntuación inválida") from None
 
-    # Seguro anti-KeyError
-    for m in interacciones:
-        if m["id"] not in mapa_puntos:
-            mapa_puntos[m["id"]] = 0.0
+    if set(mapa_puntos) != {m["id"] for m in interacciones}:
+        raise ValueError("Puntuación incompleta")
 
     return mapa_puntos
 

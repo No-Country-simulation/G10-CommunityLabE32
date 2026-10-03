@@ -53,6 +53,7 @@ data/processed/*
 # PostgreSQL / Docker
 # =========================
 *.sql
+!worker/schema.sql
 postgres_data/
 
 # =========================

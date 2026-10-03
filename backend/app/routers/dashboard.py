@@ -3,9 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import Dict, Any
 
-from app.core.dependencias import get_db
-from app.models.mensaje import Mensaje
-from app.models.activo import Activo
+from backend.app.core.dependencias import get_db
+from backend.app.models.mensaje import Mensaje
+from backend.app.models.activo import Activo
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard KPIs"])
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { obtenerMensajes, Mensaje } from '@/services/api';
 import { Database, LayoutDashboard, MessageSquare, Search, ChevronLeft, ChevronRight, Filter, UploadCloud, Loader2, Edit3 } from 'lucide-react';
 import Link from 'next/link';
@@ -16,24 +16,19 @@ export default function InteraccionesPage() {
   const [paginaActual, setPaginaActual] = useState(1);
   const itemsPorPagina = 10;
 
-  const fetchMensajes = useCallback(async () => {
-    setCargando(true);
-    try {
-      const skip = (paginaActual - 1) * itemsPorPagina;
-      // Llama a la API pidiendo solo 10 registros
-      const data = await obtenerMensajes(skip, itemsPorPagina);
+  useEffect(() => {
+    let vigente = true;
+    obtenerMensajes((paginaActual - 1) * itemsPorPagina, itemsPorPagina).then(data => {
+      if (!vigente) return;
       setMensajes(data.items);
       setTotalRegistros(data.total);
-    } catch (err) {
-      console.error("Error conectando al backend:", err);
-    } finally {
       setCargando(false);
-    }
+    }).catch(error => {
+      if (vigente) setCargando(false);
+      console.error("Error conectando al backend:", error);
+    });
+    return () => { vigente = false; };
   }, [paginaActual]);
-
-  useEffect(() => {
-    fetchMensajes();
-  }, [fetchMensajes]);
 
   const totalPaginas = Math.ceil(totalRegistros / itemsPorPagina);
   const indicePrimerItem = (paginaActual - 1) * itemsPorPagina;

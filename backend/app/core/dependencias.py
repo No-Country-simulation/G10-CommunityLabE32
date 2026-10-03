@@ -1,6 +1,6 @@
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.database import AsyncSessionLocal
+from backend.app.core.database import AsyncSessionLocal
 import logging
 
 logger = logging.getLogger(__name__)

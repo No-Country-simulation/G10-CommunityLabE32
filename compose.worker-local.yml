@@ -1,0 +1,6 @@
+# Puerto solo para las pruebas locales; no usar este override en VM.
+services:
+  postgres:
+    networks: [database, outbound]
+    ports:
+      - "127.0.0.1:15439:5432"

@@ -38,9 +38,12 @@ export const obtenerMensajes = async (
   return response.data;
 };
 
-export const subirLote = async (archivo: File) => {
+export const subirLote = async (archivo: File, origen: string, periodo: string, cierre: boolean) => {
   const formData = new FormData();
   formData.append('file', archivo);
+  formData.append('origen_comunidad', origen);
+  formData.append('periodo_referencia', periodo);
+  formData.append('cierre_periodo', String(cierre));
 
   const response = await apiClient.post('/mensajes/procesamientos', formData, {
     headers: {
@@ -89,7 +92,7 @@ export const listarActivos = async (
   limit: number = 15,
   estado?: string
 ): Promise<PaginatedActivosResponse> => {
-  const params: Record<string, any> = { page, limit };
+  const params: Record<string, string | number> = { page, limit };
   if (estado) params.estado = estado;
   
   const response = await apiClient.get('/curaduria/activos', { params });

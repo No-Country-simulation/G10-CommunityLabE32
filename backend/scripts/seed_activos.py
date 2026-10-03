@@ -6,9 +6,9 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import select
-from app.core.database import AsyncSessionLocal
-from app.models.activo import Activo
-from app.models.mensaje import Mensaje
+from backend.app.core.database import AsyncSessionLocal
+from backend.app.models.activo import Activo
+from backend.app.models.mensaje import Mensaje
 
 async def inyectar_activos():
     async with AsyncSessionLocal() as session:

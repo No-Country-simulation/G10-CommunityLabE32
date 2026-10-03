@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import { useState, useEffect } from 'react';
 import { 
   Database, LayoutDashboard, MessageSquare, UploadCloud, Edit3, 
   CheckCircle2, XCircle, Clock, BookOpen, Layers, Loader2, Save 
@@ -16,12 +17,11 @@ export default function CuraduriaPage() {
   
   // Paginación y filtros
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [, setTotalPages] = useState(1);
   const [filtroEstado, setFiltroEstado] = useState<string>('');
   
   // Estados UI
   const [loadingList, setLoadingList] = useState(true);
-  const [loadingDetail, setLoadingDetail] = useState(false);
   const [saving, setSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   
@@ -31,36 +31,29 @@ export default function CuraduriaPage() {
   const [isDirty, setIsDirty] = useState(false);
   const [tieneConsentimiento, setTieneConsentimiento] = useState(false);
 
-  // 1. Cargar la lista lateral
-  const fetchLista = useCallback(async () => {
-    setLoadingList(true);
-    try {
-      const res = await listarActivos(page, 10, filtroEstado);
+  useEffect(() => {
+    let vigente = true;
+    listarActivos(page, 10, filtroEstado).then(res => {
+      if (!vigente) return;
       setActivos(res.items);
       setTotalPages(res.total_pages);
-      
-      if (res.items.length > 0 && !selectedId) {
-        setSelectedId(res.items[0].id_activo);
-      }
-    } catch (error) {
-      console.error("Error al cargar la lista de activos:", error);
-    } finally {
+      setSelectedId(actual => res.items.some(a => a.id_activo === actual) ? actual : res.items[0]?.id_activo ?? null);
       setLoadingList(false);
-    }
-  }, [page, filtroEstado, selectedId]);
-
-  useEffect(() => {
-    fetchLista();
-  }, [fetchLista]);
+    }).catch(error => {
+      if (vigente) setLoadingList(false);
+      console.error("Error al cargar activos:", error);
+    });
+    return () => { vigente = false; };
+  }, [page, filtroEstado]);
 
   // 2. Cargar el detalle al seleccionar un activo
   useEffect(() => {
     if (!selectedId) return;
-    
+    let vigente = true;
     const fetchDetalle = async () => {
-      setLoadingDetail(true);
       try {
         const res = await obtenerDetalleActivo(selectedId);
+        if (!vigente) return;
         setSelectedActivo(res);
         setEditCopy(res.copy);
         setComentario(res.comentario_curador || '');
@@ -68,16 +61,15 @@ export default function CuraduriaPage() {
         setIsDirty(false);
       } catch (error) {
         console.error("Error al cargar el detalle:", error);
-      } finally {
-        setLoadingDetail(false);
       }
     };
     fetchDetalle();
+    return () => { vigente = false; };
   }, [selectedId]);
 
   // 3. Guardar cambios
   const handleUpdate = async (nuevoEstado?: EstadoActivo) => {
-    if (!selectedId) return;
+    if (!selectedId || selectedActivo?.id_activo !== selectedId) return;
 
     // Validación ética para la Aprobación
     if (nuevoEstado === 'aprobado' && tieneConsentimiento) {
@@ -90,7 +82,7 @@ export default function CuraduriaPage() {
     setSaving(true);
     
     try {
-      const payload: any = {};
+      const payload: { copy?: string; estado?: EstadoActivo; comentario_curador?: string } = {};
       if (isDirty) payload.copy = editCopy;
       if (comentario !== (selectedActivo?.comentario_curador || '')) payload.comentario_curador = comentario;
       if (nuevoEstado) payload.estado = nuevoEstado;
@@ -101,8 +93,8 @@ export default function CuraduriaPage() {
       setSelectedActivo((prev) => prev ? { ...prev, ...res } : null);
       setActivos((prev) => prev.map(a => a.id_activo === selectedId ? { ...a, ...res } : a));
       setIsDirty(false);
-    } catch (error: any) {
-      alert(error.response?.data?.detail || "Error guardando los cambios.");
+    } catch (error: unknown) {
+      alert(axios.isAxiosError(error) && typeof error.response?.data?.detail === "string" ? error.response.data.detail : "Error guardando los cambios.");
     } finally {
       setSaving(false);
     }
@@ -186,7 +178,7 @@ export default function CuraduriaPage() {
 
       {/* Editor Principal */}
       <div className="flex-1 flex flex-col h-screen bg-transparent z-10 relative">
-        {selectedActivo ? (
+        {selectedActivo && selectedActivo.id_activo === selectedId ? (
           <>
             {/* Header Editor */}
             <div className="p-6 border-b border-white/10 flex justify-between items-center backdrop-blur-sm bg-black/20">
@@ -302,7 +294,7 @@ export default function CuraduriaPage() {
                     <span className="text-xs font-semibold text-indigo-300">{f.autor}</span>
                     <span className="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-slate-300">{f.canal}</span>
                   </div>
-                  <p className="text-sm text-slate-200 italic leading-relaxed">"{f.texto}"</p>
+                  <p className="text-sm text-slate-200 italic leading-relaxed">&quot;{f.texto}&quot;</p>
                 </div>
               ))}
               {(!selectedActivo?.fuentes_detalle || selectedActivo.fuentes_detalle.length === 0) && (

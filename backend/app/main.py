@@ -2,9 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Routers del Frontend (Ian)
-from app.routers import mensajes, curaduria, dashboard
+from backend.app.routers import mensajes, curaduria, dashboard
 # Router de Procesamientos (Tareck)
-from app.api.routes.procesamientos import router as procesamientos_router
+from backend.app.api.routes.procesamientos import router as procesamientos_router
 
 app = FastAPI(
     title="CommunityLab API",
@@ -26,6 +26,8 @@ app.include_router(mensajes.router)
 app.include_router(curaduria.router)
 app.include_router(dashboard.router)
 app.include_router(procesamientos_router)
+from backend.app.api.routes.trabajos import router as trabajos_router
+app.include_router(trabajos_router)
 
 @app.get("/", tags=["Health Check"])
 async def root():

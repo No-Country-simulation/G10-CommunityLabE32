@@ -1,13 +1,13 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, File, UploadFile
+from fastapi import APIRouter, Depends, Query, HTTPException, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List
 
 # Importamos tu inyector de dependencias
-from app.core.dependencias import get_db
-from app.models.mensaje import Mensaje
+from backend.app.core.dependencias import get_db
+from backend.app.models.mensaje import Mensaje
 # IMPORTAMOS EL NUEVO ESQUEMA PAGINADO
-from app.schemas.mensaje import MensajeResponse, PaginatedMensajesResponse
+from backend.app.schemas.mensaje import MensajeResponse, PaginatedMensajesResponse
 
 router = APIRouter(prefix="/api/mensajes", tags=["Mensajes"])
 
@@ -47,25 +47,12 @@ async def obtener_mensajes(
 
 
     
-@router.post("/procesamientos")
+@router.post("/procesamientos", status_code=202)
 async def procesar_lote_nuevo(
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db)
+    origen_comunidad: str = Form(...),
+    periodo_referencia: str = Form(...),
+    cierre_periodo: bool = Form(False),
 ):
-    """
-    Recibe un archivo JSON/CSV desde el Frontend.
-    (La lógica de LangGraph/Gemini la hará el equipo de IA después. 
-    Por ahora, recibimos el archivo, validamos y respondemos éxito).
-    """
-    if not file.filename.endswith(('.json', '.jsonl', '.csv')):
-        raise HTTPException(status_code=400, detail="Formato no soportado. Solo JSON o CSV.")
-
-    # Aquí en el futuro irá la llamada a los Agentes de IA
-    # await procesar_con_langgraph(file.file.read())
-
-    return {
-        "status": "success",
-        "mensaje": f"Archivo '{file.filename}' recibido correctamente.",
-        "procesamiento_id": "proc-99x88",
-        "detalles": "El lote ha sido encolado para su análisis con Gemini."
-    }
+    from backend.app.api.routes.trabajos import encolar_archivo
+    return await encolar_archivo(file, origen_comunidad, periodo_referencia, cierre_periodo)
