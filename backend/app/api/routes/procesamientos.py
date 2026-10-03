@@ -1,78 +1,62 @@
+from uuid import uuid4
+
 from fastapi import APIRouter
 
 from backend.app.schemas.procesamientos import (
+    AlertaInterna,
+    Almacenamiento,
+    ActivoGenerado,
     IngestaRequest,
     IngestaResponse,
-    ActivoGenerado,
-    AlertaInterna,
-    AlmacenamientoOCI,
 )
 
 router = APIRouter(
     prefix="/api/v1/procesamientos",
-    tags=["Procesamientos"],
+    tags=["procesamientos"],
 )
 
 
 @router.post("", response_model=IngestaResponse)
-def crear_procesamiento(lote: IngestaRequest):
+async def crear_procesamiento(
+    request: IngestaRequest,
+) -> IngestaResponse:
+    procesamiento_id = f"proc-{uuid4().hex[:12]}"
+
+    cantidad_interacciones = len(request.interacciones)
+
+    resumen = (
+        f"Procesamiento recibido para {request.origen_comunidad}. "
+        f"Período {request.periodo_referencia}: "
+        f"{cantidad_interacciones} interacciones recibidas."
+    )
+
+    activos = [
+        ActivoGenerado(
+            id_activo=f"{procesamiento_id}-activo-001",
+            formato="resumen",
+            copy=resumen,
+            fuentes=[interaccion.id for interaccion in request.interacciones],
+            estado="generado",
+        )
+    ]
+
+    alertas = []
+
+    almacenamiento = Almacenamiento(
+        proveedor="pendiente",
+        bucket="pendiente",
+        ruta=(
+            f"{request.origen_comunidad}/"
+            f"{request.periodo_referencia}/"
+            f"procesamientos/{procesamiento_id}/"
+        ),
+        estado="pendiente",
+    )
+
     return IngestaResponse(
-        procesamiento_id="proc-mock-2026-001",
-        resumen_comunidad=(
-            f"Procesadas {len(lote.interacciones)} interacciones "
-            f"para el período {lote.periodo_referencia}."
-        ),
-        activos_distribucion_generados=[
-            ActivoGenerado(
-                id_activo="act-01",
-                formato="linkedin",
-                copy=(
-                    "¡Orgullo en la comunidad! Uno de nuestros miembros "
-                    "consiguió su primer empleo Dev Jr. tras mostrar su "
-                    "portafolio de IA. #CommunityHighlights"
-                ),
-                fuentes=["m-01"],
-                estado="generado",
-            ),
-            ActivoGenerado(
-                id_activo="act-02",
-                formato="faq",
-                copy=(
-                    "FAQ Técnico: ¿Cómo manejar reintentos en LangGraph? "
-                    "Configura una condición de fallback y limita "
-                    "reintentos en el router."
-                ),
-                fuentes=["m-02", "m-03"],
-                estado="generado",
-            ),
-            ActivoGenerado(
-                id_activo="act-03",
-                formato="newsletter",
-                copy=(
-                    "Resumen semanal: Gran mentoría sobre portafolios de IA "
-                    "y resolución de dudas sobre OCI Storage."
-                ),
-                fuentes=["m-04", "m-05"],
-                estado="generado",
-            ),
-        ],
-        alertas_internas=[
-            AlertaInterna(
-                id_alerta="alt-01",
-                nivel="bloqueo",
-                mensaje=(
-                    "Usuario reportó timeout 504 intermitente al intentar "
-                    "acceder al bucket de OCI."
-                ),
-                fuente="m-06",
-            )
-        ],
-        almacenamiento_oci=AlmacenamientoOCI(
-            bucket="communitylab-alwaysfree-bucket",
-            ruta=(
-                f"demo/{lote.periodo_referencia}/lotes/"
-                "proc-mock-2026-001/paquete.json"
-            ),
-            estado="simulado_pendiente_worker",
-        ),
+        procesamiento_id=procesamiento_id,
+        resumen_comunidad=resumen,
+        activos_distribucion_generados=activos,
+        alertas_internas=alertas,
+        almacenamiento=almacenamiento,
     )
