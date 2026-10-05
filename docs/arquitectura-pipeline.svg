@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1840" viewBox="0 0 1500 1840"><defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9" fill="#476585"/></marker></defs><rect width="1500" height="1840" fill="#f7f9fc"/>
+<text x="750" y="65" text-anchor="middle" font-family="Arial, sans-serif" font-size="40" font-weight="700" fill="#20324a">CommunityLab · Arquitectura del pipeline</text>
+<text x="750" y="112" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="400" fill="#567087">PRIMER BORRADOR · Paulo y Santiago · 28/09/2026</text>
+<rect x="270" y="145" width="440" height="105" rx="17" fill="#ffffff" stroke="#b7c8db" stroke-width="2"/>
+<text x="490.0" y="181" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Lote JSON / CSV</text>
+<text x="490.0" y="219" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Carga desde panel Next.js</text>
+<rect x="790" y="145" width="440" height="105" rx="17" fill="#ffffff" stroke="#b7c8db" stroke-width="2"/>
+<text x="1010.0" y="181" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Discord</text>
+<text x="1010.0" y="219" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Canales autorizados · previsto</text>
+<rect x="420" y="310" width="660" height="130" rx="17" fill="#eaf2ff" stroke="#b7c8db" stroke-width="2"/>
+<text x="750.0" y="346" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">FastAPI · Ingesta</text>
+<text x="750.0" y="384" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Validar, normalizar y deduplicar</text>
+<text x="750.0" y="415" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Contrato común de entrada y consulta de estados</text>
+<polyline points="490,250 490,280 660,280 660,310" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="1010,250 1010,280 840,280 840,310" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="475" y="530" width="550" height="100" rx="17" fill="#eaf2ff" stroke="#b7c8db" stroke-width="2"/>
+<text x="750.0" y="566" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Worker · LangGraph</text>
+<text x="750.0" y="604" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Ejecuta el lote normalizado en segundo plano</text>
+<polyline points="750,440 750,530" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="494" y="462" width="512" height="32" fill="#f7f9fc"/>
+<text x="750" y="484" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="400" fill="#20324a">Entrega del trabajo: mecanismo por acordar</text>
+<rect x="1120" y="360" width="320" height="160" rx="17" fill="#edf8f4" stroke="#b7c8db" stroke-width="2"/>
+<text x="1280.0" y="396" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">PostgreSQL</text>
+<text x="1280.0" y="434" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Destino propuesto</text>
+<text x="1280.0" y="465" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Interacciones, estados,</text>
+<text x="1280.0" y="496" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">activos y decisiones</text>
+<polyline points="1080,373 1120,373" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="1120,410 1080,410" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="1025,565 1280,565 1280,520" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="1360,520 1360,605 1025,605" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="475" y="690" width="550" height="100" rx="17" fill="#ffffff" stroke="#b7c8db" stroke-width="2"/>
+<text x="750.0" y="726" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Estado compartido del grafo</text>
+<text x="750.0" y="764" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Lote común + fuentes + estado de ejecución</text>
+<polyline points="750,630 750,690" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="475" y="850" width="550" height="115" rx="17" fill="#ffffff" stroke="#b7c8db" stroke-width="2"/>
+<text x="750.0" y="886" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Análisis + relevancia</text>
+<text x="750.0" y="924" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Sentimiento, temas, fuentes y scoring</text>
+<polyline points="750,790 750,850" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="50" y="850" width="330" height="115" rx="17" fill="#fff3dd" stroke="#b7c8db" stroke-width="2"/>
+<text x="215.0" y="886" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Gemini API</text>
+<text x="215.0" y="924" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Análisis y generación</text>
+<polyline points="380,885 475,885" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="475,930 380,930" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="475" y="1020" width="550" height="100" rx="17" fill="#eaf2ff" stroke="#b7c8db" stroke-width="2"/>
+<text x="750.0" y="1056" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Router de cuatro rutas</text>
+<text x="750.0" y="1094" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Condiciones y prioridad por acordar</text>
+<polyline points="750,965 750,1020" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="750,1120 750,1150 202.5,1150 202.5,1190" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="40" y="1190" width="325" height="105" rx="17" fill="#edf8f4" stroke="#b7c8db" stroke-width="2"/>
+<text x="202.5" y="1226" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Logro</text>
+<text x="202.5" y="1264" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Post LinkedIn / X</text>
+<polyline points="202.5,1295 202.5,1325 750,1325 750,1365" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="750,1120 750,1150 567.5,1150 567.5,1190" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="405" y="1190" width="325" height="105" rx="17" fill="#edf8f4" stroke="#b7c8db" stroke-width="2"/>
+<text x="567.5" y="1226" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Dudas recurrentes</text>
+<text x="567.5" y="1264" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">FAQ / Tip</text>
+<polyline points="567.5,1295 567.5,1325 750,1325 750,1365" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="750,1120 750,1150 932.5,1150 932.5,1190" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="770" y="1190" width="325" height="105" rx="17" fill="#edf8f4" stroke="#b7c8db" stroke-width="2"/>
+<text x="932.5" y="1226" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Período</text>
+<text x="932.5" y="1264" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Community Highlights</text>
+<polyline points="932.5,1295 932.5,1325 750,1325 750,1365" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="750,1120 750,1150 1297.5,1150 1297.5,1190" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="1135" y="1190" width="325" height="105" rx="17" fill="#fff0ee" stroke="#b7c8db" stroke-width="2"/>
+<text x="1297.5" y="1226" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Bloqueo</text>
+<text x="1297.5" y="1264" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Alerta interna</text>
+<polyline points="1297.5,1295 1297.5,1325 750,1325 750,1365" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="400" y="1365" width="700" height="105" rx="17" fill="#ffffff" stroke="#b7c8db" stroke-width="2"/>
+<text x="750.0" y="1401" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Consolidar paquete</text>
+<text x="750.0" y="1439" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Activos + fuentes + alertas internas</text>
+<rect x="70" y="1540" width="600" height="130" rx="17" fill="#fff3dd" stroke="#b7c8db" stroke-width="2"/>
+<text x="370.0" y="1576" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Almacenamiento de objetos</text>
+<text x="370.0" y="1614" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Proveedor por definir</text>
+<text x="370.0" y="1645" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Paquete y versión aprobada</text>
+<rect x="830" y="1540" width="600" height="130" rx="17" fill="#ffffff" stroke="#b7c8db" stroke-width="2"/>
+<text x="1130.0" y="1576" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" font-weight="700" fill="#20324a">Panel Next.js · vía API</text>
+<text x="1130.0" y="1614" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Consultar, editar y aprobar</text>
+<text x="1130.0" y="1645" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Registrar decisiones en PostgreSQL</text>
+<polyline points="660,1470 660,1503 370,1503 370,1540" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="840,1470 840,1503 1130,1503 1130,1540" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="830,1610 670,1610" fill="none" stroke="#476585" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="750" y="1710" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="400" fill="#20324a">Aprobados: guardar mediante el backend</text>
+<text x="750" y="1770" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#567087">Gemini también apoya los generadores. La alerta de bloqueo no se publica.</text>
+<text x="750" y="1810" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="400" fill="#20324a">Diseño objetivo: requiere acuerdo; no acredita implementación completa.</text>
+</svg>
