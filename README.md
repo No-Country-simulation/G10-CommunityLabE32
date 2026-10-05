@@ -420,6 +420,14 @@ Paquete de resultados
 OCI Object Storage
 ```
 
+## Primer borrador acordado de la arquitectura del pipeline
+
+Paulo y Santiago acordaron el primer borrador de las cuatro rutas del procesamiento: logro, dudas recurrentes, período y bloqueo. El diagrama representa el diseño objetivo; el proveedor de almacenamiento de objetos y las interfaces de integración siguen por definir.
+
+![Arquitectura del pipeline de CommunityLab con sus cuatro rutas](docs/arquitectura-pipeline.svg)
+
+El diagrama describe el diseño objetivo. La alerta de bloqueo es interna y no se publica. La integración completa entre API, worker, base de datos e IA, así como las reglas de prioridad del enrutamiento, siguen pendientes de implementación y validación.
+
 ---
 
 # 14. LangGraph
