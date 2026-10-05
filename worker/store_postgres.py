@@ -13,6 +13,17 @@ from psycopg.types.json import Jsonb
 
 from worker.core import Trabajo
 
+# Mismos máximos que el contrato de lectura; se validan también en llamadas directas a la cola.
+LIMITES = {"autor": 150, "canal": 50, "tipo": 50}
+TIPO_POR_DEFECTO = "sin_clasificar"
+
+
+def validar_limites(interaccion):
+    for campo, maximo in LIMITES.items():
+        valor = interaccion.get(campo)
+        if valor is not None and len(str(valor)) > maximo:
+            raise ValueError(f"El campo {campo} supera {maximo} caracteres")
+
 
 class ColaPostgres:
     def __init__(self, url, lease=30, max_intentos=3):
@@ -35,17 +46,23 @@ class ColaPostgres:
             raise ValueError("El lote debe contener interacciones")
         if len(entrada["interacciones"]) > 500:
             raise ValueError("El máximo por trabajo es 500 interacciones")
+        for m in entrada["interacciones"]:
+            validar_limites(m)
         identificador = str(uuid4())
         with self.conectar() as c:
             # Datos fuente inmutables: no sobrescribir el texto de un activo curado.
             for m in entrada["interacciones"]:
+                fuente = {"autor": m["autor"], "fecha": m["fecha"], "canal": m["canal"],
+                          "tipo": m.get("tipo") or TIPO_POR_DEFECTO, "texto": m["texto"]}
                 c.execute("""INSERT INTO mensajes
                     (id_mensaje, autor, fecha, canal, tipo, texto)
                     VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (id_mensaje) DO NOTHING""",
-                    (m["id"], m["autor"], m["fecha"], m["canal"], m.get("tipo", "sin_clasificar"), m["texto"]))
-                existente = c.execute("SELECT autor, fecha, canal, texto FROM mensajes WHERE id_mensaje=%s",
+                    (m["id"], fuente["autor"], fuente["fecha"], fuente["canal"], fuente["tipo"], fuente["texto"]))
+                existente = c.execute("SELECT autor, fecha, canal, tipo, texto FROM mensajes WHERE id_mensaje=%s",
                                       (m["id"],)).fetchone()
-                if any(existente[k] != m[k] for k in existente):
+                # Sin tipo explícito se acepta el ya guardado; con tipo distinto se rechaza.
+                campos = [k for k in existente if k != "tipo" or m.get("tipo")]
+                if any(existente[k] != fuente[k] for k in campos):
                     raise ValueError("ID de mensaje existente con contenido diferente")
             c.execute("INSERT INTO trabajos_worker (id,entrada) VALUES (%s,%s)",
                       (identificador, Jsonb(entrada)))

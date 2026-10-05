@@ -11,12 +11,23 @@ from worker.store_postgres import ColaPostgres
 router = APIRouter(prefix="/api/v1/trabajos", tags=["Trabajos asíncronos"])
 
 
+class InteraccionTrabajo(BaseModel):
+    # Mismos máximos que el contrato de lectura (autor 150, canal 50, tipo 50).
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(min_length=1)
+    autor: str = Field(min_length=1, max_length=150)
+    canal: str = Field(min_length=1, max_length=50)
+    fecha: str = Field(min_length=1)
+    texto: str = Field(min_length=1)
+    tipo: str | None = Field(default=None, min_length=1, max_length=50)
+
+
 class LoteTrabajo(BaseModel):
     model_config = ConfigDict(extra="forbid")
     origen_comunidad: str = Field(min_length=1, max_length=200)
     periodo_referencia: str = Field(min_length=1, max_length=100)
     cierre_periodo: bool = False
-    interacciones: list[dict] = Field(min_length=1, max_length=500)
+    interacciones: list[InteraccionTrabajo] = Field(min_length=1, max_length=500)
 
 
 def cola():
@@ -26,7 +37,7 @@ def cola():
 @router.post("", status_code=202)
 async def crear_trabajo(lote: LoteTrabajo):
     try:
-        identificador = await asyncio.to_thread(cola().encolar, lote.model_dump())
+        identificador = await asyncio.to_thread(cola().encolar, lote.model_dump(exclude_none=True))
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
     except Exception:

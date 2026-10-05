@@ -227,3 +227,42 @@ def test_campos_vacios_no_aceptados(cola, campo):
     entrada["interacciones"][0][campo] = ""
     with pytest.raises(ValueError):
         cola.encolar(entrada)
+
+
+def test_rechaza_mismo_id_con_otro_tipo(cola):
+    entrada = lote()
+    cola.encolar(entrada)
+    entrada["interacciones"][0]["tipo"] = "bloqueo"
+    with pytest.raises(ValueError, match="contenido diferente"):
+        cola.encolar(entrada)
+
+
+def test_mismo_id_sin_tipo_conserva_el_guardado(cola):
+    entrada = lote()
+    cola.encolar(entrada)
+    sin_tipo = copy.deepcopy(entrada)
+    for m in sin_tipo["interacciones"]:
+        m.pop("tipo")
+    cola.encolar(sin_tipo)
+
+
+@pytest.mark.parametrize("campo,maximo", [("autor", 150), ("canal", 50), ("tipo", 50)])
+def test_limites_de_campos_en_cola(cola, campo, maximo):
+    entrada = lote()
+    entrada["interacciones"][0][campo] = "x" * maximo
+    cola.encolar(entrada)
+    otra = lote()
+    otra["interacciones"][0][campo] = "x" * (maximo + 1)
+    with pytest.raises(ValueError, match=campo):
+        cola.encolar(otra)
+
+
+def test_api_rechaza_campos_largos_antes_de_guardar(cola, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", cola.url.replace("postgresql://", "postgresql+asyncpg://"))
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+    with TestClient(app) as cliente:
+        for campo, maximo in (("autor", 150), ("canal", 50), ("tipo", 50)):
+            entrada = lote()
+            entrada["interacciones"][0][campo] = "x" * (maximo + 1)
+            assert cliente.post("/api/v1/trabajos", json=entrada).status_code == 422
