@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Mapped, mapped_column
 from typing import Optional
-from app.core.database import Base
+from backend.app.core.database import Base
 
 class Mensaje(Base):
     __tablename__ = "mensajes"
