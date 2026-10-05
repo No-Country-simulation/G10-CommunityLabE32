@@ -66,6 +66,7 @@ services:
     platform: ${DOCKER_PLATFORM:-linux/arm64}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
     networks: [frontend, database, outbound]
     depends_on:
       postgres:

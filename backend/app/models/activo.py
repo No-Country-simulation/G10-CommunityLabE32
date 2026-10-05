@@ -2,7 +2,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Text, DateTime, JSON
 from datetime import datetime
 from typing import Optional, List
-from app.core.database import Base
+from backend.app.core.database import Base
 
 class Activo(Base):
     __tablename__ = "activos"

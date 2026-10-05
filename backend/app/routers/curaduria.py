@@ -4,10 +4,10 @@ from sqlalchemy import select, func, desc
 from typing import Optional
 import math
 
-from app.core.dependencias import get_db
-from app.models.activo import Activo
-from app.models.mensaje import Mensaje
-from app.schemas.curaduria import (
+from backend.app.core.dependencias import get_db
+from backend.app.models.activo import Activo
+from backend.app.models.mensaje import Mensaje
+from backend.app.schemas.curaduria import (
     ActivoResponse,
     ActivoDetalleResponse,
     ActivoUpdateDTO,

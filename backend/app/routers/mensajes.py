@@ -4,10 +4,10 @@ from sqlalchemy import select, func
 from typing import List
 
 # Importamos tu inyector de dependencias
-from app.core.dependencias import get_db
-from app.models.mensaje import Mensaje
+from backend.app.core.dependencias import get_db
+from backend.app.models.mensaje import Mensaje
 # IMPORTAMOS EL NUEVO ESQUEMA PAGINADO
-from app.schemas.mensaje import MensajeResponse, PaginatedMensajesResponse
+from backend.app.schemas.mensaje import MensajeResponse, PaginatedMensajesResponse
 
 router = APIRouter(prefix="/api/mensajes", tags=["Mensajes"])
 

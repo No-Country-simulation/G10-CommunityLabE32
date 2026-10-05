@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.schemas.procesamientos import (
+from backend.app.schemas.procesamientos import (
     IngestaRequest,
     IngestaResponse,
     ActivoGenerado,
