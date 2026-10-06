@@ -15,8 +15,7 @@ def llamar_llm_openrouter(prompt: str) -> dict:
 
     payload = {
         "models": [
-            "meta-llama/llama-3-8b-instruct",
-            "deepseek/deepseek-chat",
+            "openrouter/free",
         ],
         "messages": [{"role": "user", "content": prompt}],
         "response_format": {"type": "json_object"},
