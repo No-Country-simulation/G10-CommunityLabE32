@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from backend.app.schemas.procesamientos import (
     IngestaRequest,
@@ -92,7 +92,10 @@ async def procesar_lote_archivo(
     content = await file.read()
     
     # 1. Llamada al módulo de ingestión (Validar, Normalizar, Deduplicar)
-    interacciones = procesar_lote(content, file.filename)
+    try:
+        interacciones, rechazadas = procesar_lote(content, file.filename)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     
     # 2. Evaluar relevancia de cada interacción
     interacciones_evaluadas = [evaluar_interaccion(i) for i in interacciones]
@@ -117,7 +120,7 @@ async def procesar_lote_archivo(
         procesamiento_id="proc-mock-2026-002",
         resumen_comunidad=(
             f"Archivo {file.filename} procesado: {len(interacciones)} interacciones "
-            f"válidas, {len(destacadas)} destacadas para el período {periodo_referencia}."
+            f"válidas, {rechazadas} rechazadas, {len(destacadas)} destacadas para el período {periodo_referencia}."
         ),
         activos_distribucion_generados=activos_generados,
         alertas_internas=[],

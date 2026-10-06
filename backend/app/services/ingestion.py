@@ -1,8 +1,7 @@
 import json
 import csv
 from io import StringIO
-from typing import List, Dict, Any
-from datetime import datetime
+from typing import List, Dict, Any, Tuple
 
 from backend.app.schemas.procesamientos import Interaccion
 
@@ -10,13 +9,28 @@ from backend.app.schemas.procesamientos import Interaccion
 def parse_file(content: bytes, filename: str) -> List[Dict[str, Any]]:
     """Parsea el contenido del archivo dependiendo de su extensión."""
     if filename.endswith('.json'):
-        return json.loads(content.decode('utf-8'))
+        try:
+            data = json.loads(content.decode('utf-8'))
+        except json.JSONDecodeError as e:
+            raise ValueError(f"JSON inválido: {str(e)}")
+        
+        if isinstance(data, dict):
+            if "interacciones" in data:
+                data = data["interacciones"]
+            else:
+                raise ValueError("El JSON debe contener la clave 'interacciones' con una lista.")
+        if not isinstance(data, list):
+            raise ValueError("El formato debe ser una lista de interacciones.")
+        return data
     elif filename.endswith('.csv'):
-        text = content.decode('utf-8')
-        reader = csv.DictReader(StringIO(text))
-        return list(reader)
+        try:
+            text = content.decode('utf-8')
+            reader = csv.DictReader(StringIO(text))
+            return list(reader)
+        except Exception as e:
+            raise ValueError(f"CSV inválido: {str(e)}")
     else:
-        raise ValueError("Formato de archivo no soportado. Debe ser JSON o CSV.")
+        raise ValueError("Formato de archivo no soportado. Debe ser .json o .csv.")
 
 
 def normalize_date(date_str: str) -> str:
@@ -35,6 +49,7 @@ def normalize_interaccion(raw: Dict[str, Any]) -> Interaccion:
     canal = str(raw.get('canal', '')).strip()
     fecha = normalize_date(str(raw.get('fecha', '')))
     texto = str(raw.get('texto', '')).strip()
+    tipo = str(raw.get('tipo', 'mensaje')).strip()
 
     # Validar campos obligatorios
     if not id_val or not autor or not texto:
@@ -45,7 +60,8 @@ def normalize_interaccion(raw: Dict[str, Any]) -> Interaccion:
         autor=autor,
         canal=canal,
         fecha=fecha,
-        texto=texto
+        texto=texto,
+        tipo=tipo
     )
 
 
@@ -60,22 +76,27 @@ def deduplicate(interacciones: List[Interaccion]) -> List[Interaccion]:
     return unicas
 
 
-def procesar_lote(content: bytes, filename: str) -> List[Interaccion]:
+def procesar_lote(content: bytes, filename: str) -> Tuple[List[Interaccion], int]:
     """
     Flujo principal del módulo de ingestión: 
     Validar (formato, campos), Normalizar (tipos, espacios) y Deduplicar.
+    Retorna (interacciones_validas, cantidad_rechazadas).
     """
     # 1. Parsear archivo
     raw_data = parse_file(content, filename)
     
     # 2. Normalizar y Validar
     interacciones = []
+    rechazadas = 0
     for raw in raw_data:
+        if not isinstance(raw, dict):
+            rechazadas += 1
+            continue
         try:
             interacciones.append(normalize_interaccion(raw))
         except ValueError:
-            # En un entorno productivo, esto se loguearía para auditoría
-            continue
+            rechazadas += 1
             
     # 3. Deduplicar
-    return deduplicate(interacciones)
+    validas = deduplicate(interacciones)
+    return validas, rechazadas

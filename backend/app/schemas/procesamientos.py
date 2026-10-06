@@ -9,6 +9,7 @@ class Interaccion(BaseModel):
     canal: str
     fecha: str
     texto: str
+    tipo: str = "mensaje"
 
 
 class PuntajeRelevancia(BaseModel):
