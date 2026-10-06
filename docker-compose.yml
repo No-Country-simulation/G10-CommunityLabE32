@@ -106,10 +106,10 @@ services:
       start_period: 30s
 
   db-init:
-    image: ${API_IMAGE:-communitylab-api:local}
+    image: ${WORKER_IMAGE:-communitylab-worker:local}
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: worker/Dockerfile
     platform: ${DOCKER_PLATFORM:-linux/arm64}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
