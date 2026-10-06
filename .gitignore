@@ -99,4 +99,8 @@ pnpm-debug.log*
 # =========================
 .idea/
 *.swp
-Thumbs.db
+Thumbs.db
+# Bases de datos locales SQLite
+*.db
+*.sqlite
+*.sqlite3
