@@ -9,7 +9,7 @@ class Interaccion(BaseModel):
     canal: str
     fecha: str
     texto: str
-    tipo: str = "mensaje"
+    tipo: str = Field("mensaje", min_length=1, max_length=50)
 
 
 class PuntajeRelevancia(BaseModel):
