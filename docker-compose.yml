@@ -1,4 +1,4 @@
-# Cinco servicios sobre el backend modular de main. Worker = sonda; no ejecuta IA.
+# Integración local propuesta: worker ejecutable; revisar contrato con Fredy.
 x-runtime: &runtime
   restart: unless-stopped
   logging:
@@ -65,11 +65,14 @@ services:
       dockerfile: backend/Dockerfile
     platform: ${DOCKER_PLATFORM:-linux/arm64}
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
     networks: [frontend, database, outbound]
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
       interval: 10s
@@ -79,22 +82,42 @@ services:
 
   worker:
     <<: *runtime
-    image: ${WORKER_IMAGE:-communitylab-worker-probe:local}
+    image: ${WORKER_IMAGE:-communitylab-worker:local}
     build:
-      context: ./worker
+      context: .
+      dockerfile: worker/Dockerfile
     platform: ${DOCKER_PLATFORM:-linux/arm64}
     environment:
       <<: *database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
+      WORKER_MODE: ${WORKER_MODE:?Definir simulado u openrouter explícitamente}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
     networks: [database, outbound]
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "python", "/app/healthcheck.py"]
+      test: ["CMD", "python", "/app/worker/healthcheck.py"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  db-init:
+    image: ${WORKER_IMAGE:-communitylab-worker:local}
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
+    command: ["python", "-m", "worker.init_db"]
+    networks: [database]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   postgres:
     <<: *runtime
