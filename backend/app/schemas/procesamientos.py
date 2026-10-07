@@ -51,3 +51,15 @@ class IngestaResponse(BaseModel):
     activos_distribucion_generados: List[ActivoGenerado]
     alertas_internas: List[AlertaInterna]
     almacenamiento_oci: AlmacenamientoOCI
+class PuntajeRelevancia(BaseModel):
+    hito_logrado: int
+    emocion: int
+    utilidad: int
+    recurrencia: int
+    total: int
+    es_destacado: bool
+
+
+class InteraccionEvaluada(BaseModel):
+    interaccion: Interaccion
+    relevancia: PuntajeRelevancia

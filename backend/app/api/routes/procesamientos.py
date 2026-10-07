@@ -1,4 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+
+from backend.app.services.ingestion import procesar_lote
+from backend.app.services.relevancia import evaluar_interaccion
 
 from backend.app.schemas.procesamientos import (
     IngestaRequest,
@@ -73,6 +76,44 @@ def crear_procesamiento(lote: IngestaRequest):
                 f"demo/{lote.periodo_referencia}/lotes/"
                 "proc-mock-2026-001/paquete.json"
             ),
+            estado="simulado_pendiente_worker",
+        ),
+    )
+
+
+@router.post("/upload", response_model=IngestaResponse)
+async def procesar_lote_archivo(
+    file: UploadFile = File(...),
+    origen_comunidad: str = Form(...),
+    periodo_referencia: str = Form(...),
+):
+    content = await file.read()
+
+    try:
+        interacciones = procesar_lote(content, file.filename or "")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    evaluadas = [evaluar_interaccion(interaccion) for interaccion in interacciones]
+
+    destacados = [
+        evaluada
+        for evaluada in evaluadas
+        if evaluada.relevancia.es_destacado
+    ]
+
+    return IngestaResponse(
+        procesamiento_id="proc-upload-local",
+        resumen_comunidad=(
+            f"Procesadas {len(interacciones)} interacciones "
+            f"para el período {periodo_referencia}. "
+            f"Destacadas: {len(destacados)}."
+        ),
+        activos_distribucion_generados=[],
+        alertas_internas=[],
+        almacenamiento_oci=AlmacenamientoOCI(
+            bucket="communitylab-alwaysfree-bucket",
+            ruta=f"demo/{periodo_referencia}/lotes/proc-upload-local/paquete.json",
             estado="simulado_pendiente_worker",
         ),
     )
