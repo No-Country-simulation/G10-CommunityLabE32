@@ -16,13 +16,22 @@ def evaluar_texto(texto: str) -> PuntajeRelevancia:
     hito_score = sum(3 for kw in keywords_hito if re.search(kw, texto_lower))
     hito_score = min(hito_score, 10)
 
-    # 2. Emoción
-    keywords_emocion = [r"feliz", r"orgullos", r"emocionad", r"gracias", r"increíble", r"excelente", r"me encanta", r"❤️", r"🥳", r"🚀"]
-    emocion_score = sum(2 for kw in keywords_emocion if re.search(kw, texto_lower))
-    # Bonus por exclamaciones
-    if "!" in texto:
-        emocion_score += 2
-    emocion_score = min(emocion_score, 10)
+    # 2. Emoción (positiva o negativa)
+    keywords_emocion_positiva = [r"feliz", r"orgullos", r"emocionad", r"gracias", r"increíble", r"excelente", r"me encanta", r"❤️", r"🥳", r"🚀"]
+    keywords_emocion_negativa = [r"frustrado", r"harto", r"molesto", r"enojado", r"mal", r"decepcionado", r"triste", r"rendirme"]
+    
+    emocion_pos = sum(2 for kw in keywords_emocion_positiva if re.search(kw, texto_lower))
+    emocion_neg = sum(2 for kw in keywords_emocion_negativa if re.search(kw, texto_lower))
+    
+    if "!" in texto and emocion_pos > 0:
+        emocion_pos += 2
+        
+    # Usaremos emoción_pos como la emoción general (o si es mayor a la negativa)
+    # y si la negativa es mayor, la ponemos como número negativo.
+    if emocion_neg > emocion_pos:
+        emocion_score = -min(emocion_neg, 10)
+    else:
+        emocion_score = min(emocion_pos, 10)
 
     # 3. Utilidad
     keywords_utilidad = [r"tutorial", r"guía", r"solución", r"paso a paso", r"resolví", r"cómo hacer", r"consejo", r"tip", r"repo", r"github.com"]
@@ -32,15 +41,23 @@ def evaluar_texto(texto: str) -> PuntajeRelevancia:
     # 4. Recurrencia (Dudas comunes o preguntas frecuentes)
     keywords_recurrencia = [r"cómo", r"duda", r"pregunta", r"error", r"falla", r"ayuda", r"alguien sabe", r"no me funciona", r"issue"]
     recurrencia_score = sum(2 for kw in keywords_recurrencia if re.search(kw, texto_lower))
+    
+    # Agregar penalización/bloqueo a recurrencia si es muy grave
+    keywords_bloqueo = [r"días intentando", r"no es clara", r"estancado", r"bloqueado", r"imposible", r"no puedo avanzar"]
+    bloqueo_score = sum(5 for kw in keywords_bloqueo if re.search(kw, texto_lower))
+    
     if "?" in texto or "¿" in texto:
         recurrencia_score += 3
+        
+    # Si hay un bloqueo, sumamos mucho a la recurrencia para que lo alerte
+    recurrencia_score += bloqueo_score
     recurrencia_score = min(recurrencia_score, 10)
 
-    # Total
-    total = hito_score + emocion_score + utilidad_score + recurrencia_score
+    # Total (usamos valor absoluto de emoción para el puntaje)
+    total = hito_score + abs(emocion_score) + utilidad_score + recurrencia_score
 
     # Umbral para destacar
-    es_destacado = total >= 12
+    es_destacado = total >= 8
 
     return PuntajeRelevancia(
         hito_logrado=hito_score,

@@ -16,6 +16,7 @@ from backend.app.schemas.curaduria import (
     FormatoActivoEnum,
     FuenteMensajeDetalle
 )
+from backend.app.services.oci import subir_activo_aprobado_oci
 
 router = APIRouter(prefix="/api/curaduria", tags=["Curaduría de Activos"])
 
@@ -140,6 +141,14 @@ async def actualizar_activo(
                 detail=f"Transición inválida: no se puede pasar de '{activo.estado}' a '{dto.estado.value}'."
             )
         activo.estado = dto.estado.value
+        
+        # Si se aprueba, lo subimos a OCI en /aprobados
+        if dto.estado.value == "aprobado":
+            await subir_activo_aprobado_oci(
+                id_activo=activo.id_activo,
+                formato=activo.formato,
+                copy=dto.copy if dto.copy else activo.copy
+            )
 
     # 2. Control de cambios y versionado
     if dto.copy is not None and dto.copy != activo.copy:
