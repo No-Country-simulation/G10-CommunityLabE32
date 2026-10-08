@@ -90,7 +90,7 @@ async def procesar_lote_archivo(
     content = await file.read()
 
     try:
-        interacciones = procesar_lote(content, file.filename or "")
+        interacciones, rechazadas = procesar_lote(content, file.filename or "")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -107,7 +107,7 @@ async def procesar_lote_archivo(
         resumen_comunidad=(
             f"Procesadas {len(interacciones)} interacciones "
             f"para el período {periodo_referencia}. "
-            f"Destacadas: {len(destacados)}."
+            f"Destacadas: {len(destacados)}. Rechazadas: {rechazadas}."
         ),
         activos_distribucion_generados=[],
         alertas_internas=[],

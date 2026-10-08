@@ -1,8 +1,7 @@
 import json
 import csv
 from io import StringIO
-from typing import List, Dict, Any
-from datetime import datetime
+from typing import List, Dict, Any, Tuple
 
 from backend.app.schemas.procesamientos import Interaccion
 
@@ -10,7 +9,18 @@ from backend.app.schemas.procesamientos import Interaccion
 def parse_file(content: bytes, filename: str) -> List[Dict[str, Any]]:
     """Parsea el contenido del archivo dependiendo de su extensión."""
     if filename.endswith('.json'):
-        return json.loads(content.decode('utf-8'))
+        try:
+            data = json.loads(content.decode('utf-8'))
+        except json.JSONDecodeError as e:
+            raise ValueError(f"JSON inválido: {str(e)}")
+        if isinstance(data, dict):
+            if "interacciones" in data:
+                data = data["interacciones"]
+            else:
+                raise ValueError("El JSON debe contener la clave 'interacciones' con una lista.")
+        if not isinstance(data, list):
+            raise ValueError("El formato debe ser una lista de interacciones.")
+        return data
     elif filename.endswith('.csv'):
         text = content.decode('utf-8')
         reader = csv.DictReader(StringIO(text))
@@ -62,7 +72,7 @@ def deduplicate(interacciones: List[Interaccion]) -> List[Interaccion]:
     return unicas
 
 
-def procesar_lote(content: bytes, filename: str) -> List[Interaccion]:
+def procesar_lote(content: bytes, filename: str) -> Tuple[List[Interaccion], int]:
     """
     Flujo principal del módulo de ingestión:
     Validar (formato, campos), Normalizar (tipos, espacios) y Deduplicar.
@@ -72,12 +82,17 @@ def procesar_lote(content: bytes, filename: str) -> List[Interaccion]:
 
     # 2. Normalizar y Validar
     interacciones = []
+    rechazadas = 0
     for raw in raw_data:
+        if not isinstance(raw, dict):
+            rechazadas += 1
+            continue
         try:
             interacciones.append(normalize_interaccion(raw))
         except ValueError:
-            # En un entorno productivo, esto se loguearía para auditoría
+            rechazadas += 1
             continue
 
     # 3. Deduplicar
-    return deduplicate(interacciones)
+    validas = deduplicate(interacciones)
+    return validas, rechazadas
