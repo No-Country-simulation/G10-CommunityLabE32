@@ -3,185 +3,302 @@ import json
 import math
 import requests
 
+
 # ==========================================
 # MOTOR LLM CON FALLBACK (OPENROUTER)
 # ==========================================
 def llamar_llm_openrouter(prompt: str) -> dict:
-    """Llama a OpenRouter con modelos gratuitos y manejo estricto de errores."""
+    """Llama a OpenRouter y devuelve un objeto JSON validado."""
     api_key = os.environ.get("OPENROUTER_API_KEY")
+
+    if not api_key:
+        raise ValueError("Respuesta de OpenRouter no disponible o inválida")
+
     payload = {
         "models": [
             "google/gemma-4-31b-it:free",
             "cohere/north-mini-code:free",
-            "nvidia/nemotron-3-ultra-550b-a55b:free"
+            "nvidia/nemotron-3-ultra-550b-a55b:free",
         ],
         "messages": [{"role": "user", "content": prompt}],
-        "response_format": {"type": "json_object"}
+        "response_format": {"type": "json_object"},
     }
-    
+
     try:
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers={
-                "Authorization": f"Bearer {api_key}", 
-                "HTTP-Referer": "https://github.com/No-Country-simulation/G10-CommunityLabE32"
+                "Authorization": f"******",
+                "HTTP-Referer": (
+                    "https://github.com/No-Country-simulation/"
+                    "G10-CommunityLabE32"
+                ),
             },
             json=payload,
-            timeout=25
+            timeout=60,
         )
-    except requests.exceptions.RequestException as e:
-        print(f"\n💥 ERROR CRÍTICO DE RED: {e}")
-        raise Exception(f"Fallo de conexión HTTP con OpenRouter: {e}")
-    
-    if response.status_code != 200:
-        print(f"\n💥 ERROR DE API OPENROUTER (Status {response.status_code}): {response.text}")
-        raise Exception(f"Error API OpenRouter (Status {response.status_code}): {response.text}")
-        
-    data = response.json()
-    if 'choices' not in data:
-        print(f"\n💥 ERROR SIN CHOICES (Posible Rate Limit): {data}")
-        raise Exception(f"Respuesta sin 'choices' (posible Rate Limit silencioso): {data}")
-        
-    contenido_str = data['choices'][0]['message']['content']
-    contenido_str = contenido_str.replace("```json", "").replace("```", "").strip()
-    
+        response.raise_for_status()
+        data = response.json()
+    except (requests.RequestException, ValueError) as exc:
+        raise ValueError(
+            "Respuesta de OpenRouter no disponible o inválida"
+        ) from exc
+
+    if not isinstance(data, dict) or not data.get("choices"):
+        raise ValueError("Respuesta de OpenRouter no disponible o inválida")
+
     try:
-        return json.loads(contenido_str)
-    except json.JSONDecodeError:
-        print(f"\n💥 ERROR DE FORMATO JSON: {contenido_str}")
-        raise Exception(f"El modelo no generó un JSON válido. Salida cruda: {contenido_str}")
+        contenido_str = data["choices"][0]["message"].get("content", "")
+    except (KeyError, AttributeError, TypeError) as exc:
+        raise ValueError(
+            "Respuesta de OpenRouter no disponible o inválida"
+        ) from exc
+
+    contenido_str = (
+        contenido_str.replace("```json", "")
+        .replace("```", "")
+        .strip()
+    )
+
+    try:
+        resultado = json.loads(contenido_str)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            "Respuesta de OpenRouter no disponible o inválida"
+        ) from exc
+
+    if not isinstance(resultado, dict):
+        raise ValueError("OpenRouter debe devolver un objeto JSON")
+
+    return resultado
+
 
 # ==========================================
-# NODOS DE CLASIFICACIÓN Y PUNTUACIÓN (BLINDADOS F09)
+# VALIDACIONES COMUNES
+# ==========================================
+def _ids_interacciones(interacciones: list[dict]) -> set:
+    """Obtiene los IDs esperados y rechaza interacciones sin ID."""
+    ids = set()
+
+    for mensaje in interacciones:
+        msg_id = mensaje.get("id")
+
+        if not msg_id:
+            raise ValueError("Interacción sin ID")
+
+        if msg_id in ids:
+            raise ValueError(f"ID de interacción duplicado: {msg_id}")
+
+        ids.add(msg_id)
+
+    return ids
+
+
+# ==========================================
+# NODO DE CLASIFICACIÓN
 # ==========================================
 def analizar_real(lote: dict) -> dict:
-    """Devuelve un mapa por ID con los booleanos de ruta y el tema (Validación estricta)."""
+    """Devuelve un mapa por ID con clasificación y tema."""
     interacciones = lote.get("interacciones", [])
-    esperados = {m.get("id") for m in interacciones if m.get("id") is not None}
-    
-    contexto = [{"id": m.get("id"), "texto": m.get("texto")} for m in interacciones]
-    
+    ids_esperados = _ids_interacciones(interacciones)
+
+    contexto = [
+        {"id": m.get("id"), "texto": m.get("texto")}
+        for m in interacciones
+    ]
+
     prompt = f"""
-    Siempre responde en español. Evalúa estos mensajes y devuelve un JSON estricto con una clave 'resultados' que contenga una lista de objetos.
+    Siempre responde en español.
+    Evalúa estos mensajes y devuelve un JSON estricto con una clave
+    'resultados' que contenga una lista de objetos.
+
     Cada objeto DEBE tener exactamente estas claves:
-    - 'id': (mantener original)
-    - 'es_logro': bool (True si comparte un hito o éxito)
-    - 'es_duda': bool (True si es consulta técnica)
-    - 'es_bloqueo': bool (True si expresa frustración o no puede avanzar)
-    - 'tema': string breve (normaliza temas similares bajo la misma cadena)
-    Mensajes: {json.dumps(contexto)}
+    - 'id': mantener el ID original.
+    - 'es_logro': bool (True si comparte un hito o éxito).
+    - 'es_duda': bool (True si es consulta técnica).
+    - 'es_bloqueo': bool (True si expresa frustración o no puede avanzar).
+    - 'tema': string breve (normaliza temas similares bajo la misma cadena).
+
+    Mensajes: {json.dumps(contexto, ensure_ascii=False)}
     """
-    
+
     respuesta = llamar_llm_openrouter(prompt)
-    
     lista_resultados = respuesta.get("resultados", [])
-    if not lista_resultados and isinstance(respuesta, list):
-        lista_resultados = respuesta
-        
+
+    if not isinstance(lista_resultados, list):
+        raise ValueError("Resultados de análisis inválidos")
+
     mapa = {}
-    for res in lista_resultados:
-        msg_id = res.get("id", res.get("id_mensaje"))
-        if msg_id in esperados:
-            logro = res.get("es_logro")
-            duda = res.get("es_duda")
-            bloqueo = res.get("es_bloqueo")
-            
-            # Validación estricta F09: No aceptar no-booleanos de forma silenciosa
-            if not all(isinstance(x, bool) for x in [logro, duda, bloqueo]):
-                raise ValueError(f"El LLM devolvió valores no booleanos en los flags de análisis para el mensaje ID: {msg_id}")
-                
-            mapa[msg_id] = {
-                "es_logro": logro,
-                "es_duda": duda,
-                "es_bloqueo": bloqueo,
-                "tema": str(res.get("tema", "General"))
-            }
-            
-    # Validación F09: Exigir todos los IDs obligatoriamente sin rellenar con Falsos por defecto
-    faltantes = esperados - set(mapa.keys())
-    if faltantes:
-        raise ValueError(f"Análisis incompleto: faltan resultados del LLM para los IDs: {faltantes}")
-            
+
+    for resultado in lista_resultados:
+        if not isinstance(resultado, dict):
+            raise ValueError("Resultado de análisis inválido")
+
+        msg_id = resultado.get("id", resultado.get("id_mensaje"))
+
+        if not msg_id:
+            raise ValueError("Resultado de análisis sin ID")
+
+        if msg_id not in ids_esperados:
+            raise ValueError(f"ID de análisis no solicitado: {msg_id}")
+
+        if msg_id in mapa:
+            raise ValueError(f"ID de análisis duplicado: {msg_id}")
+
+        if not isinstance(resultado.get("es_logro"), bool):
+            raise ValueError("es_logro debe ser booleano")
+
+        if not isinstance(resultado.get("es_duda"), bool):
+            raise ValueError("es_duda debe ser booleano")
+
+        if not isinstance(resultado.get("es_bloqueo"), bool):
+            raise ValueError("es_bloqueo debe ser booleano")
+
+        mapa[msg_id] = {
+            "es_logro": resultado["es_logro"],
+            "es_duda": resultado["es_duda"],
+            "es_bloqueo": resultado["es_bloqueo"],
+            "tema": resultado.get("tema", "General"),
+        }
+
+    if set(mapa) != ids_esperados:
+        raise ValueError("Análisis incompleto")
+
     return mapa
 
+
+# ==========================================
+# NODO DE PUNTUACIÓN
+# ==========================================
 def puntuar_real(peticion: dict) -> dict:
-    """Devuelve un mapa por ID con un float de relevancia entre 0.0 y 1.0 (Validación estricta F09)."""
+    """Devuelve un mapa por ID con relevancia entre 0.0 y 1.0."""
     lote = peticion.get("lote", {})
     interacciones = lote.get("interacciones", [])
-    esperados = {m.get("id") for m in interacciones if m.get("id") is not None}
-    
-    contexto = [{"id": m.get("id"), "texto": m.get("texto")} for m in interacciones]
-    
-    prompt = f"""
-    Evalúa la relevancia de estos mensajes. Devuelve un JSON con una clave 'resultados' conteniendo una lista de objetos.
-    Cada objeto DEBE tener:
-    - 'id': (mantener original)
-    - 'relevancia': float entre 0.0 y 1.0 (Asigna > 0.60 solo a mensajes muy útiles, hitos o problemas graves)
-    Mensajes: {json.dumps(contexto)}
-    """
-    
-    respuesta = llamar_llm_openrouter(prompt)
-    
-    lista_resultados = respuesta.get("resultados", [])
-    if not lista_resultados and isinstance(respuesta, list):
-        lista_resultados = respuesta
-        
-    mapa_puntos = {}
-    for res in lista_resultados:
-        msg_id = res.get("id", res.get("id_mensaje"))
-        if msg_id in esperados:
-            val = res.get("relevancia")
-            
-            # Validación estricta F09: Rechazar booleanos explícitamente y asegurar tipos numéricos
-            if isinstance(val, bool) or not isinstance(val, (int, float)):
-                raise ValueError(f"Relevancia inválida (no numérica o booleana) para el mensaje ID {msg_id}: {val}")
-                
-            fval = float(val)
-            # Validación estricta F09: Rango [0.0, 1.0] y números finitos
-            if not math.isfinite(fval) or not (0.0 <= fval <= 1.0):
-                raise ValueError(f"Relevancia fuera del rango válido [0.0, 1.0] o no finita para el mensaje ID {msg_id}: {val}")
-                
-            mapa_puntos[msg_id] = fval
+    ids_esperados = _ids_interacciones(interacciones)
 
-    # Validación F09: Exigir todos los IDs obligatoriamente sin rellenar con 0.0 por defecto
-    faltantes = esperados - set(mapa_puntos.keys())
-    if faltantes:
-        raise ValueError(f"Puntuación incompleta: faltan scores de relevancia del LLM para los IDs: {faltantes}")
-            
+    contexto = [
+        {"id": m.get("id"), "texto": m.get("texto")}
+        for m in interacciones
+    ]
+
+    prompt = f"""
+    Evalúa la relevancia de estos mensajes y devuelve un JSON con una
+    clave 'resultados' que contenga una lista de objetos.
+
+    Cada objeto DEBE tener:
+    - 'id': mantener el ID original.
+    - 'relevancia': float entre 0.0 y 1.0.
+      Asigna > 0.60 solo a mensajes muy útiles, hitos o problemas graves.
+
+    Mensajes: {json.dumps(contexto, ensure_ascii=False)}
+    """
+
+    respuesta = llamar_llm_openrouter(prompt)
+    lista_resultados = respuesta.get("resultados", [])
+
+    if not isinstance(lista_resultados, list):
+        raise ValueError("Resultados de puntuación inválidos")
+
+    mapa_puntos = {}
+
+    for resultado in lista_resultados:
+        if not isinstance(resultado, dict):
+            raise ValueError("Resultado de puntuación inválido")
+
+        msg_id = resultado.get("id", resultado.get("id_mensaje"))
+
+        if not msg_id:
+            raise ValueError("Resultado de puntuación sin ID")
+
+        if msg_id not in ids_esperados:
+            raise ValueError(f"ID de puntuación no solicitado: {msg_id}")
+
+        if msg_id in mapa_puntos:
+            raise ValueError(f"ID de puntuación duplicado: {msg_id}")
+
+        val = resultado.get("relevancia")
+
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            raise ValueError("Puntuación inválida")
+
+        relevancia = float(val)
+
+        if not math.isfinite(relevancia) or not 0.0 <= relevancia <= 1.0:
+            raise ValueError("Puntuación fuera de rango 0.0-1.0")
+
+        mapa_puntos[msg_id] = relevancia
+
+    if set(mapa_puntos) != ids_esperados:
+        raise ValueError("Puntuación incompleta")
+
     return mapa_puntos
+
 
 # ==========================================
 # NODOS GENERADORES DE CONTENIDO
 # ==========================================
 def post_real(peticion: dict) -> dict:
-    interacciones = peticion.get("interacciones_seleccionadas", []) or peticion.get("interacciones", [])
+    """Genera un copy para LinkedIn."""
+    interacciones = (
+        peticion.get("interacciones_seleccionadas", [])
+        or peticion.get("interacciones", [])
+    )
     fuentes_recibidas = peticion.get("fuentes", [])
-    
-    prompt = f"Crea un copy inspirador para LinkedIn en español usando estos mensajes: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
+
+    prompt = (
+        "Crea un copy inspirador para LinkedIn en español usando estos "
+        f"mensajes: {json.dumps(interacciones, ensure_ascii=False)}. "
+        "Devuelve un JSON con la clave 'copy'."
+    )
+
     respuesta = llamar_llm_openrouter(prompt)
-    
-    copy_text = respuesta.get("copy", "") if isinstance(respuesta, dict) else str(respuesta)
-    return {"copy": copy_text, "fuentes": fuentes_recibidas}
+
+    return {
+        "copy": respuesta.get("copy", ""),
+        "fuentes": fuentes_recibidas,
+    }
+
 
 def faq_real(peticion: dict) -> dict:
-    interacciones = peticion.get("interacciones_seleccionadas", []) or peticion.get("interacciones", [])
+    """Genera un FAQ o tip educativo técnico."""
+    interacciones = (
+        peticion.get("interacciones_seleccionadas", [])
+        or peticion.get("interacciones", [])
+    )
     fuentes_recibidas = peticion.get("fuentes", [])
-    
-    prompt = f"Crea un FAQ o Tip educativo técnico en español resolviendo estas dudas: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
+
+    prompt = (
+        "Crea un FAQ o Tip educativo técnico en español resolviendo estas "
+        f"dudas: {json.dumps(interacciones, ensure_ascii=False)}. "
+        "Devuelve un JSON con la clave 'copy'."
+    )
+
     respuesta = llamar_llm_openrouter(prompt)
-    
-    copy_text = respuesta.get("copy", "") if isinstance(respuesta, dict) else str(respuesta)
-    return {"copy": copy_text, "fuentes": fuentes_recibidas}
+
+    return {
+        "copy": respuesta.get("copy", ""),
+        "fuentes": fuentes_recibidas,
+    }
+
 
 def highlights_real(peticion: dict) -> dict:
-    interacciones = peticion.get("interacciones_seleccionadas", []) or peticion.get("interacciones", [])
+    """Genera un resumen semanal de la comunidad."""
+    interacciones = (
+        peticion.get("interacciones_seleccionadas", [])
+        or peticion.get("interacciones", [])
+    )
     fuentes_recibidas = peticion.get("fuentes", [])
-    
-    prompt = f"Redacta un resumen semanal (Community Highlights) cohesionado en español con estos eventos: {json.dumps(interacciones)}. Devuelve un JSON con la clave 'copy'."
+
+    prompt = (
+        "Redacta un resumen semanal (Community Highlights) cohesionado "
+        "en español con estos eventos: "
+        f"{json.dumps(interacciones, ensure_ascii=False)}. "
+        "Devuelve un JSON con la clave 'copy'."
+    )
+
     respuesta = llamar_llm_openrouter(prompt)
-    
-    copy_text = respuesta.get("copy", "") if isinstance(respuesta, dict) else str(respuesta)
-    return {"copy": copy_text, "fuentes": fuentes_recibidas}
-    
-    copy_text = respuesta.get("copy", "") if isinstance(respuesta, dict) else str(respuesta)
-    return {"copy": copy_text, "fuentes": fuentes_recibidas}
+
+    return {
+        "copy": respuesta.get("copy", ""),
+        "fuentes": fuentes_recibidas,
+    }
