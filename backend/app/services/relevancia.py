@@ -18,7 +18,7 @@ def evaluar_texto(texto: str) -> PuntajeRelevancia:
 
     # 2. Emoción (positiva o negativa)
     keywords_emocion_positiva = [r"feliz", r"orgullos", r"emocionad", r"gracias", r"increíble", r"excelente", r"me encanta", r"❤️", r"🥳", r"🚀"]
-    keywords_emocion_negativa = [r"frustrado", r"harto", r"molesto", r"enojado", r"mal", r"decepcionado", r"triste", r"rendirme"]
+    keywords_emocion_negativa = [r"frustrado", r"harto", r"molesto", r"enojado", r"\bmal\b", r"decepcionado", r"triste", r"rendirme"]
     
     emocion_pos = sum(2 for kw in keywords_emocion_positiva if re.search(kw, texto_lower))
     emocion_neg = sum(2 for kw in keywords_emocion_negativa if re.search(kw, texto_lower))

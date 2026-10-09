@@ -24,9 +24,9 @@ def crear_componentes(señales):
                     break
             fuentes_str.append(f"[Fuente: {autor} - {id_f}]")
             
-        citas = "\\n".join(fuentes_str)
+        citas = "\n".join(fuentes_str)
         return {
-            "copy": f"[SIMULADO — NO PUBLICAR] {peticion['formato']} generado a partir de fuentes.\\n\\n{citas}",
+            "copy": f"[SIMULADO — NO PUBLICAR] {peticion['formato']} generado a partir de fuentes.\n\n{citas}",
             "fuentes": deepcopy(peticion["fuentes"])
         }
 
