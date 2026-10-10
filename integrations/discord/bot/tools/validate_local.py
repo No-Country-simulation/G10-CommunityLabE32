@@ -49,6 +49,8 @@ def main():
         (evidence / (name + ".txt")).write_text(run.stdout + run.stderr, encoding="utf-8")
         results[name] = {"returncode": run.returncode}
         print(name, "OK" if run.returncode == 0 else "FALLO", flush=True)
+        if run.returncode:
+            print(run.stdout + run.stderr, flush=True)
     unchanged = before == fingerprint() and status_before == git("status", "--porcelain")
     report = {"ejecutado_utc": datetime.now(timezone.utc).isoformat(), "repo_sha": sha,
               "fuentes_repositorio_sin_cambios": unchanged, "resultados": results,
