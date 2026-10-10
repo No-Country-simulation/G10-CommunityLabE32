@@ -28,7 +28,7 @@ def llamar_llm_openrouter(prompt: str) -> dict:
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers={
-                "Authorization": f"******",
+                "Authorization": f"Bearer {api_key}",
                 "HTTP-Referer": (
                     "https://github.com/No-Country-simulation/"
                     "G10-CommunityLabE32"
