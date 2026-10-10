@@ -1,0 +1,9 @@
+{
+  "schema_version": "discord-source-v1",
+  "message_id": "333333333333333333",
+  "guild_id": "111111111111111111",
+  "channel_id": "222222222222222222",
+  "author_id": "444444444444444444",
+  "created_at": "2026-10-07T18:00:00+00:00",
+  "content": "Mensaje ficticio: terminé mi primer proyecto con Python."
+}
