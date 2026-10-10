@@ -1,5 +1,6 @@
 import os
 import json
+import math
 import requests
 
 
@@ -15,7 +16,9 @@ def llamar_llm_openrouter(prompt: str) -> dict:
 
     payload = {
         "models": [
-            "openrouter/free",
+            "google/gemma-4-31b-it:free",
+            "cohere/north-mini-code:free",
+            "nvidia/nemotron-3-ultra-550b-a55b:free",
         ],
         "messages": [{"role": "user", "content": prompt}],
         "response_format": {"type": "json_object"},
@@ -68,6 +71,7 @@ def llamar_llm_openrouter(prompt: str) -> dict:
         raise ValueError("OpenRouter debe devolver un objeto JSON")
 
     return resultado
+
 
 # ==========================================
 # VALIDACIONES COMUNES
@@ -162,6 +166,7 @@ def analizar_real(lote: dict) -> dict:
 
     return mapa
 
+
 # ==========================================
 # NODO DE PUNTUACIÓN
 # ==========================================
@@ -211,12 +216,14 @@ def puntuar_real(peticion: dict) -> dict:
         if msg_id in mapa_puntos:
             raise ValueError(f"ID de puntuación duplicado: {msg_id}")
 
-        try:
-            relevancia = float(resultado["relevancia"])
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ValueError("Puntuación inválida") from exc
+        val = resultado.get("relevancia")
 
-        if not 0.0 <= relevancia <= 1.0:
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            raise ValueError("Puntuación inválida")
+
+        relevancia = float(val)
+
+        if not math.isfinite(relevancia) or not 0.0 <= relevancia <= 1.0:
             raise ValueError("Puntuación fuera de rango 0.0-1.0")
 
         mapa_puntos[msg_id] = relevancia
@@ -225,6 +232,7 @@ def puntuar_real(peticion: dict) -> dict:
         raise ValueError("Puntuación incompleta")
 
     return mapa_puntos
+
 
 # ==========================================
 # NODOS GENERADORES DE CONTENIDO
