@@ -67,7 +67,7 @@ class ContractTests(unittest.TestCase):
                 with self.subTest(edits=edits), self.assertRaises(ValueError):
                     Config.load(file)
             file.write_text(json.dumps(data))
-            self.assertEqual(Config.load(file).database, Path(tmp) / "data/bot.sqlite3")
+            self.assertEqual(Config.load(file).database, (Path(tmp) / "data/bot.sqlite3").resolve())
 
 
 class StoreTests(unittest.TestCase):
