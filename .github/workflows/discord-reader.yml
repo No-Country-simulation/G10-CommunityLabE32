@@ -1,0 +1,31 @@
+name: Pruebas del lector Discord
+on:
+  pull_request:
+    paths:
+      - 'integrations/discord/reader/**'
+      - '.github/workflows/discord-reader.yml'
+permissions:
+  contents: read
+jobs:
+  lector:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: integrations/discord/reader
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.lock.txt
+      - run: python -m pip check
+      - run: python -B -m unittest discover -s tests -v
+      - run: python -B -m discord_reader --config config.example.json check-config
