@@ -5,19 +5,30 @@ import time
 
 from worker.core import ProcesamientoFallido
 
+# Tipos del dataset del repositorio y del enunciado, traducidos a las señales del grafo.
+SENAL_POR_TIPO = {
+    "logro": "es_logro", "testimonio": "es_logro",
+    "duda": "es_duda", "pregunta_tecnica": "es_duda", "consulta_negocio": "es_duda",
+    "bloqueo": "es_bloqueo",
+}
+
+
+def senal_simulada(tipo):
+    return SENAL_POR_TIPO.get(str(tipo or "").strip().lower())
+
 
 def ejecutar_grafo(entrada, modo):
     from pipelines.communitylab import Componentes, ejecutar_lote
     if modo == "simulado":
         from pipelines.communitylab.simulados import crear_componentes
         # Señales explícitas de demostración, nunca inferencias presentadas como IA.
-        senales = {
-            m["id"]: {"es_logro": m.get("tipo") == "logro",
-                      "es_duda": m.get("tipo") == "duda",
-                      "es_bloqueo": m.get("tipo") == "bloqueo",
-                      "tema": m["canal"], "relevancia": 0.8}
-            for m in entrada["interacciones"]
-        }
+        senales = {}
+        for m in entrada["interacciones"]:
+            senal = senal_simulada(m.get("tipo"))
+            senales[m["id"]] = {"es_logro": senal == "es_logro",
+                                "es_duda": senal == "es_duda",
+                                "es_bloqueo": senal == "es_bloqueo",
+                                "tema": m["canal"], "relevancia": 0.8}
         componentes = crear_componentes(senales)
     elif modo == "openrouter":
         if not os.environ.get("OPENROUTER_API_KEY"):
