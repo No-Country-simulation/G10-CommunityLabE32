@@ -1,0 +1,140 @@
+{"texto": "listo, ya me corrió el programa sin ningún error 🎉", "clase": "LOGRO"}
+{"texto": "finalmente entendí recursión, me salió el factorial", "clase": "LOGRO"}
+{"texto": "terminé la API y quedó funcionando en producción", "clase": "LOGRO"}
+{"texto": "arreglé el bug, era un paréntesis mal puesto", "clase": "LOGRO"}
+{"texto": "pasé el reto de hoy, estoy contento", "clase": "LOGRO"}
+{"texto": "después de seis horas al fin compiló, qué desgaste", "clase": "LOGRO"}
+{"texto": "ya pude conectar la base de datos, quedó joya", "clase": "LOGRO"}
+{"texto": "acabo de publicar mi primer paquete en pypi", "clase": "LOGRO"}
+{"texto": "mi bot de discord ya responde comandos!", "clase": "LOGRO"}
+{"texto": "logré que el contenedor levante en docker", "clase": "LOGRO"}
+{"texto": "resolví el ejercicio 5, me tardé pero salió", "clase": "LOGRO"}
+{"texto": "ya quedó el deploy, todo verde en el pipeline", "clase": "LOGRO"}
+{"texto": "por fin pasaron todos los tests unitarios en pytest! ✅", "clase": "LOGRO"}
+{"texto": "al fin logré optimizar la query, pasó de 12 segundos a 180ms 🔥", "clase": "LOGRO"}
+{"texto": "aprobé la prueba técnica de la entrevista, gracias por la ayuda!", "clase": "LOGRO"}
+{"texto": "quedó configurado el certificado SSL con certbot, ya hay https", "clase": "LOGRO"}
+{"texto": "solucionado! solo faltaba poner `await` antes de la llamada async", "clase": "LOGRO"}
+{"texto": "después de pelear todo el fin de semana, ya funciona el websocket", "clase": "LOGRO"}
+{"texto": "mergearon mi primer pull request en un proyecto open source 🚀", "clase": "LOGRO"}
+{"texto": "ya corregí la fuga de memoria, era un event listener que no cerraba", "clase": "LOGRO"}
+{"texto": "al fin logré configurar el linter y ruff sin conflictos", "clase": "LOGRO"}
+{"texto": "pude levantar la réplica de Postgres en Kubernetes, costó pero quedó", "clase": "LOGRO"}
+{"texto": "terminé mi portafolio web y ya lo monté en Vercel", "clase": "LOGRO"}
+{"texto": "listooo, ya guarda la sesión con JWT en las cookies", "clase": "LOGRO"}
+{"texto": "lo conseguí! logré hacer scraping sin que me bloquee el rate limit", "clase": "LOGRO"}
+{"texto": "ya me aceptaron la app en la Play Store 🎉🎉", "clase": "LOGRO"}
+{"texto": "por fin entendí cómo funcionan los punteros en C, ya no tengo segfault", "clase": "LOGRO"}
+{"texto": "terminé la refactorización completa del backend, código limpio al fin", "clase": "LOGRO"}
+{"texto": "solucioné el conflicto de merge en git sin borrar nada", "clase": "LOGRO"}
+{"texto": "ya me quedó la autenticación con OAuth de Google funcionando al 100", "clase": "LOGRO"}
+{"texto": "pude migrar de Vue 2 a Vue 3 sin que explotara el proyecto", "clase": "LOGRO"}
+{"texto": "al fin entendí decoradores en Python, pude armar mi propio logger", "clase": "LOGRO"}
+{"texto": "sí, era justo eso que dijiste, ya corrió perfecto!", "clase": "LOGRO"}
+{"texto": "quedó listo el backup automático con cron jobs", "clase": "LOGRO"}
+{"texto": "por fin pude compilar el binario en Rust sin warnings", "clase": "LOGRO"}
+{"texto": "¿alguien sabe cómo ordenar una lista de diccionarios por una clave?", "clase": "DUDA_TECNICA"}
+{"texto": "una duda: ¿para qué sirve __init__ en las clases?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cuál es la diferencia entre git merge y git rebase?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo hago un entorno virtual en windows?", "clase": "DUDA_TECNICA"}
+{"texto": "¿me recomiendan algún curso de sql para empezar?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo puedo leer variables de entorno en python?", "clase": "DUDA_TECNICA"}
+{"texto": "tengo una pregunta sobre cómo manejar excepciones correctamente", "clase": "DUDA_TECNICA"}
+{"texto": "¿qué diferencia hay entre una lista por comprensión y un map?", "clase": "DUDA_TECNICA"}
+{"texto": "buenas, ¿cómo se hace un select con join entre dos tablas?", "clase": "DUDA_TECNICA"}
+{"texto": "¿es mejor usar fastapi o flask para una api pequeña?", "clase": "DUDA_TECNICA"}
+{"texto": "disculpen la molestia, ¿cómo instalo node en ubuntu?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo puedo depurar un script paso a paso?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo se pasa un payload JSON en un POST usando requests?", "clase": "DUDA_TECNICA"}
+{"texto": "¿alguien sabe por qué un Set en Python no mantiene el orden?", "clase": "DUDA_TECNICA"}
+{"texto": "¿qué conviene más para autenticación simple, sesiones o JWT?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo puedo ejecutar una tarea en segundo plano con Celery o Redis?", "clase": "DUDA_TECNICA"}
+{"texto": "alguien me explica cómo usar `git cherry-pick` sin romper la rama?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo puedo tipar un diccionario que tiene valores mixtos con mypy?", "clase": "DUDA_TECNICA"}
+{"texto": "¿hay alguna diferencia de rendimiento entre pydantic v1 y v2?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo se configura un docker-compose para comunicar dos servicios?", "clase": "DUDA_TECNICA"}
+{"texto": "una consulta, ¿cómo evito que mi script bloquee el event loop de asyncio?", "clase": "DUDA_TECNICA"}
+{"texto": "¿qué comando se usa para ver los logs en vivo de un contenedor docker?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo puedo excluir ciertos archivos en el `.gitignore` si ya los commitiée?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cuál es la mejor forma de paginar resultados en PostgreSQL con FastAPI?", "clase": "DUDA_TECNICA"}
+{"texto": "tengo duda con este decorador: `@property`, ¿cuándo conviene usarlo?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo puedo hacer mock de una llamada de base de datos en pytest?", "clase": "DUDA_TECNICA"}
+{"texto": "¿alguien sabe cómo crear un índice compuesto en SQLAlchemy?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo se manejan los webhooks entrantes de Stripe para validar la firma?", "clase": "DUDA_TECNICA"}
+{"texto": "consulta sobre Linux: ¿cuál es la diferencia entre `kill -9` y `kill -15`?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo puedo enviar headers personalizados usando aiohttp?", "clase": "DUDA_TECNICA"}
+{"texto": "¿qué librería recomiendan para generar reportes en PDF con Python?", "clase": "DUDA_TECNICA"}
+{"texto": "¿en qué archivo pongo esa variable que me dices?", "clase": "DUDA_TECNICA"}
+{"texto": "¿cómo puedo formatear una fecha en formato ISO 8601 en JavaScript?", "clase": "DUDA_TECNICA"}
+{"texto": "¿alguien me dice cómo configurar los permisos de un bucket en S3?", "clase": "DUDA_TECNICA"}
+{"texto": "hola, ¿cómo puedo revertir el último commit sin perder mis cambios locales?", "clase": "DUDA_TECNICA"}
+{"texto": "ya van tres días con este error de importación y nada funciona", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "estoy desesperado, el servidor se cae cada rato y no sé por qué", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "NO FUNCIONA, ya probé todas las soluciones del foro", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "me estoy volviendo loco con este bug de la terminal", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "esto es una pesadilla, no logro que corra ni el hola mundo", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "otra vez el mismo error 😭 ya no sé qué más intentar", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "estoy bloqueado con la migración, nada avanza", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "llevo toda la tarde peleando con docker y sigue fallando", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "no entiendo por qué todo me sale mal, ya me quiero rendir", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "se me cayó el daemon otra vez y no levanta, estoy harto", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "frustrado, nada de lo que hago compila", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "siento que no aprendo nada, hoy todo me falló 💀", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "LLEVO CINCO HORAS CON ESTA ESTUPIDEZ Y NO ARRANCA", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "Traceback (most recent call last): RecursionError: maximum recursion depth exceeded. Odio esto", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "me rindo con este framework, no tiene sentido nada de lo que hace", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "por qué nada funciona a la primera en este proyecto? estoy agotado 😫", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "otra vez se corrompió la base de datos de pruebas, voy a explotar", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "ayudaaaa por favor no me deja compilar me quiero morir 💀", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "el deploy falló en producción y rompió todo, no tengo idea de qué pasó", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "no puedo más con CSS, alineo una cosa y se rompe toda la pantalla", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "sigue crasheando en el mismo endpoint, ya no sé qué mirar", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "npm install me rompió todas las dependencias del repo, qué desastre", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "no logro conectar el frontend con el backend ni a palos, es imposible", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "estoy totalmente atascado con este algoritmo de grafos, no sale nada", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "CORS me está arruinando la vida, ya puse todos los headers y nada", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "hice un git reset por error y perdí todo el código de hoy 😭😭", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "el servidor me tira 502 Bad Gateway y los logs no dicen absolutamente nada", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "llevo desde la mañana con este bug fantasma, me va a dar algo", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "no compila ni con las flags que dice la documentación oficial, qué bronca", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "todo roto de nuevo, ya no aguanto más pelear con dependencias viejas", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "se cuelga cada vez que ejecuto el script en background", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "sigue igual, no cambió nada y sigue tirando error 🤬", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "no puedo avanzar en el sprint porque el ambiente de pruebas no funciona", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "estoy bloqueadísimo, no entiendo este error de tipos en TypeScript", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "me sale Segmentation fault (core dumped) sin dar ninguna pista, imposible", "clase": "BLOQUEO_FRUSTRACION"}
+{"texto": "buenos días a todos", "clase": "NO_CLASIFICADO"}
+{"texto": "jajaja eso estuvo buenísimo", "clase": "NO_CLASIFICADO"}
+{"texto": "gg", "clase": "NO_CLASIFICADO"}
+{"texto": "qué hay de cenar hoy?", "clase": "NO_CLASIFICADO"}
+{"texto": "alguien vio el partido de ayer?", "clase": "NO_CLASIFICADO"}
+{"texto": "gracias!!", "clase": "NO_CLASIFICADO"}
+{"texto": "ok", "clase": "NO_CLASIFICADO"}
+{"texto": "mira este meme <URL>", "clase": "NO_CLASIFICADO"}
+{"texto": "feliz cumpleaños a todos los que cumplen!", "clase": "NO_CLASIFICADO"}
+{"texto": "nos vemos mañana, buenas noches", "clase": "NO_CLASIFICADO"}
+{"texto": "😂😂😂", "clase": "NO_CLASIFICADO"}
+{"texto": "que tengan buen fin de semana", "clase": "NO_CLASIFICADO"}
+{"texto": "xd", "clase": "NO_CLASIFICADO"}
+{"texto": "lol nunca lo había visto", "clase": "NO_CLASIFICADO"}
+{"texto": "hola a todos, soy nuevo en el servidor", "clase": "NO_CLASIFICADO"}
+{"texto": "alguien para jugar unas partidas más tarde?", "clase": "NO_CLASIFICADO"}
+{"texto": "muchas gracias por la bienvenida!", "clase": "NO_CLASIFICADO"}
+{"texto": "totalmente de acuerdo con lo que dijo", "clase": "NO_CLASIFICADO"}
+{"texto": "jajajaja lpm no puedo parar de reírme con ese video", "clase": "NO_CLASIFICADO"}
+{"texto": "qué café toman mientras trabajan?", "clase": "NO_CLASIFICADO"}
+{"texto": "sale stream hoy a la noche?", "clase": "NO_CLASIFICADO"}
+{"texto": "buenas tardes gente bonita", "clase": "NO_CLASIFICADO"}
+{"texto": "👀", "clase": "NO_CLASIFICADO"}
+{"texto": "de nada amigo, para eso estamos", "clase": "NO_CLASIFICADO"}
+{"texto": "pasa el link cuando puedas!", "clase": "NO_CLASIFICADO"}
+{"texto": "alguien más con sueño a esta hora?", "clase": "NO_CLASIFICADO"}
+{"texto": "F en el chat por ese servidor", "clase": "NO_CLASIFICADO"}
+{"texto": "buen provecho a los que estén almorzando", "clase": "NO_CLASIFICADO"}
+{"texto": "dale genial, voy a ver eso después", "clase": "NO_CLASIFICADO"}
+{"texto": "re sí", "clase": "NO_CLASIFICADO"}
+{"texto": "alguien sabe si va a llover hoy?", "clase": "NO_CLASIFICADO"}
+{"texto": "me voy a dormir, descansen!", "clase": "NO_CLASIFICADO"}
+{"texto": "saludos desde Argentina", "clase": "NO_CLASIFICADO"}
+{"texto": "jaja sí suele pasar", "clase": "NO_CLASIFICADO"}
+{"texto": "buen lunes y buena semana para todos", "clase": "NO_CLASIFICADO"}
