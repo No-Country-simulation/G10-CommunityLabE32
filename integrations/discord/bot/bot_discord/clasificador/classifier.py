@@ -1,42 +1,11 @@
 
-"""
-classifier.py — Clasificador de interacciones (versión mejorada).
+"""Clasificador local de Fabián y API de decisiones compatible con el transporte.
 
-Pipeline:
-    Interaccion -> SanitizadorTexto -> (MotorSemanticoLocal, AnalizadorSentimiento)
-                -> ContextoConversacional -> enrutamiento por combinación de scores
-                -> ClasificacionResultado
-                -> GeneradorIA (puerto opcional, bloque 5) -> DiscordDecisionV1
-
-Mejoras respecto a la versión anterior (ver propuesta):
-    * Umbral, margen y temperatura calibrados por motor (embeddings vs fallback).
-    * Clase explícita RUIDO que compite con las demás.
-    * k-NN sobre prototipos en lugar de un único centroide.
-    * Decisión por margen; casos ambiguos o conflictivos -> necesita_revision.
-    * Contexto conversacional y frustración acumulada.
-    * Sentimiento con distribución completa de probabilidades.
-    * Sanitizador con código/trazas, emojis, emotes de Discord y mayúsculas.
-    * Fallback TF-IDF de n-gramas de caracteres (sin PyTorch).
-    * Procesamiento por lotes, variante async, configuración externa JSON/YAML,
-      bucle de correcciones de moderadores y logs de decisión.
-
-Contratos (frontera del componente):
-    entrada : DiscordSourceV1   (schema_version="discord-source-v1")
-    salida  : DiscordDecisionV1 (schema_version="discord-decision-v1")
-
-Campos de salida:
-    es_duda / es_logro / es_bloqueo : a lo sumo uno es True (ninguno = sin clasificar).
-    tema      : tema técnico inferido por el GeneradorIA; "general" si no hay generador,
-                la clase no es objetivo o la generación falla.
-    respuesta : texto sugerido por el GeneradorIA (máx. MAX_RESPUESTA caracteres); ""
-                si no se debe responder (sin generador, clase no objetivo o, con
-                responder_solo_sin_revision, cualquier caso que requiera revisión humana).
-    alerta    : alertas deterministas de seguridad separadas por ";" (hoy:
-                malestar_no_tecnico), "ia_no_disponible" si la generación falló y,
-                al final, el texto de alerta del GeneradorIA (vacío si no aplica).
-
-Los diagnósticos internos (similitudes, sentimiento, confianza, motivos) siguen
-disponibles con clasificar_detallado / clasificar_lote_detallado.
+La integración recomendada vive en community_processor.integrated:procesar:
+usa una hipótesis local sin contexto persistente y una confirmación async Gemini.
+La API síncrona opcional requiere un GeneradorIA para dudas/bloqueos. Los logros
+no publican. Los errores se propagan sin mensajes del proveedor. ReviewRequired
+pide revisión explícita; no es una decisión discord-decision-v1.
 """
 from __future__ import annotations
 
@@ -52,6 +21,7 @@ from pathlib import Path
 from typing import Any, Deque, Dict, List, Mapping, Optional, Protocol, Sequence, Tuple, Union
 
 import numpy as np
+from bot_discord.contracts import ReviewRequired, validate_decision
 
 log = logging.getLogger("clasificador")
 
@@ -534,13 +504,13 @@ class ContextoConversacional:
 # El clasificador NO sabe qué proveedor de IA se usa: solo conoce este puerto.
 # Las implementaciones (llamadas externas) viven en módulos aparte, p. ej. generador_ia.py,
 # que importan de aquí. Así se evita el import circular y se mantiene la modularidad.
-MAX_RESPUESTA = 300  # tope defensivo para `respuesta`, se aplica sin importar el generador
+MAX_RESPUESTA = 1900  # unidades UTF-16; se rechaza el exceso, no se corta código
 
 
 @dataclass(frozen=True)
 class GeneracionSalida:
     """Contrato intermedio: lo que produce la capa generativa. Vacío = no aplica."""
-    tema: str = ""
+    tema: str = "general"
     respuesta: str = ""
     alerta: str = ""
 
@@ -714,35 +684,35 @@ class ClasificadorInteracciones:
             sentimiento={k: round(float(v), 4) for k, v in p.items()}, rasgos=rasgos,
         )
         # Generar log detallado para depuración
-        log.debug("decision msg=%s clase=%s tema=%s conf=%.3f rev=%s motivos=%s texto=%r sims=%s sent=%s",
-                  a.fuente.message_id, clase_final, resultado.tema, confianza, revision, motivos,
-                  a.san.texto, resultado.similitudes, resultado.sentimiento)
+        log.debug("clase=%s conf=%.3f rev=%s", clase_final, confianza, revision)
         return resultado
 
     # -- diagnóstico interno -> contrato de salida --------------------------- #
        # tema / respuesta / alerta los produce el GeneradorIA (puerto del bloque 5).
     def _generar(self, fuente: DiscordSourceV1, r: ClasificacionResultado) -> GeneracionSalida:
-        """Llama al generador solo para clases objetivo; nunca propaga sus fallos.
+        """Dudas/bloqueos requieren generador; logros no publican.
 
-        La regla por clase se impone aquí (no se delega al prompt):
-            DUDA_TECNICA / LOGRO  -> solo respuesta (sin alerta)
-            BLOQUEO_FRUSTRACION   -> solo alerta (sin respuesta)
+        Los fallos se propagan con códigos públicos; revisión se señala mediante
+        ReviewRequired. Nunca fabricar un resultado exitoso ni truncar código.
         """
-        if self.generador is None or r.clase not in CLASES_OBJETIVO:
-            return GeneracionSalida()
+        if self.responder_solo_sin_revision and r.necesita_revision:
+            raise ReviewRequired("human_review_required")
+        if r.clase == LOGRO or r.clase not in CLASES_OBJETIVO:
+            return GeneracionSalida(tema="general")
+        if self.generador is None:
+            raise RuntimeError("generator_not_configured")
         try:
             g = self.generador.generar(fuente, r)
-        except Exception as exc:  # red, timeout, JSON inválido... el lote no debe romperse
-            log.warning("generador falló msg=%s: %s", r.message_id, exc)
-            return GeneracionSalida(alerta="ia_no_disponible")
+        except Exception:
+            raise RuntimeError("generator_failed") from None
+        if not isinstance(g, GeneracionSalida):
+            raise ValueError("generator_output_invalid")
         tema = (g.tema or "").strip() or "general"
         if r.clase == BLOQUEO_FRUSTRACION:
             # Un bloqueo siempre debe quedar señalado, aunque el modelo no devuelva texto.
-            alerta = (g.alerta or "").strip() or "bloqueo_frustracion"
+            alerta = (g.alerta or "").strip()
             return GeneracionSalida(tema=tema, respuesta="", alerta=alerta)
-        respuesta = (g.respuesta or "").strip()[:MAX_RESPUESTA]
-        if self.responder_solo_sin_revision and r.necesita_revision:
-            respuesta = ""  # caso ambiguo o sensible: decide un humano, el bot no responde
+        respuesta = (g.respuesta or "").strip()
         return GeneracionSalida(tema=tema, respuesta=respuesta, alerta="")
 
     @staticmethod
@@ -753,17 +723,20 @@ class ClasificadorInteracciones:
         return []
 
     def construir_decision(self, fuente: DiscordSourceV1, r: ClasificacionResultado) -> DiscordDecisionV1:
+        if self._alertas_deterministas(r):
+            raise ReviewRequired("human_review_required")
         g = self._generar(fuente, r)
-        alerta = ";".join(x for x in (*self._alertas_deterministas(r), g.alerta) if x)
-        return DiscordDecisionV1(
+        decision = DiscordDecisionV1(
             message_id=r.message_id,
             es_duda=r.clase == DUDA_TECNICA,
             es_logro=r.clase == LOGRO,
             es_bloqueo=r.clase == BLOQUEO_FRUSTRACION,
             tema=g.tema,
             respuesta=g.respuesta,
-            alerta=alerta,
+            alerta=g.alerta,
         )
+        validate_decision(asdict(decision), {"message_id": fuente.message_id})
+        return decision
     
 
     # Funcionalidad de depuración: devuelve la decisión y el resultado completo (con motivos, similitudes, sentimiento, etc.)

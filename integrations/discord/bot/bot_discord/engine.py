@@ -3,7 +3,7 @@ import asyncio
 from copy import deepcopy
 import json
 
-from .contracts import validate_source, validate_decision, delivery, snowflake
+from .contracts import validate_source, validate_decision, delivery, snowflake, ReviewRequired
 
 
 class Engine:
@@ -26,6 +26,9 @@ class Engine:
                 validate_source(source, self.config)
                 result = await asyncio.wait_for(self.processor(deepcopy(source)), self.config.processor_timeout)
                 decision = validate_decision(result, source)
+            except ReviewRequired:
+                await asyncio.to_thread(self.store.transition, key, "processing", "needs_review", error="human_review_required")
+                return True
             except Exception:
                 await asyncio.to_thread(self.store.transition, key, "processing", "failed_processing", error="processor_or_contract")
                 return True

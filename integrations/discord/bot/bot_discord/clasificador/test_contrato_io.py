@@ -17,6 +17,8 @@ from typing import List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from bot_discord.contracts import ReviewRequired
+
 from classifier import (
     BLOQUEO_FRUSTRACION,
     CLASES_OBJETIVO,
@@ -81,6 +83,7 @@ class FakeGen:
 
 
 def nuevo(gen: Optional[GeneradorIA] = None, **kw) -> ClasificadorInteracciones:
+    kw.setdefault("responder_solo_sin_revision", False)
     kw.setdefault("ruta_correcciones", Path(tempfile.mkdtemp()) / "c.jsonl")
     return ClasificadorInteracciones(generador=gen, forzar_fallback=True, **kw)
 
@@ -139,8 +142,8 @@ class TestSalida(unittest.TestCase):
             d = c.clasificar(fuente(texto, i=7))
             self.assertIsInstance(d, DiscordDecisionV1)
             self.assertTrue(getattr(d, flag))
-            self.assertEqual((d.respuesta, d.alerta), ("texto-respuesta", ""))
-            self.assertEqual(len(gen.llamadas), 1)
+            self.assertEqual((d.respuesta, d.alerta), ("texto-respuesta" if flag == "es_duda" else "", ""))
+            self.assertEqual(len(gen.llamadas), 1 if flag == "es_duda" else 0)
             self.assertEqual((d.schema_version, d.message_id), (SCHEMA_SALIDA, "7"))
 
     def test_bloqueo_llena_alerta_y_no_respuesta(self):
@@ -165,22 +168,20 @@ class TestSalida(unittest.TestCase):
         self.assertEqual(gen.llamadas, [])
         self.assertEqual((d.es_duda, d.es_logro, d.es_bloqueo, d.respuesta, d.alerta), (False, False, False, "", ""))
 
-    def test_sin_generador_campos_vacios_pero_clasificacion_intacta(self):
-        d = nuevo(None).clasificar(fuente(BLOQUEO))
-        self.assertEqual((d.es_bloqueo, d.respuesta, d.alerta), (True, "", ""))
+    def test_sin_generador_es_fallo_explicito(self):
+        with self.assertRaisesRegex(RuntimeError, "generator_not_configured"):
+            nuevo(None).clasificar(fuente(BLOQUEO))
 
-    def test_fallo_del_generador_produce_alerta_ia_no_disponible(self):
-        gen = FakeGen(accion=lambda f, r: RuntimeError("error de red"))
-        d = nuevo(gen).clasificar(fuente(DUDA))
-        self.assertTrue(d.es_duda)
-        self.assertEqual((d.respuesta, d.alerta), ("", "ia_no_disponible"))
+    def test_fallo_del_generador_no_se_publica(self):
+        gen = FakeGen(accion=lambda f, r: RuntimeError("secreto que no debe salir"))
+        with self.assertRaisesRegex(RuntimeError, "^generator_failed$"):
+            nuevo(gen).clasificar(fuente(DUDA))
 
-    def test_generador_vacio_o_invalido_deja_respuesta_vacia(self):
+    def test_generador_vacio_o_invalido_se_rechaza(self):
         for resp in ("", "   ", None):
             gen = FakeGen(accion=lambda f, r: GeneracionSalida(respuesta=resp))
-            d = nuevo(gen, responder_solo_sin_revision=False).clasificar(fuente(DUDA))
-            self.assertTrue(d.es_duda)
-            self.assertEqual(d.respuesta, "")
+            with self.assertRaises(ValueError):
+                nuevo(gen).clasificar(fuente(DUDA))
 
     def test_el_generador_recibe_datos_de_entrada_e_internos(self):
         gen = FakeGen()
@@ -198,21 +199,20 @@ class TestSalida(unittest.TestCase):
         self.assertTrue(hasattr(r_recibido, "necesita_revision"))
         self.assertIn("frustracion_acumulada", r_recibido.rasgos)
 
-    def test_generador_trunca_a_max_respuesta(self):
-        largo = "x" * (MAX_RESPUESTA + 150)
-        gen = FakeGen(accion=lambda f, r: GeneracionSalida(respuesta=f"  {largo}  "))
-        d = nuevo(gen, responder_solo_sin_revision=False).clasificar(fuente(DUDA))
-        self.assertEqual(len(d.respuesta), MAX_RESPUESTA)
-        self.assertEqual(d.respuesta, "x" * MAX_RESPUESTA)
+    def test_generador_excesivo_se_rechaza_sin_truncar(self):
+        gen = FakeGen(accion=lambda f, r: GeneracionSalida(respuesta="x" * (MAX_RESPUESTA + 1)))
+        with self.assertRaises(ValueError):
+            nuevo(gen).clasificar(fuente(DUDA))
 
-    def test_responder_solo_sin_revision_suprime_respuesta(self):
-        gen = FakeGen(accion=lambda f, r: GeneracionSalida(respuesta="solución"))
-        # Con responder_solo_sin_revision=True, si el caso requiere revisión, respuesta debe ser ""
-        c = nuevo(gen, responder_solo_sin_revision=True)
-        # Una duda muy corta o ambigua genera necesita_revision=True
-        d, r = c.clasificar_detallado(fuente("¿pip?"))
-        if r.necesita_revision and d.es_duda:
-            self.assertEqual(d.respuesta, "")
+    def test_revision_humana_es_estado_explicito(self):
+        from dataclasses import replace
+        c = nuevo(FakeGen(), responder_solo_sin_revision=True)
+        f = fuente(DUDA)
+        a = c.preparar_lote([f])[0]
+        r = replace(c.decidir(a), necesita_revision=True)
+        with self.assertRaises(ReviewRequired):
+            c.construir_decision(f, r)
+
 
 
 # --------------------------------------------------------------------------- #
@@ -225,10 +225,10 @@ class TestTemaYContexto(unittest.TestCase):
         self.assertEqual(c.clasificar(fuente(DUDA)).tema, "docker")
 
         # RUIDO no invoca generador y su tema final queda vacío
-        self.assertEqual(c.clasificar(fuente(RUIDO)).tema, "")
+        self.assertEqual(c.clasificar(fuente(RUIDO)).tema, "general")
 
     def test_contexto_no_cruza_servidores(self):
-        c = nuevo()
+        c = nuevo(FakeGen())
         c.clasificar(fuente(BLOQUEO, autor="x", guild="g1", minutos=0))
         _, mismo = c.clasificar_detallado(fuente("ok", i=1, autor="x", guild="g1", minutos=1))
         _, otro = c.clasificar_detallado(fuente("ok", i=2, autor="x", guild="g2", minutos=1))
@@ -236,7 +236,7 @@ class TestTemaYContexto(unittest.TestCase):
         self.assertFalse(otro.rasgos["usa_contexto"])
 
     def test_respuesta_a_otro_mensaje(self):
-        _, r = nuevo().clasificar_detallado(
+        _, r = nuevo(FakeGen()).clasificar_detallado(
             fuente("no"), texto_respondido="¿ya probaste reiniciar el servicio? sigue el mismo error"
         )
         self.assertTrue(r.rasgos["usa_contexto"])
