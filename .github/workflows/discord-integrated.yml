@@ -1,0 +1,61 @@
+name: Pruebas clasificador y bot integrado
+on:
+  pull_request:
+    paths:
+      - 'integrations/discord/**'
+      - 'pipelines/communitylab/**'
+      - 'worker/**'
+      - '.github/workflows/discord-integrated.yml'
+permissions:
+  contents: read
+jobs:
+  integrated:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r integrations/discord/bot/requirements-validacion.lock.txt -r integrations/discord/processor/requirements.txt
+      - run: python -m pip check
+      - run: python -B integrations/discord/processor/tools/validate.py --junit discord-integrated.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: discord-integrated-${{ matrix.os }}
+          path: discord-integrated.xml
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: worker
+          POSTGRES_PASSWORD: local_test_only
+          POSTGRES_DB: worker_local
+        ports:
+          - 15439:5432
+        options: >-
+          --health-cmd "pg_isready -U worker -d worker_local"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      WORKER_TEST_DATABASE_URL: postgresql://worker:local_test_only@127.0.0.1:15439/worker_local
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r integrations/discord/bot/requirements-validacion.lock.txt -r integrations/discord/processor/requirements.txt
+      - run: python -m pip check
+      - run: python -B integrations/discord/processor/tools/validate.py --postgres --junit discord-postgres.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: discord-postgres
+          path: discord-postgres.xml
