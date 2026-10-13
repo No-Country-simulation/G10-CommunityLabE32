@@ -1,3 +1,5 @@
+Configuración HTTP local y HTTPS para VM: [guía de operación](docs/http-local-https-vm.md).
+
 ## Compose de cinco servicios
 
 Configuración y pruebas locales sobre el backend modular: [guía](docs/compose-cinco-servicios.md). El worker incluido es una sonda; la API conserva la respuesta mock.

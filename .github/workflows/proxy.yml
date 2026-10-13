@@ -1,0 +1,27 @@
+name: Pruebas HTTP local y HTTPS
+on:
+  pull_request:
+    paths:
+      - 'docker-compose.yml'
+      - 'compose.https.yml'
+      - 'proxy/**'
+      - 'tools/probar_proxy.py'
+      - '.github/workflows/proxy.yml'
+permissions:
+  contents: read
+jobs:
+  proxy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: docker pull nginx:stable-alpine
+      - run: python tools/probar_proxy.py --report resultado-proxy.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultado-proxy
+          path: resultado-proxy.json
