@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 from worker.core import Worker, ProcesamientoFallido, ReservaPerdida, Trabajo
-from worker.processor import ProcesadorAislado, ejecutar_grafo
+from worker.processor import ProcesadorAislado, ejecutar_grafo, senal_simulada
 
 
 def lote():
@@ -95,6 +95,26 @@ def test_cuatro_rutas_y_bloqueo_excluido():
     bloqueo = entrada["interacciones"][3]["id"]
     assert salida["alertas_internas"][0]["fuente"] == bloqueo
     assert all(bloqueo not in a["fuentes"] for a in salida["activos_distribucion_generados"])
+
+
+@pytest.mark.parametrize("tipo,senal", [
+    ("logro", "es_logro"), ("testimonio", "es_logro"), (" Testimonio ", "es_logro"),
+    ("duda", "es_duda"), ("pregunta_tecnica", "es_duda"), ("consulta_negocio", "es_duda"),
+    ("bloqueo", "es_bloqueo"), ("otro", None), ("", None), (None, None),
+])
+def test_senal_simulada_por_tipo(tipo, senal):
+    assert senal_simulada(tipo) == senal
+
+
+def test_tipos_del_dataset_generan_activos():
+    entrada = lote()
+    for m, tipo in zip(entrada["interacciones"],
+                       ["testimonio", "pregunta_tecnica", "consulta_negocio", "bloqueo"]):
+        m["tipo"] = tipo
+    salida = ejecutar_grafo(entrada, "simulado")
+    assert salida["errores"] == []
+    assert {d["ruta"] for d in salida["enrutamiento"]["decisiones"]} == {"logro", "dudas", "periodo", "bloqueo"}
+    assert salida["activos_distribucion_generados"]
 
 
 @pytest.fixture
