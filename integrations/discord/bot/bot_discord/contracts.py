@@ -5,6 +5,10 @@ from pathlib import Path
 import json
 
 
+class ReviewRequired(RuntimeError):
+    """El procesador pide revisión: no es una decisión publicable ni un fallo de IA."""
+
+
 def snowflake(value):
     if (not isinstance(value, str) or not value.isascii() or not value.isdigit()
             or not 0 < int(value) < 2**64 or str(int(value)) != value):
