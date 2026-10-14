@@ -1,13 +1,17 @@
 import json
-import requests
 import os
-from normalizador_discord import normalizar_discord_jsonl
+import urllib.error
+import urllib.request
+
+from normalizador_discord import construir_lotes, normalizar_discord_jsonl
 
 # ==========================================
 # CONFIGURACIÓN DEL ENTORNO DE PRUEBA
 # ==========================================
 ARCHIVO_EXPORTACION = "discord_export.jsonl"
-URL_BACKEND = "http://localhost:8000/api/v1/trabajos" # URL del worker asíncrono en local
+URL_BACKEND = os.environ.get("URL_BACKEND", "http://localhost:8000/api/v1/trabajos")  # URL del worker asíncrono en local
+ORIGEN_COMUNIDAD = "discord"
+PERIODO_REFERENCIA = os.environ.get("PERIODO_REFERENCIA", "S3")
 
 def preparar_datos_simulados():
     """Simula la salida exportada del lector de Paulo (export_jsonl)"""
@@ -37,29 +41,27 @@ def preparar_datos_simulados():
         # Metemos un duplicado intencional para probar tu filtro
         f.write(json.dumps(mensajes[0]) + "\n")
 
-def enviar_al_backend(lote_normalizado):
-    """Envía el lote normalizado a la cola de procesamiento del backend"""
-    payload = {
-        "origen": "discord",
-        "interacciones": lote_normalizado["interacciones"]
-    }
-    
-    print(f"\n🚀 Enviando {len(payload['interacciones'])} mensajes al backend ({URL_BACKEND})...")
-    
+def enviar_al_backend(payload):
+    """Envía un lote normalizado a la cola de procesamiento del backend"""
+    print(f"
+🚀 Enviando {len(payload['interacciones'])} mensajes al backend ({URL_BACKEND})...")
+    peticion = urllib.request.Request(
+        URL_BACKEND,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
     try:
-        respuesta = requests.post(URL_BACKEND, json=payload, timeout=10)
-        
-        if respuesta.status_code in [200, 202]:
-            print(f"✅ ¡Éxito! El backend aceptó el lote.")
-            print(f"📄 Respuesta del servidor: {respuesta.json()}")
-        else:
-            print(f"⚠️ El backend respondió con código {respuesta.status_code}")
-            print(f"Detalle: {respuesta.text}")
-            
-    except requests.exceptions.ConnectionError:
+        with urllib.request.urlopen(peticion, timeout=10) as respuesta:
+            print("✅ ¡Éxito! El backend aceptó el lote.")
+            print(f"📄 Respuesta del servidor: {respuesta.read().decode('utf-8')}")
+    except urllib.error.HTTPError as error:
+        print(f"⚠️ El backend respondió con código {error.code}")
+        print(f"Detalle: {error.read().decode('utf-8', 'replace')}")
+    except urllib.error.URLError:
         print("⚠️ No se pudo conectar al backend.")
         print("👉 Nota: Esto es normal si no tienes los contenedores Docker de la API y el worker levantados en tu local ahora mismo.")
-        print("💡 Sin embargo, el payload generado está perfecto y listo para producción:")
+        print("💡 Payload generado:")
         print(json.dumps(payload, indent=2, ensure_ascii=False))
 
 # ==========================================
@@ -73,8 +75,10 @@ if __name__ == "__main__":
     resultado = normalizar_discord_jsonl(ARCHIVO_EXPORTACION)
     
     print("\n3️⃣ Conectando con el pipeline de procesamiento...")
+    print("📊 Resumen de Normalización:", resultado["estadisticas"])
     if resultado["interacciones"]:
-        enviar_al_backend(resultado)
+        for lote in construir_lotes(resultado["interacciones"], ORIGEN_COMUNIDAD, PERIODO_REFERENCIA):
+            enviar_al_backend(lote)
     else:
         print("No hay mensajes válidos para enviar.")
         
