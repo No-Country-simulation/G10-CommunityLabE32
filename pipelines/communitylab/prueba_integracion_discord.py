@@ -43,8 +43,7 @@ def preparar_datos_simulados():
 
 def enviar_al_backend(payload):
     """Envía un lote normalizado a la cola de procesamiento del backend"""
-    print(f"
-🚀 Enviando {len(payload['interacciones'])} mensajes al backend ({URL_BACKEND})...")
+    print(f"\n🚀 Enviando {len(payload['interacciones'])} mensajes al backend ({URL_BACKEND})...")
     peticion = urllib.request.Request(
         URL_BACKEND,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
