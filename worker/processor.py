@@ -1,4 +1,5 @@
 """Ejecución aislada del grafo: tiempo límite y renovación de reserva."""
+import logging
 import multiprocessing as mp
 import os
 import time
@@ -42,6 +43,9 @@ def ejecutar_grafo(entrada, modo):
 
 
 def _hijo(conexion, entrada, modo):
+    # El proceso hijo (spawn) no hereda el logging: sin esto se pierden las métricas de Gemini.
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
         conexion.send((True, ejecutar_grafo(entrada, modo)))
     except Exception as exc:

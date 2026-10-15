@@ -7,6 +7,7 @@ from pipelines.communitylab import componentes_gemini
 from pipelines.communitylab.gemini_falso import (
     GeminiFalso, configuracion, error, responder_con_senales, tarea_de,
 )
+from worker import processor
 from worker.core import ProcesamientoFallido, Worker
 from worker.processor import ProcesadorAislado, _hijo, ejecutar_grafo
 from worker.run import validar_configuracion
@@ -74,6 +75,20 @@ def test_hijo_envia_solo_codigo_controlado(monkeypatch):
             pass
     _hijo(Conexion(), lote(), "gemini")
     assert Conexion.enviado == (False, "ia_configuracion")
+
+
+def test_hijo_configura_logging_para_las_metricas(monkeypatch):
+    llamadas = []
+    monkeypatch.setattr(processor.logging, "basicConfig", lambda **kw: llamadas.append(kw))
+    monkeypatch.setattr(processor, "ejecutar_grafo", lambda entrada, modo: {"estado": "ok"})
+
+    class Conexion:
+        def send(self, valor):
+            pass
+        def close(self):
+            pass
+    _hijo(Conexion(), lote(), "gemini")
+    assert llamadas and llamadas[0]["level"] == processor.logging.INFO
 
 
 def hijo_sin_presupuesto(conexion, entrada, modo):

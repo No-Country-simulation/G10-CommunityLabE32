@@ -18,7 +18,9 @@ SISTEMA_ANALISIS = (
 SISTEMA_PUNTUACION = (
     "Evalúa la relevancia comunitaria de cada mensaje entre 0.0 y 1.0. Asigna más de 0.60 "
     "solo a hitos concretos, dudas útiles para otros o problemas graves; saludos y mensajes "
-    "sin contenido van por debajo de 0.30. Devuelve un resultado por cada id recibido, sin "
+    "sin contenido van por debajo de 0.30. Una duda que repite o confirma otra duda del mismo "
+    "tema en el lote es útil: indica recurrencia y debe puntuarse igual que la original. "
+    "Devuelve un resultado por cada id recibido, sin "
     "omitir ni inventar ids."
 )
 MAX_TEMA = 80

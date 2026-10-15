@@ -61,6 +61,7 @@ def main():
         print("[NO EJECUTADA] Defina COMMUNITYLAB_GEMINI_REAL=1 para consumir cuota real.")
         return 2
     logging.basicConfig(level=logging.INFO, format="%(message)s", stream=sys.stderr)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
         cfg = ConfiguracionGemini.desde_entorno()
     except ErrorIA as exc:
