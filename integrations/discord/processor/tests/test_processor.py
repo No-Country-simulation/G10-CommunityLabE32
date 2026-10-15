@@ -2,7 +2,6 @@ import asyncio
 import copy
 import json
 
-import httpx
 import pytest
 
 from bot_discord.contracts import Config
@@ -11,7 +10,6 @@ from bot_discord.runtime import load_processor
 from bot_discord.store import Store
 from community_processor import Processor, procesar
 from community_processor.processor import ProcessingError, PROMPT
-from community_processor.provider import OpenRouter
 
 
 def event(mid="600", content="¿Cómo manejo excepciones en Python?"):
@@ -110,61 +108,15 @@ def test_cancelacion_externa_se_propaga():
         asyncio.run(Processor(Cancel())(event()))
 
 
-def test_entrypoint_sin_activacion_y_sin_credenciales(monkeypatch):
+def test_entrypoint_historico_delega_en_gemini(monkeypatch):
     assert load_processor("community_processor:procesar") is procesar
-    monkeypatch.delenv("COMMUNITYLAB_BOT_ENABLE_LLM", raising=False)
-    with pytest.raises(ProcessingError, match="provider_not_enabled"):
+    monkeypatch.delenv("COMMUNITYLAB_GEMINI_ENABLE", raising=False)
+    with pytest.raises(ProcessingError, match="gemini_not_enabled"):
         asyncio.run(procesar(event()))
-    monkeypatch.setenv("COMMUNITYLAB_BOT_ENABLE_LLM", "1")
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    with pytest.raises(ProcessingError, match="provider_configuration_missing"):
+    monkeypatch.setenv("COMMUNITYLAB_GEMINI_ENABLE", "1")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    with pytest.raises(ProcessingError, match="gemini_configuration_missing"):
         asyncio.run(procesar(event()))
-
-
-def response(content=None, **changes):
-    return {"choices": [{"finish_reason": "stop", "message": {"content": content or json.dumps(output())}}], **changes}
-
-
-def test_http_real_adapter_sobre_transporte_simulado():
-    calls = []
-    def handler(request):
-        calls.append(request)
-        body = json.loads(request.content)
-        assert body["model"] == "fixture/model"
-        assert body["response_format"] == {"type": "json_object"}
-        assert request.headers["Authorization"] == "Bearer fixture-secret"
-        return httpx.Response(200, json=response())
-    provider = OpenRouter("fixture-secret", "fixture/model", transport=httpx.MockTransport(handler))
-    result = asyncio.run(Processor(provider)(event()))
-    assert result["es_duda"] is True and len(calls) == 1
-
-
-@pytest.mark.parametrize("status", [301, 400, 401, 429, 500, 503])
-def test_http_error_sin_retry_ni_fuga(status):
-    calls = []
-    def handler(request):
-        calls.append(1)
-        return httpx.Response(status, text="fixture-secret y texto privado", headers={"Location": "https://example.invalid"})
-    with pytest.raises(ProcessingError) as exc:
-        asyncio.run(OpenRouter("fixture-secret", "fixture/model", transport=httpx.MockTransport(handler)).complete([]))
-    assert str(exc.value) == "provider_http_error" and len(calls) == 1
-
-
-@pytest.mark.parametrize("body", [
-    {}, {"choices": []}, {"choices": [{"finish_reason": "length", "message": {"content": "{}"}}]},
-    {"choices": [{"finish_reason": "stop", "message": {"content": "{}", "tool_calls": [{}]}}]},
-    {"choices": [{"finish_reason": "stop", "message": {"content": None}}]},
-])
-def test_envoltorio_proveedor_invalido(body):
-    provider = OpenRouter("fixture-secret", "fixture/model", transport=httpx.MockTransport(lambda _: httpx.Response(200, json=body)))
-    with pytest.raises(ProcessingError, match="provider_response_invalid"):
-        asyncio.run(provider.complete([]))
-
-
-def test_limite_respuesta_http():
-    provider = OpenRouter("fixture-secret", "fixture/model", transport=httpx.MockTransport(lambda _: httpx.Response(200, content=b"x" * 65537)))
-    with pytest.raises(ProcessingError, match="provider_response_too_large"):
-        asyncio.run(provider.complete([]))
 
 
 @pytest.mark.parametrize("kind,expected,channel", [
@@ -180,7 +132,7 @@ def test_procesador_hasta_motor_del_pr21_reinicio_y_dedup(tmp_path, kind, expect
         async def send(self, destination, plan, source):
             sent.append((destination, plan, source))
             return "800"
-    provider = OpenRouter("fixture-secret", "fixture/model", transport=httpx.MockTransport(lambda _: httpx.Response(200, json=response(json.dumps(output(kind))))))
+    provider = Provider(json.dumps(output(kind)))
     async def run():
         engine = Engine(config, store, Processor(provider), Transport())
         assert await engine.submit(event())

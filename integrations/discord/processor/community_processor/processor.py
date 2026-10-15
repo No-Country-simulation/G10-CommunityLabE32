@@ -74,11 +74,9 @@ class Processor:
 
 
 async def procesar(evento):
-    """Punto de entrada --processor community_processor:procesar. Sin fallback ficticio."""
-    # Validar antes de cargar configuración o contactar servicios externos.
-    validate_event(evento)
-    if os.environ.get("COMMUNITYLAB_BOT_ENABLE_LLM") != "1":
-        raise ProcessingError("provider_not_enabled")
-    from .provider import OpenRouter
-    provider = OpenRouter.from_env()
-    return await Processor(provider)(evento)
+    """Punto de entrada histórico --processor community_processor:procesar.
+
+    Delega en el procesador integrado con Gemini (el proveedor anterior se retiró).
+    """
+    from .integrated import procesar as procesar_gemini
+    return await procesar_gemini(evento)

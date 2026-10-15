@@ -34,7 +34,9 @@ SALIDA_OK, SALIDA_ERROR_BACKEND, SALIDA_SIN_CONEXION, SALIDA_ENTRADA_INVALIDA = 
 
 
 class ErrorBackend(Exception):
-    pass
+    def __init__(self, mensaje, estado_http=None):
+        super().__init__(mensaje)
+        self.estado_http = estado_http
 
 
 class SinConexion(Exception):
@@ -81,7 +83,7 @@ def _pedir(url, datos=None, timeout=10, clave=None):
         raise ErrorBackend('Respuesta JSON inválida') from None
     except urllib.error.HTTPError as error:
         detalle = error.read().decode("utf-8", "replace")[:300]
-        raise ErrorBackend(f"HTTP {error.code}: {detalle}") from None
+        raise ErrorBackend(f"HTTP {error.code}: {detalle}", error.code) from None
     except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
         raise SinConexion(str(getattr(error, "reason", error))) from None
 

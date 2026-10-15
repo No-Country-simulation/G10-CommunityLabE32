@@ -5,7 +5,7 @@ from .processor import ProcessingError, strict_json
 
 
 class Gemini:
-    def __init__(self, key, model="gemini-3.5-flash-lite", *, report=None, transport=None):
+    def __init__(self, key, model, *, report=None, transport=None):
         if not key or not re.fullmatch(r"gemini-[a-zA-Z0-9._-]+", model):
             raise ProcessingError("gemini_configuration_missing")
         self.key, self.model = key, model

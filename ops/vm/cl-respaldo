@@ -1,0 +1,4 @@
+#!/bin/bash
+set -eu
+logger -t cl-operador "respaldo por ${SUDO_USER:-?}"
+APP=/home/tareck/G10-CommunityLabE32 exec /home/tareck/G10-CommunityLabE32/ops/vm/respaldo.sh

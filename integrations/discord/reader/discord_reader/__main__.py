@@ -10,6 +10,7 @@ import sys
 
 from .core import Config, capture
 from .store import Inbox, export_jsonl, CapacityError
+from .servicio import instance_lock, latido_sano, latir
 
 
 def create_client(config):
@@ -113,10 +114,15 @@ def create_client(config):
     return client
 
 
-async def listen(config, token):
+async def listen(config, token, latido=None):
     client = create_client(config)
     async with client:
-        await client.start(token, reconnect=True)
+        tarea = asyncio.create_task(latir(client, latido)) if latido else None
+        try:
+            await client.start(token, reconnect=True)
+        finally:
+            if tarea:
+                tarea.cancel()
     return 1 if client.failed else 0
 
 
@@ -129,7 +135,11 @@ def main():
     connect.add_argument("--connect", action="store_true", required=True)
     export = commands.add_parser("export", help="Exporta la bandeja a JSONL local")
     export.add_argument("--output", type=Path, required=True)
+    salud = commands.add_parser("salud", help="Healthcheck: latido reciente y sesión verificada")
+    salud.add_argument("--latido", type=Path, default=Path(os.environ.get("LECTOR_LATIDO", "/tmp/communitylab-lector-latido.json")))
     args = parser.parse_args()
+    if args.command == "salud":
+        return 0 if latido_sano(args.latido) else 1
     try:
         config = Config.load(args.config)
         if args.command == "check-config":
@@ -143,7 +153,14 @@ def main():
         if not token:
             print("error=falta_DISCORD_BOT_TOKEN", file=sys.stderr)
             return 2
-        return asyncio.run(listen(config, token))
+        latido = os.environ.get("LECTOR_LATIDO", "").strip() or None
+        try:
+            # Una sola instancia por bandeja: evita dos lectores en un despliegue solapado.
+            with instance_lock(config.database):
+                return asyncio.run(listen(config, token, latido))
+        except (BlockingIOError, PermissionError):
+            print("error=otra_instancia_del_lector_activa", file=sys.stderr)
+            return 3
     except KeyboardInterrupt:
         print("estado=detenido_por_usuario")
         return 0

@@ -8,11 +8,17 @@ from .runtime import instance_lock, load_processor
 from .store import Store
 
 
-async def listen(config, processor, token):
+async def listen(config, processor, token, latido=None):
     from .discord_client import create_client
+    from .servicio import latir
     client = create_client(config, processor)
     async with client:
-        await client.start(token, reconnect=True)
+        tarea = asyncio.create_task(latir(client, latido)) if latido else None
+        try:
+            await client.start(token, reconnect=True)
+        finally:
+            if tarea:
+                tarea.cancel()
     return 1 if client.failed else 0
 
 
@@ -21,6 +27,8 @@ def main(argv=None):
     p.add_argument("--config", type=Path, default=Path("config.json"))
     commands = p.add_subparsers(dest="command", required=True)
     commands.add_parser("check-config")
+    salud = commands.add_parser("salud")
+    salud.add_argument("--latido", type=Path, default=Path(os.environ.get("BOT_LATIDO", "/tmp/communitylab-bot-latido.json")))
     commands.add_parser("status")
     retry = commands.add_parser("retry")
     retry.add_argument("--key", required=True, help="guild_id:message_id")
@@ -28,6 +36,9 @@ def main(argv=None):
     live.add_argument("--connect", action="store_true", required=True)
     live.add_argument("--processor", required=True, help="modulo_fabian:procesar")
     args = p.parse_args(argv)
+    if args.command == "salud":
+        from .servicio import latido_sano
+        return 0 if latido_sano(args.latido) else 1
     try:
         config = Config.load(args.config)
         if args.command == "check-config":
@@ -48,7 +59,8 @@ def main(argv=None):
                 return 2
             processor = load_processor(args.processor)
             store.recover_interrupted()
-            return asyncio.run(listen(config, processor, token))
+            return asyncio.run(listen(config, processor, token,
+                                      os.environ.get("BOT_LATIDO", "").strip() or None))
     except KeyboardInterrupt:
         print("estado=detenido")
         return 0
