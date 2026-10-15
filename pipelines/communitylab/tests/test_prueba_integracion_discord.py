@@ -55,6 +55,66 @@ def ejecutar(*argv):
 
 
 class PruebasScriptIntegracion(unittest.TestCase):
+    def test_reinicio_no_reenvia_entrega_terminada(self):
+        b = self.backend()
+        with tempfile.TemporaryDirectory() as carpeta:
+            args = ['--simulado', '--url', b.url, '--estado', str(Path(carpeta)/'entregas.db')]
+            self.assertEqual(ejecutar(*args)[0], 0)
+            codigo, salida = ejecutar(*args)
+        self.assertEqual(codigo, 0)
+        self.assertEqual(len(b.recibidos), 1)
+        self.assertIn('ya terminado', salida)
+
+    def test_sin_esperar_reanuda_consulta_sin_reenviar(self):
+        b = self.backend()
+        with tempfile.TemporaryDirectory() as carpeta:
+            args = ['--simulado', '--url', b.url, '--estado', str(Path(carpeta)/'entregas.db')]
+            codigo, salida = ejecutar(*args, '--sin-esperar')
+            self.assertEqual(codigo, 0)
+            self.assertNotIn('Todos los lotes terminaron', salida)
+            self.assertIn('estado final no verificado', salida)
+            self.assertEqual(ejecutar(*args)[0], 0)
+        self.assertEqual(len(b.recibidos), 1)
+
+    def test_caida_despues_post_repite_misma_clave_y_payload(self):
+        b = self.backend()
+        claves = []
+        original = b.urlopen
+        def registrar(peticion, timeout=None):
+            if peticion.get_method() == 'POST':
+                claves.append(peticion.get_header('Idempotency-key'))
+            return original(peticion, timeout)
+        with tempfile.TemporaryDirectory() as carpeta, mock.patch.object(script.urllib.request, 'urlopen', registrar):
+            args = ['--simulado', '--url', b.url, '--estado', str(Path(carpeta)/'entregas.db')]
+            with mock.patch.object(script.Entregas, 'confirmar', side_effect=OSError('caída antes del checkpoint')):
+                self.assertEqual(ejecutar(*args)[0], script.SALIDA_ENTRADA_INVALIDA)
+            self.assertEqual(ejecutar(*args)[0], 0)
+        self.assertEqual(len(claves), 2)
+        self.assertEqual(claves[0], claves[1])
+        self.assertTrue(claves[0])
+        self.assertEqual(b.recibidos[0], b.recibidos[1])
+
+    def test_archivo_creciente_solo_envia_mensajes_nuevos(self):
+        b = self.backend()
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta = Path(carpeta)/'eventos.jsonl'
+            primero, segundo = script.mensajes_simulados()[:2]
+            ruta.write_text(json.dumps(primero)+'\n', encoding='utf-8')
+            args = ['--archivo', str(ruta), '--url', b.url]
+            self.assertEqual(ejecutar(*args)[0], 0)
+            ruta.write_text(json.dumps(primero)+'\n'+json.dumps(segundo)+'\n', encoding='utf-8')
+            self.assertEqual(ejecutar(*args)[0], 0)
+        self.assertEqual([len(l['interacciones']) for l in b.recibidos], [1, 1])
+        self.assertNotEqual(b.recibidos[0]['interacciones'][0]['id'], b.recibidos[1]['interacciones'][0]['id'])
+
+    def test_lote_invalido_no_se_envia_parcialmente(self):
+        b = self.backend()
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta = Path(carpeta)/'eventos.jsonl'
+            ruta.write_text(json.dumps(script.mensajes_simulados()[0])+'\n{mal\n', encoding='utf-8')
+            self.assertEqual(ejecutar('--archivo', str(ruta), '--url', b.url)[0], script.SALIDA_ENTRADA_INVALIDA)
+        self.assertFalse(b.recibidos)
+
     def backend(self, **kwargs):
         b = BackendFalso(**kwargs)
         parche = mock.patch.object(script.urllib.request, "urlopen", b.urlopen)

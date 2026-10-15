@@ -29,6 +29,21 @@ def evento(message_id="1", **cambios):
 
 
 class PruebasNormalizadorDiscord(unittest.TestCase):
+    def test_rechaza_fechas_invalidas_sin_zona_y_calendario_imposible(self):
+        for fecha in ['fecha-invalida', '2026-10-14', '2026-10-14T18:00:00',
+                      '2026-02-30T18:00:00Z', '2026-10-14T18:00:00+00:99']:
+            with self.subTest(fecha=fecha):
+                self.assertEqual(normalizar_eventos([evento(created_at=fecha)])['estadisticas']['rechazados'], 1)
+
+    def test_normaliza_zonas_equivalentes_a_utc(self):
+        a = normalizar_eventos([evento(created_at='2026-10-14T12:00:00-06:00')])
+        b = normalizar_eventos([evento(created_at='2026-10-14T18:00:00Z')])
+        self.assertEqual(a['interacciones'], b['interacciones'])
+
+    def test_rechaza_mismo_id_con_dos_contenidos(self):
+        resultado = normalizar_eventos([evento(), evento(content='Otro contenido')])
+        self.assertEqual(resultado['estadisticas']['rechazados'], 1)
+
     def test_acepta_evento_valido_sin_forzar_tipo(self):
         resultado = normalizar_eventos([evento()])
         self.assertEqual(resultado["estadisticas"], {"aceptados": 1, "rechazados": 0, "duplicados": 0})

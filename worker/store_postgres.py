@@ -6,12 +6,26 @@ persistencia de resultados y activos en una sola transacción.
 from hashlib import sha256
 from pathlib import Path
 from uuid import uuid4
+import json
+from copy import deepcopy
 
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from worker.core import Trabajo
+from pipelines.communitylab.fechas import fecha_utc
+
+
+class ConflictoIdempotencia(ValueError):
+    pass
+
+
+def canonico(entrada):
+    copia = deepcopy(entrada)
+    for mensaje in copia["interacciones"]:
+        mensaje["fecha"] = fecha_utc(mensaje["fecha"])
+    return json.dumps(copia, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
 
 # Mismos máximos que el contrato de lectura; se validan también en llamadas directas a la cola.
 LIMITES = {"autor": 150, "canal": 50, "tipo": 50}
@@ -39,7 +53,7 @@ class ColaPostgres:
         with self.conectar() as c:
             c.execute(Path(__file__).with_name("schema.sql").read_text(encoding="utf-8"))
 
-    def encolar(self, entrada):
+    def encolar(self, entrada, clave_idempotencia=None):
         from pipelines.communitylab.grafo import validar_lote
         entrada = validar_lote(entrada)
         if not entrada["interacciones"]:
@@ -48,8 +62,23 @@ class ColaPostgres:
             raise ValueError("El máximo por trabajo es 500 interacciones")
         for m in entrada["interacciones"]:
             validar_limites(m)
+            fecha_utc(m["fecha"])
+        contenido = canonico(entrada)
+        if clave_idempotencia is None:
+            clave_idempotencia = "lote-v1-" + sha256(contenido.encode()).hexdigest()
+        if not isinstance(clave_idempotencia, str) or not 1 <= len(clave_idempotencia) <= 128:
+            raise ValueError("Clave de idempotencia inválida")
         identificador = str(uuid4())
         with self.conectar() as c:
+            nuevo = c.execute("""INSERT INTO trabajos_worker (id,entrada,clave_idempotencia)
+                VALUES (%s,%s,%s) ON CONFLICT (clave_idempotencia) DO NOTHING RETURNING id""",
+                (identificador, Jsonb(entrada), clave_idempotencia)).fetchone()
+            if nuevo is None:
+                existente = c.execute("SELECT id,entrada FROM trabajos_worker WHERE clave_idempotencia=%s",
+                                      (clave_idempotencia,)).fetchone()
+                if canonico(existente["entrada"]) != contenido:
+                    raise ConflictoIdempotencia("La clave de idempotencia ya identifica otro lote")
+                return existente["id"]
             # Datos fuente inmutables: no sobrescribir el texto de un activo curado.
             for m in entrada["interacciones"]:
                 fuente = {"autor": m["autor"], "fecha": m["fecha"], "canal": m["canal"],
@@ -62,10 +91,9 @@ class ColaPostgres:
                                       (m["id"],)).fetchone()
                 # Sin tipo explícito se acepta el ya guardado; con tipo distinto se rechaza.
                 campos = [k for k in existente if k != "tipo" or m.get("tipo")]
-                if any(existente[k] != fuente[k] for k in campos):
+                if any((fecha_utc(existente[k]) != fecha_utc(fuente[k])) if k == "fecha"
+                       else existente[k] != fuente[k] for k in campos):
                     raise ValueError("ID de mensaje existente con contenido diferente")
-            c.execute("INSERT INTO trabajos_worker (id,entrada) VALUES (%s,%s)",
-                      (identificador, Jsonb(entrada)))
         return identificador
 
     def obtener(self, identificador):

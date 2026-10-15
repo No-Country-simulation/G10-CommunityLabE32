@@ -1,6 +1,10 @@
 """Normalizador de eventos de Discord (discord-source-v1) al lote de POST /api/v1/trabajos."""
 import json
 import os
+try:
+    from .fechas import fecha_utc
+except ImportError:
+    from fechas import fecha_utc
 
 ESQUEMA_FUENTE = "discord-source-v1"
 MAX_INTERACCIONES_POR_LOTE = 500
@@ -23,6 +27,10 @@ def normalizar_evento(raw: dict) -> dict | None:
     fecha = str(raw.get("created_at") or "").strip()
     if not message_id or not guild_id or not texto or not fecha:
         return None
+    try:
+        fecha = fecha_utc(fecha)
+    except ValueError:
+        return None
 
     # Sin "tipo": el análisis de la IA decide la clasificación de cada mensaje.
     return {
@@ -38,6 +46,7 @@ def normalizar_evento(raw: dict) -> dict | None:
 def normalizar_eventos(eventos, historial_ids=None) -> dict:
     """Valida, deduplica (servidor + mensaje) y normaliza una secuencia de eventos ya decodificados."""
     vistos = set(historial_ids or ())
+    contenidos = {}
     interacciones = []
     estadisticas = _estadisticas_vacias()
 
@@ -49,10 +58,14 @@ def normalizar_eventos(eventos, historial_ids=None) -> dict:
 
         clave_unica = f"{str(raw['guild_id']).strip()}-{str(raw['message_id']).strip()}"
         if clave_unica in vistos:
+            if clave_unica in contenidos and contenidos[clave_unica] != interaccion:
+                estadisticas["rechazados"] += 1
+                continue
             estadisticas["duplicados"] += 1
             continue
 
         vistos.add(clave_unica)
+        contenidos[clave_unica] = interaccion
         interacciones.append(interaccion)
         estadisticas["aceptados"] += 1
 
