@@ -1,0 +1,57 @@
+name: Operación de la VM
+
+on:
+  pull_request:
+    paths:
+      - 'ops/**'
+      - 'docker-compose.yml'
+      - 'compose.*.yml'
+      - 'backend/Dockerfile'
+      - 'worker/Dockerfile'
+      - 'integrations/discord/Dockerfile'
+      - '.github/workflows/operacion-vm.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  puertas:
+    name: Puertas de despliegue
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install pytest==9.1.1
+      - run: python3 -m pytest -q -p no:cacheprovider ops/vm/tests/test_puertas_despliegue.py
+
+  docker:
+    name: Respaldo, restauración y reversión (Docker real)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # Solo para interpolar Compose al construir; ninguna credencial real.
+      POSTGRES_PASSWORD: ci_solo_prueba
+      DOCKER_PLATFORM: linux/amd64
+      WORKER_MODE: simulado
+      DISCORD_CONFIG_DIR: /tmp/ci-config
+      DISCORD_BOT_TOKEN: token-ficticio
+      GEMINI_API_KEY: clave-ficticia
+      GEMINI_MODELOS: gemini-ficticio
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python3 -m pip install pytest==9.1.1
+      - name: Imágenes de la versión actual
+        run: docker compose -f docker-compose.yml -f compose.discord.yml build
+      - name: Imágenes de la versión anterior (a2d7e86) para la reversión
+        run: |
+          git worktree add --detach /tmp/viejo a2d7e86
+          cd /tmp/viejo
+          API_IMAGE=communitylab-viejo-api:local WORKER_IMAGE=communitylab-viejo-worker:local docker compose build api worker
+      - name: Pruebas de operación (incluye reproducción de los defectos de 0831c75)
+        env:
+          CL_OPS_DOCKER: '1'
+          CL_OPS_REPRODUCIR: '1'
+          CL_OPS_TMP: /tmp
+        run: python3 -m pytest -v -p no:cacheprovider ops/vm/tests/test_operacion_docker.py
