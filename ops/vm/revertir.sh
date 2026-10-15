@@ -31,7 +31,7 @@ fi
 
 log "revertir 3/5: imágenes anteriores"
 while read -r servicio repo imagen; do
-  docker tag "communitylab-$repo:prev-$ID" "communitylab-$repo:local" || fallar "falta communitylab-$repo:prev-$ID"
+  docker tag "$IMAGEN_PREFIJO-$repo:prev-$ID" "$IMAGEN_PREFIJO-$repo:local" || fallar "falta $IMAGEN_PREFIJO-$repo:prev-$ID"
 done < "$ESTADO/imagenes.anteriores"
 
 log "revertir 4/5: up con la configuración anterior"

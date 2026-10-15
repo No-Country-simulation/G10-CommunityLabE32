@@ -20,6 +20,9 @@ SHA_PEDIDO=${1:?Uso: desplegar.sh <sha> <env-nuevo>}
 ENV_NUEVO=${2:?Uso: desplegar.sh <sha> <env-nuevo>}
 PROBAR_IMAGENES=${PROBAR_IMAGENES:-$OPS/probar-imagenes.sh}
 VERIFICAR=${VERIFICAR:-$OPS/verificar.sh}
+RESPALDO_CMD=${RESPALDO_CMD:-$OPS/respaldo.sh}
+RESTAURAR_CMD=${RESTAURAR_CMD:-$OPS/probar-restauracion.sh}
+REVERTIR_CMD=${REVERTIR_CMD:-$OPS/revertir.sh}
 ESPERA_SALUD=${ESPERA_SALUD:-300}
 
 [ -f "$ENV_NUEVO" ] || fallar "no existe $ENV_NUEVO"
@@ -44,7 +47,7 @@ for c in $(dc ps -q); do
   imagen=$(docker inspect -f '{{.Image}}' "$c")
   repo=$(repo_de_servicio "$servicio")
   [ -n "$repo" ] || continue
-  docker tag "$imagen" "communitylab-$repo:prev-$ID"
+  docker tag "$imagen" "$IMAGEN_PREFIJO-$repo:prev-$ID"
   printf '%s %s %s\n' "$servicio" "$repo" "$imagen" >> "$ESTADO/imagenes.anteriores"
 done
 sort -u -o "$ESTADO/imagenes.anteriores" "$ESTADO/imagenes.anteriores"
@@ -52,11 +55,12 @@ log "1/6 conservado: $(wc -l < "$ESTADO/imagenes.anteriores") servicios con imag
 
 # --- 2. Construir y probar sin tocar producción ---
 ARBOL="$ESTADO/arbol"
-(cd "$APP" && git worktree add --detach --quiet "$ARBOL" "$SHA") || fallar "no se pudo preparar el árbol de build"
+# umask 022 solo para el árbol de build: sus permisos pasan a la imagen (usuarios no root deben leerlos).
+(cd "$APP" && umask 022 && git worktree add --detach --quiet "$ARBOL" "$SHA") || fallar "no se pudo preparar el árbol de build"
 limpiar_arbol() { (cd "$APP" && git worktree remove --force "$ARBOL" >/dev/null 2>&1) || true; }
 trap limpiar_arbol EXIT
-export API_IMAGE="communitylab-api:$CORTO" WORKER_IMAGE="communitylab-worker:$CORTO"
-export WEB_IMAGE="communitylab-web:$CORTO" DISCORD_IMAGE="communitylab-discord:$CORTO"
+export API_IMAGE="$IMAGEN_PREFIJO-api:$CORTO" WORKER_IMAGE="$IMAGEN_PREFIJO-worker:$CORTO"
+export WEB_IMAGE="$IMAGEN_PREFIJO-web:$CORTO" DISCORD_IMAGE="$IMAGEN_PREFIJO-discord:$CORTO"
 archivos=$(sed -n 's/^COMPOSE_FILE=//p' "$ENV_NUEVO" | tail -1)
 (cd "$ARBOL" && COMPOSE_FILE="${archivos:-docker-compose.yml}" COMPOSE_PATH_SEPARATOR=: \
   docker compose --env-file "$ENV_NUEVO" build) || fallar "2/6 build falló; producción intacta"
@@ -64,11 +68,11 @@ archivos=$(sed -n 's/^COMPOSE_FILE=//p' "$ENV_NUEVO" | tail -1)
 log "2/6 imágenes $CORTO construidas y probadas"
 
 # --- 3. Respaldo consistente y restauración comprobada (con la versión en servicio) ---
-RESPALDO=$(env -u API_IMAGE -u WORKER_IMAGE -u WEB_IMAGE -u DISCORD_IMAGE "$OPS/respaldo.sh") \
+RESPALDO=$(env -u API_IMAGE -u WORKER_IMAGE -u WEB_IMAGE -u DISCORD_IMAGE "$RESPALDO_CMD") \
   || fallar "3/6 respaldo falló; producción intacta"
 RESPALDO=$(tail -1 <<<"$RESPALDO")
 echo "$RESPALDO" > "$ESTADO/respaldo"
-DISCORD_IMAGE="communitylab-discord:$CORTO" "$OPS/probar-restauracion.sh" "$RESPALDO" \
+DISCORD_IMAGE="$IMAGEN_PREFIJO-discord:$CORTO" "$RESTAURAR_CMD" "$RESPALDO" \
   || fallar "3/6 la restauración no coincide; producción intacta"
 log "3/6 respaldo $RESPALDO restaurado y comprobado"
 
@@ -81,15 +85,15 @@ log "4/6 migración aplicada"
 # --- 5 y 6. Corte y verificación; ante fallo, reversión automática ---
 revertir() {
   log "fallo en $1: revirtiendo a $(cat "$ESTADO/commit.anterior" | cut -c1-12)"
-  "$OPS/revertir.sh" "$ESTADO" || log "LA REVERSIÓN TAMBIÉN FALLÓ: intervención manual (ver docs/operacion-vm.md)"
+  "$REVERTIR_CMD" "$ESTADO" || log "LA REVERSIÓN TAMBIÉN FALLÓ: intervención manual (ver docs/operacion-vm.md)"
   exit 1
 }
 echo "$SHA" > "$ESTADO/commit.nuevo"
 cp "$ENV_NUEVO" "$APP/.env" && chmod 600 "$APP/.env"
 (cd "$APP" && git checkout --quiet --detach "$SHA") || revertir "5/6 checkout"
 for repo in $REPOS_IMAGEN; do
-  docker image inspect "communitylab-$repo:$CORTO" >/dev/null 2>&1 \
-    && docker tag "communitylab-$repo:$CORTO" "communitylab-$repo:local"
+  docker image inspect "$IMAGEN_PREFIJO-$repo:$CORTO" >/dev/null 2>&1 \
+    && docker tag "$IMAGEN_PREFIJO-$repo:$CORTO" "$IMAGEN_PREFIJO-$repo:local"
 done
 unset API_IMAGE WORKER_IMAGE WEB_IMAGE DISCORD_IMAGE
 dc up -d --remove-orphans --no-build || revertir "5/6 up"
