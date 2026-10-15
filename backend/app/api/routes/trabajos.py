@@ -4,9 +4,10 @@ import csv
 import io
 import json
 import os
-from fastapi import APIRouter, HTTPException, UploadFile
-from pydantic import BaseModel, ConfigDict, Field
-from worker.store_postgres import ColaPostgres
+from fastapi import APIRouter, HTTPException, UploadFile, Header
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from worker.store_postgres import ColaPostgres, ConflictoIdempotencia
+from pipelines.communitylab.fechas import fecha_utc
 
 router = APIRouter(prefix="/api/v1/trabajos", tags=["Trabajos asíncronos"])
 
@@ -20,6 +21,12 @@ class InteraccionTrabajo(BaseModel):
     fecha: str = Field(min_length=1)
     texto: str = Field(min_length=1)
     tipo: str | None = Field(default=None, min_length=1, max_length=50)
+
+    @field_validator("fecha")
+    @classmethod
+    def validar_fecha(cls, valor):
+        fecha_utc(valor)
+        return valor
 
 
 class LoteTrabajo(BaseModel):
@@ -35,14 +42,18 @@ def cola():
 
 
 @router.post("", status_code=202)
-async def crear_trabajo(lote: LoteTrabajo):
+async def crear_trabajo(lote: LoteTrabajo, idempotency_key: str | None = Header(default=None, max_length=128)):
     try:
-        identificador = await asyncio.to_thread(cola().encolar, lote.model_dump(exclude_none=True))
+        almacen = cola()
+        identificador = await asyncio.to_thread(almacen.encolar, lote.model_dump(exclude_none=True), idempotency_key)
+        trabajo = await asyncio.to_thread(almacen.obtener, identificador)
+    except ConflictoIdempotencia as exc:
+        raise HTTPException(409, str(exc)) from None
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
     except Exception:
         raise HTTPException(503, "No se pudo registrar el trabajo; intente nuevamente.") from None
-    return {"procesamiento_id": identificador, "estado": "recibido",
+    return {"procesamiento_id": identificador, "estado": trabajo["estado"],
             "consulta": f"/api/v1/trabajos/{identificador}"}
 
 
@@ -90,4 +101,4 @@ async def encolar_archivo(file: UploadFile, origen: str, periodo: str, cierre: b
                           cierre_periodo=cierre, interacciones=normalizados)
     except (ValueError, UnicodeError, TypeError, csv.Error):
         raise HTTPException(422, "Archivo inválido: campos completos y máximo 500 registros.") from None
-    return await crear_trabajo(lote)
+    return await crear_trabajo(lote, None)
