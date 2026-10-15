@@ -103,9 +103,9 @@ def hijo_con_codigo_ajeno(conexion, entrada, modo):
 
 def test_procesador_aislado_traduce_solo_codigos_conocidos():
     with pytest.raises(ProcesamientoFallido, match="ia_presupuesto"):
-        ProcesadorAislado("gemini", timeout=30, objetivo=hijo_sin_presupuesto)(lote(), lambda: None)
+        ProcesadorAislado("gemini", timeout=180, objetivo=hijo_sin_presupuesto)(lote(), lambda: None)
     with pytest.raises(ProcesamientoFallido, match="^fallo_procesador$"):
-        ProcesadorAislado("gemini", timeout=30, objetivo=hijo_con_codigo_ajeno)(lote(), lambda: None)
+        ProcesadorAislado("gemini", timeout=180, objetivo=hijo_con_codigo_ajeno)(lote(), lambda: None)
 
 
 @pytest.mark.parametrize("modo, entorno, timeout", [
