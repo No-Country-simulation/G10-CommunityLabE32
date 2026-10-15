@@ -1,9 +1,12 @@
 """Ejecución aislada del grafo: tiempo límite y renovación de reserva."""
+import logging
 import multiprocessing as mp
 import os
 import time
 
-from worker.core import ProcesamientoFallido
+from worker.core import CODIGOS_IA, ProcesamientoFallido
+
+MODOS = {"simulado", "gemini"}
 
 # Tipos del dataset del repositorio y del enunciado, traducidos a las señales del grafo.
 SENAL_POR_TIPO = {
@@ -18,7 +21,7 @@ def senal_simulada(tipo):
 
 
 def ejecutar_grafo(entrada, modo):
-    from pipelines.communitylab import Componentes, ejecutar_lote
+    from pipelines.communitylab import ejecutar_lote
     if modo == "simulado":
         from pipelines.communitylab.simulados import crear_componentes
         # Señales explícitas de demostración, nunca inferencias presentadas como IA.
@@ -30,24 +33,24 @@ def ejecutar_grafo(entrada, modo):
                                 "es_bloqueo": senal == "es_bloqueo",
                                 "tema": m["canal"], "relevancia": 0.8}
         componentes = crear_componentes(senales)
-    elif modo == "openrouter":
-        if not os.environ.get("OPENROUTER_API_KEY"):
-            raise ValueError("Falta configurar OpenRouter")
-        from backend.app.pipelines.agent_nodes import (
-            analizar_real, puntuar_real, post_real, faq_real, highlights_real,
-        )
-        componentes = Componentes(analizar_real, puntuar_real, post_real,
-                                 faq_real, highlights_real, simulado=False)
+    elif modo == "gemini":
+        # Los cinco componentes son reales; nunca se recurre a dobles en este modo.
+        from pipelines.communitylab.componentes_gemini import crear_componentes_gemini
+        componentes = crear_componentes_gemini()
     else:
         raise ValueError("Modo de procesamiento inválido")
     return ejecutar_lote(entrada, componentes)
 
 
 def _hijo(conexion, entrada, modo):
+    # El proceso hijo (spawn) no hereda el logging: sin esto se pierden las métricas de Gemini.
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
         conexion.send((True, ejecutar_grafo(entrada, modo)))
-    except Exception:
-        conexion.send((False, "fallo_procesador"))
+    except Exception as exc:
+        # Solo códigos controlados (p. ej. ia_configuracion); nunca el texto de la excepción.
+        conexion.send((False, getattr(exc, "codigo", "fallo_procesador")))
     finally:
         conexion.close()
 
@@ -55,7 +58,7 @@ def _hijo(conexion, entrada, modo):
 class ProcesadorAislado:
     def __init__(self, modo, timeout=120, renovar_cada=5, detenido=lambda: False,
                  objetivo=_hijo):
-        if modo not in {"simulado", "openrouter"} or timeout <= 0 or renovar_cada <= 0:
+        if modo not in MODOS or timeout <= 0 or renovar_cada <= 0:
             raise ValueError("Configuración inválida")
         self.modo, self.timeout, self.renovar_cada = modo, timeout, renovar_cada
         self.detenido, self.objetivo = detenido, objetivo
@@ -83,7 +86,7 @@ class ProcesadorAislado:
                     except EOFError:
                         raise ProcesamientoFallido("fallo_procesador") from None
                     if not ok:
-                        raise ProcesamientoFallido("fallo_procesador")
+                        raise ProcesamientoFallido(resultado if resultado in CODIGOS_IA else "fallo_procesador")
                     return resultado
                 if not proceso.is_alive():
                     raise ProcesamientoFallido("fallo_procesador")

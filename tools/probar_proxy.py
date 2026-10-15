@@ -20,7 +20,7 @@ def main():
         root=pathlib.Path(tmp); cert=root/'cert/live/communitylab.alyntai.com'; cert.mkdir(parents=True)
         run(args.openssl,'req','-x509','-newkey','rsa:2048','-nodes','-days','1','-subj','/CN=localhost',
             '-addext','subjectAltName=DNS:localhost,DNS:communitylab.alyntai.com','-keyout',str(cert/'privkey.pem'),'-out',str(cert/'fullchain.pem'))
-        env={k:v for k,v in os.environ.items() if not k.startswith(('POSTGRES_','HTTP','LETSENCRYPT','DOCKER_PLATFORM','WORKER_MODE','OPENROUTER_'))}
+        env={k:v for k,v in os.environ.items() if not k.startswith(('POSTGRES_','HTTP','LETSENCRYPT','DOCKER_PLATFORM','WORKER_MODE','GEMINI_'))}
         env.update(POSTGRES_PASSWORD='isolated_test_only',WORKER_MODE='simulado',DOCKER_PLATFORM='linux/amd64',
                    HTTP_PORT='18080',HTTP_BIND_ADDRESS='127.0.0.1',LETSENCRYPT_DIR=str(root/'cert'),HTTPS_HTTP_PORT='18081',HTTPS_PORT='18443',HTTPS_BIND_ADDRESS='127.0.0.1')
         empty=root/'empty.env'; empty.write_text('')

@@ -11,7 +11,6 @@ COPY worker ./worker
 RUN pip install --no-cache-dir -r ./backend/requirements.txt \
     && useradd --uid 10001 --create-home worker
 
-COPY backend/app/pipelines ./backend/app/pipelines
 COPY backend/app/core ./backend/app/core
 COPY backend/app/models ./backend/app/models
 

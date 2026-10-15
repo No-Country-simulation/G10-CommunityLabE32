@@ -1,0 +1,71 @@
+[
+{
+"ruta": "logro",
+"formato": "post_linkedin_x",
+"origen_comunidad": "CommunityLab",
+"periodo_referencia": "2025-W10",
+"fuentes": ["m001"],
+"interacciones": [
+{
+"id": "m001",
+"autor": "Laura Gómez",
+"canal": "certificaciones",
+"fecha": "2025-03-10",
+"texto": "¡Por fin! Hoy aprobé el examen de certificación Oracle Cloud Infrastructure (OCI) AI Foundations después de un mes completo de estudio intensivo."
+}
+]
+},
+{
+"ruta": "dudas",
+"formato": "faq_tip_tecnico",
+"origen_comunidad": "CommunityLab",
+"periodo_referencia": "2025-W10",
+"fuentes": ["m003", "m004"],
+"interacciones": [
+{
+"id": "m003",
+"autor": "Juan Pérez",
+"canal": "devops-ayuda",
+"fecha": "2025-03-10",
+"texto": "¿Cuáles son las mejores prácticas para manejar variables de entorno y secretos sensibles en contenedores Docker para producción sin dejarlos expuestos en la imagen?"
+},
+{
+"id": "m004",
+"autor": "Pedro Martínez",
+"canal": "devops-ayuda",
+"fecha": "2025-03-11",
+"texto": "¿Cómo puedo evitar que credenciales de base de datos se queden cacheadas en los layers de Docker al hacer el docker build?"
+}
+]
+},
+{
+"ruta": "periodo",
+"formato": "community_highlights",
+"origen_comunidad": "CommunityLab",
+"periodo_referencia": "2025-W10",
+"fuentes": ["m007", "m008", "m009"],
+"interacciones": [
+{
+"id": "m007",
+"autor": "Laura Gómez",
+"canal": "general",
+"fecha": "2025-03-10",
+"texto": "Aprobé la certificación OCI AI Foundations y compartí mis notas de estudio en el canal de recursos."
+},
+{
+"id": "m008",
+"autor": "Carlos Morales",
+"canal": "general",
+"fecha": "2025-03-12",
+"texto": "Liberé la primera versión productiva de mi herramienta de monitoreo para servidores Linux."
+},
+{
+"id": "m009",
+"autor": "Ana Valenzuela",
+"canal": "mentorias",
+"fecha": "2025-03-13",
+"texto": "Brindé mi primera sesión de mentoría técnica sobre arquitectura de microservicios a 15 miembros de la comunidad."
+}
+]
+}
+]
