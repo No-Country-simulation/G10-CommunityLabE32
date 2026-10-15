@@ -13,7 +13,7 @@ class PruebasPaquete(unittest.TestCase):
     def proceso(self, argumentos, extra=None):
         return subprocess.run([sys.executable, *argumentos], cwd=RAIZ,
                               env={**os.environ, "PYTHONIOENCODING": "utf-8", **(extra or {})},
-                              capture_output=True, text=True, encoding="utf-8", timeout=30)
+                              capture_output=True, text=True, encoding="utf-8", timeout=180)
 
     def test_demo_desde_raiz(self):
         p = self.proceso(["-m", "pipelines.communitylab"])

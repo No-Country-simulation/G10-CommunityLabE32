@@ -1,4 +1,6 @@
 #!/bin/bash
+# Respaldo consistente y comprobación de su restauración.
 set -eu
 logger -t cl-operador "respaldo por ${SUDO_USER:-?}"
-APP=/home/tareck/G10-CommunityLabE32 exec /home/tareck/G10-CommunityLabE32/ops/vm/respaldo.sh
+destino=$(/home/tareck/G10-CommunityLabE32/ops/vm/respaldo.sh | tail -1)
+exec /home/tareck/G10-CommunityLabE32/ops/vm/probar-restauracion.sh "$destino"
