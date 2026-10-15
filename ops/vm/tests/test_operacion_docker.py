@@ -95,6 +95,9 @@ class Entorno:
         self.dc("down", "-v", "--remove-orphans", check=False)  # proyecto desechable de la prueba
         for c in sh("docker", "ps", "-aq", "--filter", f"name={self.id}", check=False).stdout.split():
             sh("docker", "rm", "-f", c, check=False)
+        # Volúmenes del proyecto de prueba que Compose no conoce (p. ej. Discord tras revertir).
+        for v in sh("docker", "volume", "ls", "-q", "--filter", f"name=^{self.id}_", check=False).stdout.split():
+            sh("docker", "volume", "rm", v, check=False)
         imagenes = sh("docker", "images", "--format", "{{.Repository}}:{{.Tag}}", check=False).stdout.split()
         for i in imagenes:
             if i.startswith(self.prefijo):
