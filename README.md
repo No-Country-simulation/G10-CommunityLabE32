@@ -1,3 +1,5 @@
+Configuración HTTP local y HTTPS para VM: [guía de operación](docs/http-local-https-vm.md).
+
 ## Compose de cinco servicios
 
 Configuración y pruebas locales sobre el backend modular: [guía](docs/compose-cinco-servicios.md). El worker incluido es una sonda; la API conserva la respuesta mock.
@@ -419,6 +421,14 @@ Paquete de resultados
       ▼
 OCI Object Storage
 ```
+
+## Primer borrador acordado de la arquitectura del pipeline
+
+Paulo y Santiago acordaron el primer borrador de las cuatro rutas del procesamiento: logro, dudas recurrentes, período y bloqueo. El diagrama representa el diseño objetivo; el proveedor de almacenamiento de objetos y las interfaces de integración siguen por definir.
+
+![Arquitectura del pipeline de CommunityLab con sus cuatro rutas](docs/arquitectura-pipeline.svg)
+
+El diagrama describe el diseño objetivo. La alerta de bloqueo es interna y no se publica. La integración completa entre API, worker, base de datos e IA, así como las reglas de prioridad del enrutamiento, siguen pendientes de implementación y validación.
 
 ---
 

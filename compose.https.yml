@@ -1,0 +1,14 @@
+# Docker Compose >= 2.24.4. Usar junto con docker-compose.yml solo en la VM.
+services:
+  proxy:
+    ports: !override
+      - "${HTTPS_BIND_ADDRESS:-0.0.0.0}:${HTTPS_HTTP_PORT:-80}:80"
+      - "${HTTPS_BIND_ADDRESS:-0.0.0.0}:${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./proxy/nginx.https.conf:/etc/nginx/conf.d/default.conf:ro
+      - type: bind
+        source: ${LETSENCRYPT_DIR:-/etc/letsencrypt}
+        target: /etc/letsencrypt
+        read_only: true
+        bind:
+          create_host_path: false

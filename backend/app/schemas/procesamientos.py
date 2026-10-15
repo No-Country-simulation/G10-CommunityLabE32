@@ -5,8 +5,9 @@ from pydantic import BaseModel, Field
 
 class Interaccion(BaseModel):
     id: str
-    autor: str
-    canal: str
+    autor: str = Field(..., min_length=1, max_length=150)
+    canal: str = Field(..., min_length=1, max_length=50)
+    tipo: str = Field(..., min_length=1, max_length=50)
     fecha: str
     texto: str
 
@@ -50,3 +51,15 @@ class IngestaResponse(BaseModel):
     activos_distribucion_generados: List[ActivoGenerado]
     alertas_internas: List[AlertaInterna]
     almacenamiento_oci: AlmacenamientoOCI
+class PuntajeRelevancia(BaseModel):
+    hito_logrado: int
+    emocion: int
+    utilidad: int
+    recurrencia: int
+    total: int
+    es_destacado: bool
+
+
+class InteraccionEvaluada(BaseModel):
+    interaccion: Interaccion
+    relevancia: PuntajeRelevancia

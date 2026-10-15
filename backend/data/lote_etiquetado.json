@@ -1,0 +1,34 @@
+[
+  {
+    "id_mensaje": "msg-001",
+    "autor": "Ana",
+    "texto": "Me siento muy feliz porque gracias al proyecto open source conseguí mi primera entrevista de trabajo.",
+    "expected_tema": "logros",
+    "expected_sentimiento": "positivo",
+    "expected_route": "generador_post_linkedin_x"
+  },
+  {
+    "id_mensaje": "msg-002",
+    "autor": "Carlos",
+    "texto": "Alguien sabe por qué me da error 500 al intentar conectarme a la base de datos de PostgreSQL usando asyncpg?",
+    "expected_tema": "dudas",
+    "expected_sentimiento": "neutral",
+    "expected_route": "generador_faq_tip"
+  },
+  {
+    "id_mensaje": "msg-003",
+    "autor": "Juan",
+    "texto": "Estoy muy frustrado, llevo tres días intentando desplegar en OCI y la documentación no es clara.",
+    "expected_tema": "bloqueos",
+    "expected_sentimiento": "negativo",
+    "expected_route": "alerta_interna"
+  },
+  {
+    "id_mensaje": "msg-004",
+    "autor": "Luisa",
+    "texto": "Hola a todos, dejo por aquí mi PR con la integración completa del backend y la API de gemini, espero revisión.",
+    "expected_tema": "aportes",
+    "expected_sentimiento": "positivo",
+    "expected_route": "generador_highlights"
+  }
+]

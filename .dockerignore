@@ -8,3 +8,7 @@
 **/.env
 **/.env.*
 infrastructure/docker/validacion/resultados
+
+**/*.db
+**/.pytest_cache
+worker/tests

@@ -1,0 +1,4 @@
+# Requerimientos para el clasificador de Discord
+numpy>=1.26
+sentence-transformers>=3.0.0
+pysentimiento>=0.7.3

@@ -7,10 +7,15 @@ WORKDIR /app
 
 COPY backend/requirements.txt ./backend/requirements.txt
 
+COPY worker/requirements.txt ./worker/requirements.txt
+COPY pipelines/communitylab/requirements-lock.txt ./pipelines/communitylab/requirements-lock.txt
+
 RUN pip install --no-cache-dir -r backend/requirements.txt \
     && useradd --uid 10001 --create-home app
 
 COPY backend ./backend
+COPY pipelines ./pipelines
+COPY worker ./worker
 
 USER app
 
