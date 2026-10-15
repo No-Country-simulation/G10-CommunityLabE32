@@ -7,10 +7,25 @@ import threading
 import time
 
 from worker.core import Worker
-from worker.processor import ProcesadorAislado
+from worker.processor import MODOS, ProcesadorAislado
 from worker.store_postgres import ColaPostgres
 
 HEARTBEAT = Path("/tmp/communitylab-worker-heartbeat")
+MARGEN_TIMEOUT = 10  # Segundos para que el grafo consolide antes de que el worker corte.
+
+
+def validar_configuracion(modo, timeout):
+    """Falla al arrancar, sin mostrar valores, si el modo real no está bien configurado."""
+    if modo not in MODOS:
+        raise SystemExit("WORKER_MODE debe ser simulado o gemini")
+    if modo == "gemini":
+        from pipelines.communitylab.gemini import ConfiguracionGemini, ErrorIA
+        try:
+            cfg = ConfiguracionGemini.desde_entorno()
+        except ErrorIA as exc:
+            raise SystemExit(f"Configuración de Gemini inválida: {exc}") from None
+        if cfg.presupuesto_segundos + MARGEN_TIMEOUT > timeout:
+            raise SystemExit("GEMINI_PRESUPUESTO_SEGUNDOS debe caber dentro de WORKER_TIMEOUT")
 
 
 def main():
@@ -19,11 +34,10 @@ def main():
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: detenido.set())
     modo = os.environ["WORKER_MODE"]
-    if modo == "openrouter" and not os.environ.get("OPENROUTER_API_KEY"):
-        raise SystemExit("Falta configurar OpenRouter")
+    timeout = float(os.getenv("WORKER_TIMEOUT", "120"))
+    validar_configuracion(modo, timeout)
     cola = ColaPostgres(os.environ["DATABASE_URL"])
-    procesador = ProcesadorAislado(modo, timeout=float(os.getenv("WORKER_TIMEOUT", "120")),
-                                  detenido=detenido.is_set)
+    procesador = ProcesadorAislado(modo, timeout=timeout, detenido=detenido.is_set)
     def latido():
         HEARTBEAT.write_text(str(time.time()))
     worker = Worker(cola, procesador, latido)

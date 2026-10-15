@@ -8,15 +8,18 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace as NS
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 from bot_discord.contracts import capture, validate_decision
 from bot_discord.engine import Engine
 from bot_discord.store import Store
 from tests.helpers import config, source, decision, channels, message
 from backend.app.schemas.procesamientos import Interaccion, IngestaRequest
-from backend.app.pipelines import agent_nodes
 from pipelines.communitylab import ejecutar_lote
+from pipelines.communitylab.analisis_gemini import analizar
+from pipelines.communitylab.gemini import ClienteGemini
+from pipelines.communitylab.gemini_falso import GeminiFalso, configuracion, ok
+from pipelines.communitylab.generadores import generar_faq
 from pipelines.communitylab.simulados import crear_componentes
 
 
@@ -40,19 +43,22 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(request.interacciones[0].texto, source()["content"])
 
     async def test_repository_analysis_and_faq_nodes_to_bot_transport(self):
-        # Las funciones reales del repositorio se ejecutan, su llamada LLM se sustituye.
+        # Las funciones reales del repositorio se ejecutan; solo el transporte de Gemini es un doble.
         event = source()
         lote = {"interacciones": [interaction(event)]}
-        with patch.object(agent_nodes, "llamar_llm_openrouter", side_effect=[
-            {"resultados": [{"id": "600", "es_logro": False, "es_duda": True,
-                             "es_bloqueo": False, "tema": "python"}]},
-            {"copy": "Respuesta técnica simulada"},
-        ]) as llm:
-            analysis = agent_nodes.analizar_real(lote)["600"]
-            faq = agent_nodes.faq_real({"interacciones_seleccionadas": lote["interacciones"], "fuentes": ["600"]})
+        llm = GeminiFalso([
+            ok({"resultados": [{"id": "600", "es_logro": False, "es_duda": True,
+                                "es_bloqueo": False, "tema": "python"}]}),
+            ok({"copy": "Respuesta técnica simulada"}),
+        ])
+        cliente = ClienteGemini(configuracion(), transporte=llm.transporte)
+        analysis = analizar(lote, cliente)["600"]
+        faq = generar_faq({"ruta": "dudas", "formato": "faq_tip_tecnico",
+                           "origen_comunidad": "discord_prueba", "periodo_referencia": "2026-W41",
+                           "fuentes": ["600"], "interacciones": lote["interacciones"]}, cliente)
         output = {**decision(), **analysis, "respuesta": faq["copy"]}
         self.assertEqual(faq["fuentes"], ["600"])
-        self.assertEqual(llm.call_count, 2)
+        self.assertEqual(len(llm.peticiones), 2)
         with TemporaryDirectory() as tmp:
             cfg = config(Path(tmp) / "bot.sqlite3")
             transport = NS(prepare=AsyncMock(return_value=object()), send=AsyncMock(return_value="800"))

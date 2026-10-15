@@ -1,7 +1,0 @@
-{
-  "copy": "FAQ: Docker\n\nPregunta: ¿Cómo evitar que las variables de entorno y credenciales sensibles queden expuestas en la imagen durante el proceso de construcción en Docker?\n\nRespuesta: \n\nLas credenciales y variables sensibles no deben incluirse mediante comandos de construcción o instrucciones estándar en el Dockerfile. \n\nCuando se utilizan comandos tradicionales como `ENV` o se pasan valores directamente durante la compilación, la información queda almacenada de forma persistente en las capas (layers) de la imagen resultante, lo que permite su recuperación posterior.\n\n🔧 **Solución**\n\n1. ✅ Utilizar *BuildKit* para gestionar secretos durante la construcción mediante el comando `--secret`.\n2. ✅ Referenciar el secreto en el Dockerfile utilizando la instrucción `--mount=type=secret`.\n3. ✅ Consumir el valor únicamente durante la ejecución del comando de compilación sin dejarlo registrado en el sistema de archivos final.\n4. ✅ Inyectar las variables de entorno definitivas en tiempo de ejecución utilizando volúmenes seguros, el gestor de orquestación o las opciones de configuración del contenedor.\n\n📌 **Nota**\n\n⚠️ Ningún secreto utilizado durante la fase de construcción debe permanecer persistido en ninguna capa del contenedor.",
-  "fuentes": [
-    "m003",
-    "m004"
-  ]
-}

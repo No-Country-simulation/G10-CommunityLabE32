@@ -18,6 +18,26 @@ class ProcesamientoFallido(Exception):
     """Código controlado, sin texto del lote ni secretos."""
 
 
+# Errores de IA del grafo (pipelines.communitylab.gemini) traducidos a códigos persistibles.
+CODIGOS_IA = {"ia_configuracion", "ia_cuota", "ia_transitorio", "ia_respuesta_invalida",
+              "ia_bloqueado", "ia_presupuesto"}
+_CODIGO_POR_ERROR = {
+    "ErrorConfiguracionIA": "ia_configuracion", "ErrorCuotaIA": "ia_cuota",
+    "ErrorTransitorioIA": "ia_transitorio", "RespuestaInvalidaIA": "ia_respuesta_invalida",
+    "ContenidoBloqueadoIA": "ia_bloqueado", "PresupuestoAgotadoIA": "ia_presupuesto",
+}
+CODIGOS = {"fallo_grafo", "contrato_resultado", "timeout", "fallo_procesador"} | CODIGOS_IA
+
+
+def codigo_de_errores(errores):
+    """Primer error de IA reconocido en la salida del grafo, o fallo_grafo."""
+    for error in errores or []:
+        codigo = _CODIGO_POR_ERROR.get(error.get("tipo")) if isinstance(error, dict) else None
+        if codigo:
+            return codigo
+    return "fallo_grafo"
+
+
 class Cola(Protocol):
     def reservar(self) -> Trabajo | None: ...
     def renovar(self, trabajo: Trabajo) -> bool: ...
@@ -44,17 +64,19 @@ class Worker:
 
         try:
             resultado = self.procesador(trabajo.entrada, renovar)
-            if not isinstance(resultado, dict) or resultado.get("estado") != "completado_local":
+            if not isinstance(resultado, dict):
                 raise ProcesamientoFallido("fallo_grafo")
+            if resultado.get("estado") != "completado_local":
+                raise ProcesamientoFallido(codigo_de_errores(resultado.get("errores")))
             if type(resultado.get("simulado")) is not bool:
                 raise ProcesamientoFallido("contrato_resultado")
             if resultado.get("errores"):
-                raise ProcesamientoFallido("fallo_grafo")
+                raise ProcesamientoFallido(codigo_de_errores(resultado["errores"]))
         except ReservaPerdida:
             return True  # Otro intento posee el trabajo; nunca sobrescribirlo.
         except ProcesamientoFallido as exc:
             codigo = str(exc)
-            if codigo not in {"fallo_grafo", "contrato_resultado", "timeout", "fallo_procesador"}:
+            if codigo not in CODIGOS:
                 codigo = "fallo_procesador"
             self.cola.fallar(trabajo, codigo)
         except Exception:

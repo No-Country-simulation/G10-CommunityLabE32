@@ -66,7 +66,6 @@ services:
     platform: ${DOCKER_PLATFORM:-linux/arm64}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
     networks: [frontend, database, outbound]
     depends_on:
       postgres:
@@ -90,8 +89,21 @@ services:
     environment:
       <<: *database
       DATABASE_URL: postgresql://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
-      WORKER_MODE: ${WORKER_MODE:?Definir simulado u openrouter explícitamente}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      WORKER_MODE: ${WORKER_MODE:?Definir simulado o gemini explícitamente}
+      WORKER_TIMEOUT: ${WORKER_TIMEOUT:-120}
+      # Solo en modo gemini. La clave y los modelos se definen en .env privado, nunca en Git.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODELOS: ${GEMINI_MODELOS:-}
+      GEMINI_TIMEOUT_PETICION: ${GEMINI_TIMEOUT_PETICION:-30}
+      GEMINI_PRESUPUESTO_SEGUNDOS: ${GEMINI_PRESUPUESTO_SEGUNDOS:-100}
+      GEMINI_MAX_LLAMADAS: ${GEMINI_MAX_LLAMADAS:-16}
+      GEMINI_MAX_TOKENS_SALIDA: ${GEMINI_MAX_TOKENS_SALIDA:-2048}
+      GEMINI_MAX_TOKENS_TRABAJO: ${GEMINI_MAX_TOKENS_TRABAJO:-40000}
+      GEMINI_REINTENTOS: ${GEMINI_REINTENTOS:-1}
+      GEMINI_ESPERA_MAXIMA: ${GEMINI_ESPERA_MAXIMA:-10}
+      GEMINI_TAMANO_BLOQUE: ${GEMINI_TAMANO_BLOQUE:-40}
+      GEMINI_NIVEL_RAZONAMIENTO: ${GEMINI_NIVEL_RAZONAMIENTO:-}
+      GEMINI_TEMPERATURA: ${GEMINI_TEMPERATURA:-}
     networks: [database, outbound]
     depends_on:
       postgres:

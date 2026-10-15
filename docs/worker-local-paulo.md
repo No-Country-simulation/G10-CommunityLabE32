@@ -47,16 +47,16 @@ por esa lista. Sentimiento tampoco se calcula en este worker.
 
 WORKER_MODE=simulado usa señales sintéticas derivadas del campo tipo y marca los
 resultados y títulos como simulados. Sirve para comprobar el circuito; no mide
-calidad de IA. WORKER_MODE=openrouter requiere clave y conecta los nodos presentes
-en PR16. Se corrigieron localmente sus errores silenciosos. Las pruebas de errores
-del proveedor usan dobles; no se consumió una API ni se verificó su fallback real.
-Tian debe revisar esta corrección junto con la versión diferente de su PR15.
+calidad de IA. WORKER_MODE=gemini usa los cinco componentes reales con Gemini
+(análisis, puntuación y los generadores de Fabián); requiere GEMINI_API_KEY y
+GEMINI_MODELOS. Su política de modelos, plazos y presupuesto está en
+docs/gemini-grafo-worker.md. OpenRouter ya no se utiliza.
 
 ## Ejecutar en este equipo
 
 Requisitos: Git, Docker Desktop con contenedores Linux y Python 3.12. Desde un
 clon nuevo, seleccionar `feature/worker-compose-paulo` y situarse en la raíz.
-Los comandos siguientes son PowerShell. No requieren cuenta ni clave de OpenRouter.
+Los comandos siguientes son PowerShell. No requieren cuenta ni clave de Gemini (modo simulado).
 
 Crear la configuración privada de prueba una sola vez. No sobrescribirla si ya
 existe un volumen de este proyecto con otra contraseña. Los puertos 18092 y 15439
