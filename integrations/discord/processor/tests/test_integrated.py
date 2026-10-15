@@ -52,7 +52,7 @@ def test_real_classifier_gemini_adapter_engine_restart(tmp_path, kind, target):
         return httpx.Response(200,json=envelope(decision(kind)))
     config=Config(100,frozenset({200}),300,frozenset({400}),frozenset(),tmp_path/'bot.sqlite3')
     transport=Transport()
-    processor=IntegratedProcessor(Gemini('fictional-key',transport=httpx.MockTransport(handle)))
+    processor=IntegratedProcessor(Gemini('fictional-key','gemini-fixture',transport=httpx.MockTransport(handle)))
     async def scenario():
         engine=Engine(config,Store(config.database),processor,transport)
         assert await engine.submit(event())
@@ -75,7 +75,7 @@ def test_gemini_errors_no_retry_no_send_and_recover_next(tmp_path,status):
         return httpx.Response(status,text='NO_MOSTRAR_SECRETO') if len(calls)==1 else httpx.Response(200,json=envelope(decision()))
     config=Config(100,frozenset({200}),300,frozenset({400}),frozenset(),tmp_path/'bot.sqlite3')
     transport=Transport()
-    engine=Engine(config,Store(config.database),IntegratedProcessor(Gemini('fictional-key',transport=httpx.MockTransport(handler))),transport)
+    engine=Engine(config,Store(config.database),IntegratedProcessor(Gemini('fictional-key','gemini-fixture',transport=httpx.MockTransport(handler))),transport)
     async def scenario():
         await engine.submit(event())
         while await engine.step(): pass
@@ -97,13 +97,13 @@ def test_gemini_errors_no_retry_no_send_and_recover_next(tmp_path,status):
     envelope({**decision(),'respuesta':'😀'*951}),
 ])
 def test_invalid_gemini_output_is_not_a_decision(body):
-    provider=Gemini('fictional',transport=httpx.MockTransport(lambda req:httpx.Response(200,json=body)))
+    provider=Gemini('fictional','gemini-fixture',transport=httpx.MockTransport(lambda req:httpx.Response(200,json=body)))
     with pytest.raises(ProcessingError): asyncio.run(IntegratedProcessor(provider)(event()))
 
 
 def test_huge_or_duplicate_json_rejected():
     for content in ('x'*65537,'{"candidates":[],"candidates":[]}'):
-        provider=Gemini('fictional',transport=httpx.MockTransport(lambda req:httpx.Response(200,content=content)))
+        provider=Gemini('fictional','gemini-fixture',transport=httpx.MockTransport(lambda req:httpx.Response(200,content=content)))
         with pytest.raises(ProcessingError): asyncio.run(IntegratedProcessor(provider)(event()))
 
 
@@ -182,3 +182,10 @@ def test_live_evaluation_stops_on_provider_error_and_records_success(monkeypatch
     result=asyncio.run(live.evaluate([case,case,case]))
     assert result['casos_previstos']==3 and result['casos_ejecutados']==2
     assert result['senales_correctas']==1 and len(calls)==2
+
+
+def test_modelo_del_bot_sale_de_la_configuracion_compartida():
+    from community_processor.integrated import modelo_bot
+    assert modelo_bot({'GEMINI_MODELOS': 'gemini-rapido, gemini-escalado'}) == 'gemini-rapido'
+    assert modelo_bot({'COMMUNITYLAB_GEMINI_MODEL': 'gemini-bot', 'GEMINI_MODELOS': 'gemini-rapido'}) == 'gemini-bot'
+    assert modelo_bot({}) == ''

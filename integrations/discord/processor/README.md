@@ -45,9 +45,10 @@ canal interno separado y roles/usuarios internos autorizados. Copiar y completar
 config.example.json fuera del repositorio. El modelo es configurable, sin fallback
 automático. Tener una clave no garantiza cuota ni acceso al modelo.
 
-El módulo legacy community_processor:procesar mantiene el proveedor OpenRouter
-para compatibilidad con las pruebas previas; no es la entrada recomendada para
-esta entrega integrada.
+El punto de entrada histórico community_processor:procesar delega en el mismo
+procesador Gemini (el proveedor OpenRouter se retiró el 15/10/2026). Si no se define
+COMMUNITYLAB_GEMINI_MODEL, el bot usa el primer modelo de GEMINI_MODELOS, la misma
+lista que el grafo; no hay un modelo por defecto en el código.
 
 ## Pruebas sin servicios externos
 

@@ -68,10 +68,20 @@ def local_analysis():
     return LocalAnalysis()
 
 
+def modelo_bot(env=None):
+    """Modelo del bot: COMMUNITYLAB_GEMINI_MODEL o, si no se define, el primero (rápido) de
+    GEMINI_MODELOS, la misma lista que usa el grafo. No hay modelo por defecto en el código."""
+    env = os.environ if env is None else env
+    explicito = env.get("COMMUNITYLAB_GEMINI_MODEL", "").strip()
+    if explicito:
+        return explicito
+    modelos = [m.strip() for m in env.get("GEMINI_MODELOS", "").split(",") if m.strip()]
+    return modelos[0] if modelos else ""
+
+
 async def procesar(event):
     validate_event(event)
     if os.environ.get("COMMUNITYLAB_GEMINI_ENABLE") != "1":
         raise ProcessingError("gemini_not_enabled")
-    provider = Gemini(os.environ.get("GEMINI_API_KEY"),
-                      os.environ.get("COMMUNITYLAB_GEMINI_MODEL", "gemini-3.5-flash-lite"))
+    provider = Gemini(os.environ.get("GEMINI_API_KEY"), modelo_bot())
     return await IntegratedProcessor(provider, local_analysis())(event)
