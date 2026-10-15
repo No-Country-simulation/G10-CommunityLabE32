@@ -1,0 +1,153 @@
+{
+  "generado": "2026-10-12T17:48:05.931234+00:00",
+  "motor": "embeddings",
+  "sentimiento": "pysentimiento",
+  "fuente_datos": "dataset",
+  "n": 140,
+  "etapas": [
+    "clase",
+    "revision"
+  ],
+  "advertencias": [],
+  "metricas_antes": {
+    "n": 140,
+    "exactitud": 0.8285714285714286,
+    "f1_macro": 0.8276006221339486,
+    "f1_por_clase": {
+      "LOGRO": 0.9253731343283582,
+      "DUDA_TECNICA": 0.7499999999999999,
+      "BLOQUEO_FRUSTRACION": 0.8493150684931505,
+      "NO_CLASIFICADO": 0.7857142857142857
+    },
+    "tasa_revision": 0.10714285714285714,
+    "f_revision": 0.3076923076923077,
+    "brier": 0.07447569032967033,
+    "ece": 0.06227252747252742,
+    "n_confianza": 91,
+    "confusion": {
+      "LOGRO": {
+        "LOGRO": 31,
+        "DUDA_TECNICA": 0,
+        "BLOQUEO_FRUSTRACION": 3,
+        "NO_CLASIFICADO": 1
+      },
+      "DUDA_TECNICA": {
+        "LOGRO": 0,
+        "DUDA_TECNICA": 21,
+        "BLOQUEO_FRUSTRACION": 3,
+        "NO_CLASIFICADO": 11
+      },
+      "BLOQUEO_FRUSTRACION": {
+        "LOGRO": 0,
+        "DUDA_TECNICA": 0,
+        "BLOQUEO_FRUSTRACION": 31,
+        "NO_CLASIFICADO": 4
+      },
+      "NO_CLASIFICADO": {
+        "LOGRO": 1,
+        "DUDA_TECNICA": 0,
+        "BLOQUEO_FRUSTRACION": 1,
+        "NO_CLASIFICADO": 33
+      }
+    }
+  },
+  "metricas_despues": {
+    "n": 140,
+    "exactitud": 0.9357142857142857,
+    "f1_macro": 0.9365457645508797,
+    "f1_por_clase": {
+      "LOGRO": 0.9411764705882354,
+      "DUDA_TECNICA": 0.9393939393939393,
+      "BLOQUEO_FRUSTRACION": 0.9090909090909091,
+      "NO_CLASIFICADO": 0.9565217391304348
+    },
+    "tasa_revision": 0.14285714285714285,
+    "f_revision": 0.41379310344827586,
+    "brier": 0.07679217896226416,
+    "ece": 0.09000660377358499,
+    "n_confianza": 106,
+    "confusion": {
+      "LOGRO": {
+        "LOGRO": 32,
+        "DUDA_TECNICA": 0,
+        "BLOQUEO_FRUSTRACION": 3,
+        "NO_CLASIFICADO": 0
+      },
+      "DUDA_TECNICA": {
+        "LOGRO": 0,
+        "DUDA_TECNICA": 31,
+        "BLOQUEO_FRUSTRACION": 3,
+        "NO_CLASIFICADO": 1
+      },
+      "BLOQUEO_FRUSTRACION": {
+        "LOGRO": 0,
+        "DUDA_TECNICA": 0,
+        "BLOQUEO_FRUSTRACION": 35,
+        "NO_CLASIFICADO": 0
+      },
+      "NO_CLASIFICADO": {
+        "LOGRO": 1,
+        "DUDA_TECNICA": 0,
+        "BLOQUEO_FRUSTRACION": 1,
+        "NO_CLASIFICADO": 33
+      }
+    }
+  },
+  "parche_sugerido": {
+    "umbral": {
+      "embeddings": 0.18
+    }
+  },
+  "curvas": {
+    "umbral[embeddings]": {
+      "base": 0.9365457645508797,
+      "mejor_raw": 0.9365457645508797,
+      "elegido": 0.18,
+      "aceptado": false,
+      "meseta": [
+        0.02,
+        0.19
+      ]
+    },
+    "sentimiento:promocion_duda_a_bloqueo": {
+      "base": 0.9365457645508797,
+      "mejor_raw": 0.9365457645508797,
+      "elegido": 0.85,
+      "aceptado": false,
+      "meseta": [
+        0.85,
+        0.95
+      ]
+    },
+    "margen_minimo[embeddings]": {
+      "base": 0.41379310344827586,
+      "mejor_raw": 0.42857142857142855,
+      "elegido": 0.065,
+      "aceptado": false,
+      "meseta": [
+        0.06,
+        0.06
+      ]
+    },
+    "sentimiento:conflicto_logro_neg": {
+      "base": 0.41379310344827586,
+      "mejor_raw": 0.41379310344827586,
+      "elegido": 0.6,
+      "aceptado": false,
+      "meseta": [
+        0.3,
+        0.95
+      ]
+    },
+    "sentimiento:bloqueo_con_pos": {
+      "base": 0.41379310344827586,
+      "mejor_raw": 0.41379310344827586,
+      "elegido": 0.6,
+      "aceptado": false,
+      "meseta": [
+        0.3,
+        0.95
+      ]
+    }
+  }
+}

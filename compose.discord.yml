@@ -1,0 +1,94 @@
+# Servicios permanentes de Discord. Usar siempre junto con docker-compose.yml
+# (y compose.https.yml en la VM): ver docs/operacion-vm.md para la invocación canónica.
+# Configuración privada fuera del repositorio: DISCORD_CONFIG_DIR con lector.json y bot.json.
+x-discord: &discord
+  image: ${DISCORD_IMAGE:-communitylab-discord:local}
+  build:
+    context: .
+    dockerfile: integrations/discord/Dockerfile
+  platform: ${DOCKER_PLATFORM:-linux/arm64}
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  stop_grace_period: 30s
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  discord-reader:
+    <<: *discord
+    command: ["python", "-m", "discord_reader", "--config", "/config/lector.json", "listen", "--connect"]
+    environment:
+      # Token propio del lector si se define; si no, el del bot (dos sesiones de la misma aplicación).
+      DISCORD_BOT_TOKEN: ${DISCORD_LECTOR_TOKEN:-${DISCORD_BOT_TOKEN:?Definir DISCORD_BOT_TOKEN en .env privado}}
+      LECTOR_LATIDO: /tmp/lector-latido.json
+    volumes:
+      - discord_bandeja:/data/bandeja
+      - ${DISCORD_CONFIG_DIR:?Definir DISCORD_CONFIG_DIR fuera del repositorio}/lector.json:/config/lector.json:ro
+    networks: [outbound]
+    healthcheck:
+      test: ["CMD", "python", "-m", "discord_reader", "salud", "--latido", "/tmp/lector-latido.json"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  discord-bridge:
+    <<: *discord
+    command: ["python", "-m", "pipelines.communitylab.puente_discord", "servir"]
+    environment:
+      PUENTE_BANDEJA: /data/bandeja/discord.sqlite3
+      PUENTE_ESTADO: /data/puente/entregas.sqlite3
+      PUENTE_URL: http://api:8000/api/v1/trabajos
+      PUENTE_ORIGEN: ${PUENTE_ORIGEN:-discord}
+      PUENTE_PERIODO: ${PUENTE_PERIODO:-semana}
+      PUENTE_GRACIA_SEGUNDOS: ${PUENTE_GRACIA_SEGUNDOS:-3600}
+      PUENTE_INTERVALO: ${PUENTE_INTERVALO:-30}
+      PUENTE_LATIDO: /tmp/puente-latido.json
+    volumes:
+      # La bandeja se abre con mode=ro desde el código; el volumen no se monta :ro porque
+      # SQLite necesita crear archivos auxiliares de bloqueo mientras el lector escribe.
+      - discord_bandeja:/data/bandeja
+      - discord_puente:/data/puente
+    networks: [frontend]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-m", "pipelines.communitylab.puente_discord", "salud"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  discord-bot:
+    <<: *discord
+    command: ["python", "-m", "bot_discord", "--config", "/config/bot.json", "listen", "--connect",
+              "--processor", "community_processor.integrated:procesar"]
+    environment:
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:?Definir DISCORD_BOT_TOKEN en .env privado}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Definir GEMINI_API_KEY en .env privado}
+      GEMINI_MODELOS: ${GEMINI_MODELOS:?Definir GEMINI_MODELOS}
+      COMMUNITYLAB_GEMINI_ENABLE: "1"
+      COMMUNITYLAB_GEMINI_MODEL: ${COMMUNITYLAB_GEMINI_MODEL:-}
+      BOT_LATIDO: /tmp/bot-latido.json
+    volumes:
+      - discord_bot:/data/bot
+      - ${DISCORD_CONFIG_DIR:?Definir DISCORD_CONFIG_DIR fuera del repositorio}/bot.json:/config/bot.json:ro
+    networks: [outbound]
+    healthcheck:
+      test: ["CMD", "python", "-m", "bot_discord", "salud", "--latido", "/tmp/bot-latido.json"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  discord_bandeja:
+  discord_puente:
+  discord_bot:

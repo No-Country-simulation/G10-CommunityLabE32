@@ -1,0 +1,30 @@
+name: Pruebas del bot Discord
+on:
+  pull_request:
+    paths:
+      - 'integrations/discord/**'
+      - 'pipelines/communitylab/**'
+      - 'worker/**'
+      - 'backend/app/schemas/procesamientos.py'
+      - 'backend/app/pipelines/agent_nodes.py'
+      - '.github/workflows/discord-bot.yml'
+permissions:
+  contents: read
+jobs:
+  bot:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      PYTHONIOENCODING: utf-8
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r integrations/discord/bot/requirements-validacion.lock.txt
+      - run: python -B integrations/discord/bot/tools/validate_local.py

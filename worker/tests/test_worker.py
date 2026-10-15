@@ -286,3 +286,82 @@ def test_api_rechaza_campos_largos_antes_de_guardar(cola, monkeypatch):
             entrada = lote()
             entrada["interacciones"][0][campo] = "x" * (maximo + 1)
             assert cliente.post("/api/v1/trabajos", json=entrada).status_code == 422
+
+
+def test_reenvios_concurrentes_crean_un_solo_trabajo(cola):
+    entrada = lote()
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        ids = list(pool.map(lambda _: cola.encolar(copy.deepcopy(entrada)), range(12)))
+    assert len(set(ids)) == 1
+    with cola.conectar() as c:
+        assert c.execute('SELECT count(*) AS n FROM trabajos_worker').fetchone()['n'] == 1
+    Worker(cola, lambda entrada, renovar: ejecutar_grafo(entrada, 'simulado')).ejecutar_uno()
+    from worker.store_postgres import ColaPostgres
+    otra = ColaPostgres(cola.url)
+    assert otra.encolar(entrada) == ids[0]
+    assert otra.reservar() is None
+    with cola.conectar() as c:
+        assert c.execute('SELECT count(*) AS n FROM activos').fetchone()['n'] == 3
+
+
+def test_idempotencia_ignora_orden_y_normaliza_zona(cola):
+    entrada = lote()
+    id_ = cola.encolar(entrada)
+    entrada['interacciones'].reverse()
+    for m in entrada['interacciones']:
+        m['fecha'] = '2026-10-02T06:00:00-06:00'
+    assert cola.encolar(entrada) == id_
+
+
+def test_clave_explicita_rechaza_otro_payload_y_permite_reproceso(cola):
+    from worker.store_postgres import ConflictoIdempotencia
+    entrada = lote()
+    id_ = cola.encolar(entrada, 'reproceso-1')
+    assert cola.encolar(entrada, 'reproceso-1') == id_
+    with pytest.raises(ConflictoIdempotencia):
+        cola.encolar(lote(), 'reproceso-1')
+    assert cola.encolar(entrada, 'reproceso-2') != id_
+
+
+def test_migracion_aditiva_preserva_trabajos(cola):
+    id_ = cola.encolar(lote())
+    with cola.conectar() as c:
+        c.execute('ALTER TABLE trabajos_worker DROP COLUMN clave_idempotencia')
+    try:
+        cola.inicializar()
+        cola.inicializar()
+        assert cola.obtener(id_)['estado'] == 'recibido'
+        nuevo = lote()
+        assert cola.encolar(nuevo) == cola.encolar(nuevo)
+    finally:
+        cola.inicializar()
+
+
+@pytest.mark.parametrize('fecha', ['fecha-invalida', '2026-10-14', '2026-10-14T12:00:00', '2026-02-30T12:00:00Z'])
+def test_fecha_invalida_no_se_guarda(cola, fecha):
+    entrada = lote()
+    entrada['interacciones'][0]['fecha'] = fecha
+    with pytest.raises(ValueError):
+        cola.encolar(entrada)
+    with cola.conectar() as c:
+        assert c.execute('SELECT count(*) AS n FROM trabajos_worker').fetchone()['n'] == 0
+        assert c.execute('SELECT count(*) AS n FROM mensajes').fetchone()['n'] == 0
+
+
+def test_api_idempotencia_conflicto_y_fecha(cola, monkeypatch):
+    monkeypatch.setenv('DATABASE_URL', cola.url.replace('postgresql://', 'postgresql+asyncpg://'))
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+    with TestClient(app) as cliente:
+        entrada = lote()
+        cabecera = {'Idempotency-Key': 'api-prueba-1'}
+        a = cliente.post('/api/v1/trabajos', json=entrada, headers=cabecera)
+        assert a.status_code == 202
+        Worker(cola, lambda entrada, renovar: ejecutar_grafo(entrada, 'simulado')).ejecutar_uno()
+        b = cliente.post('/api/v1/trabajos', json=entrada, headers=cabecera)
+        assert b.json()['procesamiento_id'] == a.json()['procesamiento_id']
+        assert b.json()['estado'] == 'terminado'
+        assert cliente.post('/api/v1/trabajos', json=lote(), headers=cabecera).status_code == 409
+        entrada = lote()
+        entrada['interacciones'][0]['fecha'] = 'no-es-fecha'
+        assert cliente.post('/api/v1/trabajos', json=entrada).status_code == 422
