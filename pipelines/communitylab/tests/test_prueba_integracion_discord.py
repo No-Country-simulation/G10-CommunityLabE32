@@ -1,12 +1,12 @@
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
-import threading
 import unittest
+import urllib.error
 from unittest import mock
 
 from pipelines.communitylab import prueba_integracion_discord as script
@@ -15,43 +15,37 @@ SCRIPT = Path(script.__file__)
 
 
 class BackendFalso:
-    """Servidor HTTP local que imita POST/GET de /api/v1/trabajos."""
+    """Imita POST/GET de /api/v1/trabajos sin abrir sockets (el validador bloquea la red)."""
 
-    def __init__(self, codigo_post=202, estados=("terminado",)):
+    url = "http://backend.falso/api/v1/trabajos"
+
+    def __init__(self, codigo_post=202, estados=("terminado",), sin_conexion=False):
         self.recibidos = []
-        backend = self
-        estados = list(estados)
+        self.codigo_post = codigo_post
+        self.estados = list(estados)
+        self.sin_conexion = sin_conexion
 
-        class Manejador(BaseHTTPRequestHandler):
-            def log_message(self, *args):
-                pass
+    def urlopen(self, peticion, timeout=None):
+        if self.sin_conexion:
+            raise urllib.error.URLError("conexión rechazada")
+        if peticion.get_method() == "POST":
+            self.recibidos.append(json.loads(peticion.data))
+            if self.codigo_post != 202:
+                raise urllib.error.HTTPError(peticion.full_url, self.codigo_post, "rechazado", {},
+                                             io.BytesIO(b'{"detail": "rechazado"}'))
+            cuerpo = {"procesamiento_id": f"t{len(self.recibidos)}", "estado": "recibido"}
+        else:
+            estado = self.estados.pop(0) if len(self.estados) > 1 else self.estados[0]
+            cuerpo = {"estado": estado}
+        return _Respuesta(json.dumps(cuerpo).encode("utf-8"))
 
-            def _responder(self, codigo, cuerpo):
-                datos = json.dumps(cuerpo).encode("utf-8")
-                self.send_response(codigo)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(datos)))
-                self.end_headers()
-                self.wfile.write(datos)
 
-            def do_POST(self):
-                largo = int(self.headers["Content-Length"])
-                backend.recibidos.append(json.loads(self.rfile.read(largo)))
-                if codigo_post != 202:
-                    return self._responder(codigo_post, {"detail": "rechazado"})
-                self._responder(202, {"procesamiento_id": f"t{len(backend.recibidos)}", "estado": "recibido"})
+class _Respuesta(io.BytesIO):
+    def __enter__(self):
+        return self
 
-            def do_GET(self):
-                estado = estados.pop(0) if len(estados) > 1 else estados[0]
-                self._responder(200, {"estado": estado})
-
-        self.servidor = ThreadingHTTPServer(("127.0.0.1", 0), Manejador)
-        self.url = f"http://127.0.0.1:{self.servidor.server_port}/api/v1/trabajos"
-        threading.Thread(target=self.servidor.serve_forever, daemon=True).start()
-
-    def cerrar(self):
-        self.servidor.shutdown()
-        self.servidor.server_close()
+    def __exit__(self, *args):
+        self.close()
 
 
 def ejecutar(*argv):
@@ -61,16 +55,11 @@ def ejecutar(*argv):
 
 
 class PruebasScriptIntegracion(unittest.TestCase):
-    def setUp(self):
-        self.backends = []
-
-    def tearDown(self):
-        for backend in self.backends:
-            backend.cerrar()
-
     def backend(self, **kwargs):
         b = BackendFalso(**kwargs)
-        self.backends.append(b)
+        parche = mock.patch.object(script.urllib.request, "urlopen", b.urlopen)
+        parche.start()
+        self.addCleanup(parche.stop)
         return b
 
     def test_simulado_termina_con_codigo_cero_y_lote_valido(self):
@@ -96,7 +85,8 @@ class PruebasScriptIntegracion(unittest.TestCase):
         self.assertIn("HTTP 422", salida)
 
     def test_sin_conexion(self):
-        codigo, salida = ejecutar("--simulado", "--url", "http://127.0.0.1:9/api/v1/trabajos")
+        b = self.backend(sin_conexion=True)
+        codigo, salida = ejecutar("--simulado", "--url", b.url)
         self.assertEqual(codigo, script.SALIDA_SIN_CONEXION)
         self.assertIn("Sin conexión", salida)
 
@@ -137,20 +127,23 @@ class PruebasScriptIntegracion(unittest.TestCase):
         self.assertEqual(codigo, 0)
 
     def test_archivo_inexistente(self):
-        codigo, _ = ejecutar("--archivo", "no_existe.jsonl", "--url", "http://127.0.0.1:9")
+        codigo, _ = ejecutar("--archivo", "no_existe.jsonl", "--url", BackendFalso.url)
         self.assertEqual(codigo, script.SALIDA_ENTRADA_INVALIDA)
 
     def test_salida_sin_emojis_en_terminal_cp1252_y_utf8(self):
         fuente = SCRIPT.read_text(encoding="utf-8")
         self.assertTrue(all(ord(c) < 0x2000 for c in fuente), "el script no debe usar emojis")
-        for codificacion in ("cp1252", "utf-8"):
-            entorno = {**os.environ, "PYTHONIOENCODING": codificacion, "PYTHONUTF8": "0"}
-            proceso = subprocess.run(
-                [sys.executable, "-B", str(SCRIPT), "--simulado", "--url", "http://127.0.0.1:9/x"],
-                cwd=SCRIPT.parent, env=entorno, capture_output=True, timeout=60)
-            self.assertNotIn(b"UnicodeEncodeError", proceso.stderr, codificacion)
-            self.assertEqual(proceso.returncode, script.SALIDA_SIN_CONEXION, proceso.stderr)
-
+        with tempfile.TemporaryDirectory() as carpeta:
+            invalido = Path(carpeta) / "invalido.jsonl"
+            invalido.write_text('{"schema_version": "roto"}\n', encoding="utf-8")
+            for codificacion in ("cp1252", "utf-8"):
+                entorno = {**os.environ, "PYTHONIOENCODING": codificacion, "PYTHONUTF8": "0"}
+                proceso = subprocess.run(
+                    [sys.executable, "-B", str(SCRIPT), "--archivo", str(invalido), "--url", BackendFalso.url],
+                    cwd=SCRIPT.parent, env=entorno, capture_output=True, timeout=60)
+                self.assertNotIn(b"UnicodeEncodeError", proceso.stderr, codificacion)
+                self.assertEqual(proceso.returncode, script.SALIDA_ENTRADA_INVALIDA, proceso.stderr)
+                self.assertIn("Normalizaci".encode(), proceso.stdout)
 
 if __name__ == "__main__":
     unittest.main()
