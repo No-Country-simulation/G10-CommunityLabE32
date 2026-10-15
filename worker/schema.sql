@@ -14,3 +14,7 @@ CREATE TABLE IF NOT EXISTS trabajos_worker (
     actualizado timestamptz NOT NULL DEFAULT clock_timestamp()
 );
 CREATE INDEX IF NOT EXISTS trabajos_worker_pendientes ON trabajos_worker (estado, creado);
+-- Migración aditiva: conserva trabajos y resultados anteriores.
+ALTER TABLE trabajos_worker ADD COLUMN IF NOT EXISTS clave_idempotencia text;
+CREATE UNIQUE INDEX IF NOT EXISTS trabajos_worker_idempotencia
+    ON trabajos_worker (clave_idempotencia);
