@@ -1,22 +1,6 @@
 #!/bin/bash
-# Actualiza a origin/main con respaldo previo, imágenes anteriores etiquetadas y migración antes del arranque.
-# No revierte automáticamente: ante un fallo, seguir docs/operacion-vm.md (Reversión).
-set -euo pipefail
-APP=/home/tareck/G10-CommunityLabE32
-cd "$APP"
-logger -t cl-operador "actualizar por ${SUDO_USER:-?}"
-grep -q '^COMPOSE_FILE=.*compose.https.yml' .env || { echo "Falta COMPOSE_FILE con compose.https.yml en .env"; exit 1; }
-git fetch --quiet origin main
-destino=$(git rev-parse --short=12 origin/main)
-previo=$(date -u +prev-%Y%m%dT%H%M%SZ)
-for i in api worker web discord; do
-  docker image inspect communitylab-$i:local >/dev/null 2>&1 && docker tag communitylab-$i:local communitylab-$i:$previo
-done
-echo "imagenes_previas=$previo"
-"$APP/ops/vm/respaldo.sh"
-git checkout --quiet --detach "$destino"
-docker compose build
-for i in api worker web discord; do docker tag communitylab-$i:local communitylab-$i:$destino 2>/dev/null || true; done
-docker compose run --rm db-init
-docker compose up -d --remove-orphans
-echo "desplegado=$destino previas=$previo (verificar con cl-estado)"
+# Uso: sudo cl-actualizar <sha> <ruta-env-nuevo>. Ver docs/operacion-vm.md.
+set -eu
+logger -t cl-operador "actualizar $* por ${SUDO_USER:-?}"
+export VERIFICAR_URLS=${VERIFICAR_URLS:-"https://communitylab.alyntai.com/healthz=200 http://communitylab.alyntai.com/=301"}
+exec /home/tareck/G10-CommunityLabE32/ops/vm/desplegar.sh "$@"
