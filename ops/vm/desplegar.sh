@@ -33,8 +33,8 @@ if grep -q '^COMPOSE_FILE=.*compose.discord.yml' "$ENV_NUEVO"; then
   [ -n "$(sed -n 's/^DISCORD_CONFIG_DIR=//p' "$ENV_NUEVO" | tail -1)" ] \
     || fallar "el .env nuevo no define DISCORD_CONFIG_DIR"
 fi
-VERIFICAR_URLS=${VERIFICAR_URLS:-"https://communitylab.alyntai.com/healthz=200 http://communitylab.alyntai.com/=301"}
-export VERIFICAR_URLS
+# Las URLs de verificación de la VM las define cl-actualizar (VERIFICAR_URLS); sin valor por
+# defecto aquí: el script también corre en pruebas y CI, donde el dominio público no aplica.
 [ -z "$(cd "$APP" && git status --porcelain --untracked-files=no)" ] || fallar "cambios locales en $APP"
 (cd "$APP" && git fetch --quiet origin) || log "aviso: git fetch falló; se usa el sha local"
 SHA=$(cd "$APP" && git rev-parse --verify "$SHA_PEDIDO^{commit}") || fallar "sha inexistente: $SHA_PEDIDO"
