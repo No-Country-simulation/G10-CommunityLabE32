@@ -31,6 +31,22 @@ def metricas(esperados, obtenidos):
             "confusion": {f"{e}->{o}": n for (e, o), n in sorted(confusion.items())}}
 
 
+def evaluar_real(lote, cfg, max_llamadas, transporte=None):
+    """Analiza el lote con la llamada real del grafo. Devuelve (sentimientos, llamadas).
+
+    El tope duro de llamadas lo aplica el presupuesto del cliente en cada intento HTTP.
+    Las llamadas se informan aunque el análisis falle, para auditar el consumo.
+    """
+    from pipelines.communitylab.gemini import ClienteGemini
+    cliente = ClienteGemini(replace(cfg, max_llamadas=max(1, min(max_llamadas, cfg.max_llamadas))),
+                            transporte=transporte)
+    try:
+        return {i: a.get("sentimiento") for i, a in analizar(lote, cliente).items()}, cliente.presupuesto.llamadas
+    except Exception:
+        print(json.dumps({"llamadas": cliente.presupuesto.llamadas, "resultado": "fallo"}))
+        raise
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     modo = parser.add_mutually_exclusive_group(required=True)
@@ -47,11 +63,9 @@ def main(argv=None):
     else:
         if not args.confirmo_consumo:
             parser.error("--real consume cuota de Gemini: requiere --confirmo-consumo y autorización explícita")
-        from pipelines.communitylab.gemini import ClienteGemini, ConfiguracionGemini
-        cfg = ConfiguracionGemini.desde_entorno()
-        cliente = ClienteGemini(replace(cfg, max_llamadas=max(1, min(args.max_llamadas, cfg.max_llamadas))))
-        obtenidos = {i: a.get("sentimiento") for i, a in analizar(lote, cliente).items()}
-        print(json.dumps({"llamadas": cliente.llamadas}))
+        from pipelines.communitylab.gemini import ConfiguracionGemini
+        obtenidos, llamadas = evaluar_real(lote, ConfiguracionGemini.desde_entorno(), args.max_llamadas)
+        print(json.dumps({"llamadas": llamadas}))
     print(json.dumps(metricas(esperados, obtenidos), ensure_ascii=False))
     return 0
 
