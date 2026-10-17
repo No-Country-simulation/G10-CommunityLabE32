@@ -1,6 +1,8 @@
 #!/bin/bash
 # Migración única de la aplicación a la ruta canónica, con un usuario de servicio dedicado.
 #   /home/tareck/G10-CommunityLabE32 (cuenta personal)  ->  /srv/communitylab (usuario communitylab)
+# Además instala los cl-* (incluido cl-token-operador) y la regla sudo del grupo operadores
+# (ops/vm/sudoers-operadores, validada con visudo antes y después de instalarla).
 # Uso (root):
 #   migrar-a-srv.sh comprobar   solo comprueba requisitos y muestra el plan; no cambia nada
 #   migrar-a-srv.sh ejecutar    respaldo comprobado, corte corto, mudanza y verificación
@@ -17,7 +19,9 @@ USUARIO=${USUARIO_APP:-communitylab}
 PROYECTO_ESPERADO=${PROYECTO_ESPERADO:-g10-communitylabe32}
 ESTADO=${ESTADO_MIGRACION:-/var/lib/communitylab/migracion-srv}
 BIN=${BIN:-/usr/local/sbin}
-COMANDOS="cl-actualizar cl-estado cl-logs cl-reiniciar cl-respaldo cl-revertir"
+COMANDOS="cl-actualizar cl-estado cl-logs cl-reiniciar cl-respaldo cl-revertir cl-token-operador"
+SUDOERS_DESTINO=${SUDOERS_DESTINO:-/etc/sudoers.d/50-operadores}
+VISUDO=${VISUDO:-visudo}
 HOOKS="certbot-pre certbot-post"
 RESPALDO_CMD=${RESPALDO_CMD:-}
 RESTAURAR_CMD=${RESTAURAR_CMD:-}
@@ -33,6 +37,15 @@ logger -t cl-operador "migrar-a-srv $MODO por ${SUDO_USER:-?}" 2>/dev/null || tr
 instalar_operacion() {  # $1 = raíz de la aplicación cuyos cl-* y hooks se instalan
   for c in $COMANDOS; do install -m 755 "$1/ops/vm/$c" "$BIN/$c"; done
   for h in $HOOKS; do install -m 750 "$1/ops/vm/$h" "$BIN/communitylab-$h"; done
+}
+
+instalar_sudoers() {  # $1 = plantilla validada; se instala 440 y se revalida toda la configuración
+  "$VISUDO" -cf "$1" >/dev/null || fallar "la regla sudo $1 no es válida"
+  install -m 440 "$1" "$SUDOERS_DESTINO"
+  if ! "$VISUDO" -c >/dev/null; then
+    [ -f "$ESTADO/sudoers.anterior" ] && install -m 440 "$ESTADO/sudoers.anterior" "$SUDOERS_DESTINO"
+    fallar "configuración sudo inválida tras instalar la regla; se restauró la anterior"
+  fi
 }
 
 levantar_y_verificar() {  # $1 = raíz de la aplicación
@@ -54,7 +67,10 @@ deshacer() {
   chmod 600 "$ORIGEN/.env"
   if [ -d "$ESTADO/sbin.anterior" ]; then
     for f in "$ESTADO"/sbin.anterior/*; do install -m "$(stat -c %a "$f")" "$f" "$BIN/$(basename "$f")"; done
+    # Comandos nuevos que no existían antes (p. ej. cl-token-operador): se retiran.
+    for c in $COMANDOS; do [ -e "$ESTADO/sbin.anterior/$c" ] || rm -f "$BIN/$c"; done
   fi
+  if [ -f "$ESTADO/sudoers.anterior" ]; then instalar_sudoers "$ESTADO/sudoers.anterior"; fi
   levantar_y_verificar "$ORIGEN"
   log "deshacer completo: aplicación en $ORIGEN"
 }
@@ -78,7 +94,8 @@ for v in $VOLUMENES_SQLITE postgres_data; do
     || log "aviso: volumen ${PROYECTO_ESPERADO}_$v no encontrado (revisar nombre)"
 done
 for c in $COMANDOS; do [ -f "$ORIGEN/ops/vm/$c" ] || fallar "falta ops/vm/$c"; done
-log "plan: respaldo -> usuario $USUARIO -> down (sin -v) -> mv $ORIGEN $DESTINO -> chown $USUARIO -> cl-*/hooks -> up -> verificar"
+"$VISUDO" -cf "$ORIGEN/ops/vm/sudoers-operadores" >/dev/null || fallar "ops/vm/sudoers-operadores no es válido"
+log "plan: respaldo -> usuario $USUARIO -> down (sin -v) -> mv $ORIGEN $DESTINO -> chown $USUARIO -> cl-*/hooks/sudo -> up -> verificar"
 if [ "$MODO" = comprobar ]; then log "comprobación correcta; no se cambió nada"; exit 0; fi
 [ "$MODO" = ejecutar ] || fallar "modo desconocido: $MODO"
 
@@ -93,6 +110,7 @@ mkdir -p "$ESTADO/sbin.anterior"
 stat -c '%U:%G' "$ORIGEN" > "$ESTADO/duenio.anterior"
 for f in $COMANDOS; do [ -f "$BIN/$f" ] && cp -p "$BIN/$f" "$ESTADO/sbin.anterior/"; done
 for h in $HOOKS; do [ -f "$BIN/communitylab-$h" ] && cp -p "$BIN/communitylab-$h" "$ESTADO/sbin.anterior/"; done
+[ -f "$SUDOERS_DESTINO" ] && cp -p "$SUDOERS_DESTINO" "$ESTADO/sudoers.anterior"
 echo "$RESPALDO" > "$ESTADO/respaldo"
 getent passwd "$USUARIO" >/dev/null || useradd --system --user-group --no-create-home \
   --home-dir "$DESTINO" --shell /usr/sbin/nologin "$USUARIO"
@@ -107,7 +125,8 @@ chown -R "$USUARIO:" "$DESTINO"   # solo la carpeta de la aplicación (grupo de 
 chmod 750 "$DESTINO" && chmod 600 "$DESTINO/.env"
 log "4/6 aplicación en $DESTINO (dueño $USUARIO)"
 instalar_operacion "$DESTINO"
-log "5/6 cl-* y hooks de certbot instalados desde $DESTINO"
+instalar_sudoers "$DESTINO/ops/vm/sudoers-operadores"
+log "5/6 cl-*, hooks de certbot y regla sudo de operadores instalados desde $DESTINO"
 levantar_y_verificar "$DESTINO"
 trap - ERR
 log "6/6 migración completa: $DESTINO (deshacer: migrar-a-srv.sh deshacer)"

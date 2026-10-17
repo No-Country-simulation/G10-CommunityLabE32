@@ -49,17 +49,22 @@ def entorno(tmp_path):
     sbin = tmp_path / "sbin"
     sbin.mkdir()
     (sbin / "cl-estado").write_text("#!/bin/bash\n# version anterior\n")
+    sudoers = tmp_path / "sudoers.d" / "50-operadores"
+    sudoers.parent.mkdir()
+    sudoers.write_text("# regla anterior\n")
     bin_ = tmp_path / "bin"
     bin_.mkdir()
     ejecutable(bin_ / "docker", DOCKER_FALSO)
     ejecutable(bin_ / "falso-respaldo", '#!/bin/bash\necho "$RESPALDOS/falso"\n')
     ejecutable(bin_ / "falso-restaurar", "#!/bin/bash\nexit 0\n")
+    ejecutable(bin_ / "visudo-falso", '#!/bin/bash\necho "visudo $*" >> "$REGISTRO"\nexit 0\n')
     registro = tmp_path / "registro.log"
     env = {**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}", "REGISTRO": str(registro),
            "ORIGEN": str(origen), "DESTINO": str(destino), "BIN": str(sbin), "USUARIO_APP": getpass.getuser(),
            "ESTADO_MIGRACION": str(tmp_path / "estado"), "RESPALDOS": str(tmp_path / "respaldos"),
            "RESPALDO_CMD": str(bin_ / "falso-respaldo"), "RESTAURAR_CMD": str(bin_ / "falso-restaurar"),
            "PERMITIR_NO_ROOT": "1", "VERIFICAR_URLS": "", "ESPERA_SALUD": "1",
+           "SUDOERS_DESTINO": str(sudoers), "VISUDO": str(bin_ / "visudo-falso"),
            "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "safe.directory", "GIT_CONFIG_VALUE_0": "*"}
 
     def correr(modo, **extra):
@@ -67,7 +72,7 @@ def entorno(tmp_path):
                            env={**env, **extra}, timeout=120)
         return p, (registro.read_text().splitlines() if registro.exists() else [])
 
-    return {"correr": correr, "origen": origen, "destino": destino, "sbin": sbin}
+    return {"correr": correr, "origen": origen, "destino": destino, "sbin": sbin, "sudoers": sudoers}
 
 
 def test_comprobar_no_cambia_nada(entorno):
@@ -98,6 +103,24 @@ def test_ejecutar_mueve_sin_borrar_volumenes_e_instala_la_ruta_nueva(entorno):
     assert not any(" -v" in l or "prune" in l for l in llamadas)
     assert "/srv/communitylab" in (entorno["sbin"] / "cl-actualizar").read_text()
     assert (entorno["sbin"] / "communitylab-certbot-post").exists()
+    assert (entorno["sbin"] / "cl-token-operador").exists()
+    assert "/usr/local/sbin/cl-token-operador" in entorno["sudoers"].read_text()
+    assert stat.S_IMODE(entorno["sudoers"].stat().st_mode) == 0o440
+    assert any(l.startswith("visudo -cf") for l in llamadas) and any(l.strip() == "visudo -c" for l in llamadas)
+
+
+def test_cl_token_operador_solo_imprime_el_token(tmp_path):
+    app = tmp_path / "app"
+    app.mkdir()
+    (app / ".env").write_text("POSTGRES_PASSWORD=secreto-db\nOPERADOR_TOKEN=token-de-prueba\nPUENTE_TOKEN=otro\n")
+    p = subprocess.run(["bash", str(OPS / "cl-token-operador")], capture_output=True, text=True,
+                       env={**os.environ, "CL_APP": str(app)}, timeout=30)
+    assert (p.returncode, p.stdout) == (0, "token-de-prueba\n")
+    assert "secreto-db" not in p.stdout + p.stderr and "otro" not in p.stdout + p.stderr
+    (app / ".env").write_text("POSTGRES_PASSWORD=x\n")
+    p = subprocess.run(["bash", str(OPS / "cl-token-operador")], capture_output=True, text=True,
+                       env={**os.environ, "CL_APP": str(app)}, timeout=30)
+    assert p.returncode == 1 and p.stdout == ""
 
 
 def test_fallo_en_el_corte_deshace_la_mudanza(entorno):
@@ -105,4 +128,6 @@ def test_fallo_en_el_corte_deshace_la_mudanza(entorno):
     assert p.returncode == 1
     assert entorno["origen"].is_dir() and not entorno["destino"].exists()
     assert (entorno["sbin"] / "cl-estado").read_text() == "#!/bin/bash\n# version anterior\n"
+    assert not (entorno["sbin"] / "cl-token-operador").exists()       # comando nuevo retirado
+    assert entorno["sudoers"].read_text() == "# regla anterior\n"       # regla sudo restaurada
     assert any("up -d" in l and str(entorno["origen"]) in l for l in llamadas)  # vuelve a levantar en el origen

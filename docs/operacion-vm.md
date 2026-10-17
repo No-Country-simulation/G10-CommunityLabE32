@@ -24,7 +24,13 @@ Estructura según el Filesystem Hierarchy Standard (FHS 3.0):
   el `.env` sigue siendo 600 y no lo lee el grupo.
 - Todo `git` sobre el checkout se ejecuta con el usuario dueño de la carpeta (`git_app` en
   `comun.sh`, vía `runuser`): los despliegues ya no dejan archivos de root en el repositorio.
-- El token de operador no cambia: vive en el `.env` y se mueve con él.
+- El token de operador no cambia: vive en el `.env` y se mueve con él. Los operadores lo obtienen
+  desde su equipo sin leer el `.env`: `ssh <usuario>@<vm> sudo cl-token-operador` (imprime solo ese
+  valor y registra quién lo pidió en el journal: `journalctl -t cl-operador`). Es una credencial
+  compartida: no pegarla en chats ni capturas.
+- Regla sudo del grupo `operadores`: versionada en `ops/vm/sudoers-operadores`; la migración la
+  instala en `/etc/sudoers.d/50-operadores` (440) validándola con `visudo`, y `deshacer` restaura la
+  anterior.
 
 ### Migración desde la ruta histórica (una sola vez; requiere autorización)
 
@@ -186,7 +192,7 @@ el script lo informa y se sigue el procedimiento manual de Reversión con la car
 
 Plantillas en `ops/vm/` (ruta canónica `/srv/communitylab`), instaladas en
 `/usr/local/sbin` (root, 755): `cl-estado`, `cl-logs <servicio>`, `cl-reiniciar`, `cl-respaldo`,
-`cl-actualizar <sha> <env-nuevo>`, `cl-revertir <carpeta-estado>`.
+`cl-actualizar <sha> <env-nuevo>`, `cl-revertir <carpeta-estado>`, `cl-token-operador`.
 
 Instalación (reemplaza versiones antiguas que apunten a `/opt/communitylab`):
 `install -m 755 -o root -g root ops/vm/cl-* /usr/local/sbin/`.
