@@ -17,7 +17,9 @@ router = APIRouter(
 )
 
 
-@router.post("", response_model=IngestaResponse)
+# Contrato mock heredado: no encola ni guarda. La interfaz usa /api/mensajes/procesamientos
+# y /api/v1/trabajos; se conserva por compatibilidad con scripts de validación.
+@router.post("", response_model=IngestaResponse, deprecated=True)
 def crear_procesamiento(lote: IngestaRequest):
     return IngestaResponse(
         procesamiento_id="proc-mock-2026-001",

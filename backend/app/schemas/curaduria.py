@@ -32,6 +32,8 @@ class ActivoResponse(BaseModel):
     fuentes: List[str] = []
     version: int
     comentario_curador: Optional[str] = None
+    # Controles automáticos de fidelidad; None en activos anteriores al control.
+    advertencias_fidelidad: Optional[List[dict]] = None
     fecha_creacion: datetime
     fecha_actualizacion: datetime
 

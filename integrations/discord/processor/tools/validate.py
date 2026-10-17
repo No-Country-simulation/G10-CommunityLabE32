@@ -40,7 +40,8 @@ def main():
                             *extra, str(ROOT / "tests"), str(BOT / "tests"),
                             str(BOT / "bot_discord/clasificador/test_contrato_io.py"),
                             "integrations/discord/reader/tests", "pipelines/communitylab/tests",
-                            "worker/tests/test_worker.py", "worker/tests/test_ia_contract.py"], cwd=REPO, env=env)
+                            "worker/tests/test_worker.py", "worker/tests/test_ia_contract.py",
+                            "worker/tests/test_api_ingesta_metricas.py"], cwd=REPO, env=env)
 
 
 if __name__ == "__main__":
