@@ -1,0 +1,5 @@
+# Operadores de CommunityLab: solo estos comandos, sin Docker ni shell.
+# Instalar como /etc/sudoers.d/50-operadores (root:root, 440) validando antes con: visudo -cf <archivo>
+# (lo hace ops/vm/migrar-a-srv.sh). cl-token-operador solo imprime el token de operador.
+Cmnd_Alias CL_OPS = /usr/local/sbin/cl-estado, /usr/local/sbin/cl-logs api, /usr/local/sbin/cl-logs web, /usr/local/sbin/cl-logs worker, /usr/local/sbin/cl-logs proxy, /usr/local/sbin/cl-reiniciar, /usr/local/sbin/cl-actualizar, /usr/local/sbin/cl-token-operador
+%operadores ALL=(root) NOPASSWD: CL_OPS

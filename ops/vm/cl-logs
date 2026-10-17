@@ -1,5 +1,5 @@
 #!/bin/bash
 set -eu
-APP=/home/tareck/G10-CommunityLabE32
+APP=/srv/communitylab
 case "${1:-}" in api|web|worker|proxy|discord-reader|discord-bridge|discord-bot) ;; *) echo "Uso: sudo cl-logs api|web|worker|proxy|discord-reader|discord-bridge|discord-bot"; exit 2;; esac
 cd "$APP" && docker compose logs --no-color --tail 200 "$1"

@@ -1,0 +1,13 @@
+#!/bin/bash
+# Muestra SOLO el token de operador, para escribirlo en el campo «Token de operador» de la interfaz.
+# Uso: sudo cl-token-operador   (permitido al grupo operadores; ver ops/vm/sudoers-operadores)
+# Es una credencial compartida del equipo: no pegarla en chats, issues ni capturas. Cada consulta
+# queda registrada en el journal (logger -t cl-operador) con el usuario que la pidió.
+# sudo restablece el entorno (env_reset), así que un operador no puede redirigir CL_APP.
+set -eu
+APP=${CL_APP:-/srv/communitylab}
+logger -t cl-operador "token-operador consultado por ${SUDO_USER:-$(id -un)}" 2>/dev/null || true
+valor=$(sed -n 's/^OPERADOR_TOKEN=//p' "$APP/.env" | tail -1)
+[ -n "$valor" ] || { echo "OPERADOR_TOKEN no está configurado en el servidor" >&2; exit 1; }
+printf '%s\n' "$valor"
+echo "Credencial compartida: escríbela en «Token de operador»; no la pegues en chats ni capturas." >&2

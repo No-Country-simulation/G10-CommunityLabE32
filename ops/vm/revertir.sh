@@ -21,7 +21,7 @@ done
 
 log "revertir 2/5: .env y commit anteriores"
 cp "$ESTADO/env.anterior" "$APP/.env" && chmod 600 "$APP/.env"
-(cd "$APP" && git checkout --quiet --detach "$(cat "$ESTADO/commit.anterior")") || fallar "checkout anterior falló"
+git_app checkout --quiet --detach "$(cat "$ESTADO/commit.anterior")" || fallar "checkout anterior falló"
 if [ "${REVERTIR_CONSERVAR_HTTPS:-1}" = 1 ] && [ -f "$APP/compose.https.yml" ] \
    && ! grep -q '^COMPOSE_FILE=.*compose.https.yml' "$APP/.env"; then
   sed -i '/^COMPOSE_FILE=/d; /^COMPOSE_PATH_SEPARATOR=/d' "$APP/.env"

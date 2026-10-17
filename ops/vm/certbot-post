@@ -3,7 +3,7 @@
 # Instalar como /usr/local/sbin/communitylab-certbot-post (root, 750). Ver docs/operacion-vm.md.
 # --no-deps: no recrea web/api/worker aunque su definición hubiera cambiado.
 set -euo pipefail
-APP=${APP:-/home/tareck/G10-CommunityLabE32}
+APP=${APP:-/srv/communitylab}
 cd "$APP"
 grep -q '^COMPOSE_FILE=.*compose.https.yml' .env \
   || { logger -t cl-certbot "post: .env sin COMPOSE_FILE canónico; revisar a mano"; exit 1; }

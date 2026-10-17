@@ -4,7 +4,7 @@
 # Antes de detener el proxy comprueba que el .env canónico produce la configuración HTTPS
 # completa: si no, sale con error SIN tocar el proxy (la renovación falla y el sitio sigue).
 set -euo pipefail
-APP=${APP:-/home/tareck/G10-CommunityLabE32}
+APP=${APP:-/srv/communitylab}
 cd "$APP"
 grep -q '^COMPOSE_FILE=.*compose.https.yml' .env \
   || { logger -t cl-certbot "pre: .env sin COMPOSE_FILE canónico; proxy intacto"; exit 1; }

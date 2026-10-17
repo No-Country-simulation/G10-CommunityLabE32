@@ -100,7 +100,7 @@ with tarfile.open(destino, "w:gz") as t:
     if config and os.path.isdir(config):
         t.add(config, arcname="discord-config")
 EOF
-python3 - "$DESTINO" "$linea_pg" "$(cd "$APP" && git rev-parse HEAD)" "$PROYECTO" <<'EOF'
+python3 - "$DESTINO" "$linea_pg" "$(git_app rev-parse HEAD)" "$PROYECTO" <<'EOF'
 import json, pathlib, sys
 destino, pg, commit, proyecto = sys.argv[1:]
 pg = json.loads(pg); pg.pop("snapshot")
