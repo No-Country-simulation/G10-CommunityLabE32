@@ -28,6 +28,10 @@ app.include_router(dashboard.router)
 app.include_router(procesamientos_router)
 from backend.app.api.routes.trabajos import router as trabajos_router
 app.include_router(trabajos_router)
+from backend.app.api.routes.solicitudes import router as solicitudes_router
+from backend.app.api.routes.banners import router as banners_router
+app.include_router(solicitudes_router)
+app.include_router(banners_router)
 
 @app.get("/", tags=["Health Check"])
 async def root():

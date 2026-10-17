@@ -17,6 +17,8 @@ class MensajeResponse(MensajeBase):
     Solo esto es lo que el Frontend tiene permitido ver.
     """
     id_mensaje: str
+    sentimiento_origen: Optional[str] = None
+    sentimiento_version: Optional[str] = None
 
     # Configuración de Pydantic V2 para leer objetos de SQLAlchemy
     model_config = ConfigDict(from_attributes=True)

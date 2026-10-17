@@ -52,6 +52,9 @@ services:
       PUENTE_GRACIA_SEGUNDOS: ${PUENTE_GRACIA_SEGUNDOS:-3600}
       PUENTE_INTERVALO: ${PUENTE_INTERVALO:-30}
       PUENTE_LATIDO: /tmp/puente-latido.json
+      # Sin token, el puente no atiende «Procesar pendientes» (solo el cierre semanal).
+      PUENTE_TOKEN: ${PUENTE_TOKEN:-}
+      PUENTE_MAX_PREVIOS: ${PUENTE_MAX_PREVIOS:-100}
     volumes:
       # La bandeja se abre con mode=ro desde el código; el volumen no se monta :ro porque
       # SQLite necesita crear archivos auxiliares de bloqueo mientras el lector escribe.

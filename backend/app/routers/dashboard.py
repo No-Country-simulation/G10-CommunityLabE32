@@ -12,7 +12,8 @@ from backend.app.services.ambito import calcular_ambito, listar_ambitos
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard KPIs"])
 
-SENTIMIENTOS = ("positivo", "negativo", "neutral")
+# "indeterminado" es un resultado explícito del análisis (tono no determinable), no una ausencia.
+SENTIMIENTOS = ("positivo", "negativo", "neutral", "indeterminado")
 PENDIENTES_REVISION = ("generado", "revisado")
 
 
