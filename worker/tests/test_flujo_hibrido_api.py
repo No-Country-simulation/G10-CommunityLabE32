@@ -414,3 +414,53 @@ def test_render_banner_determinista_ajustado_y_sin_hechos_inventados():
     with pytest.raises(b.BannerNoGenerable):
         b.renderizar("faq", "#solo #hashtags")
     assert "MUY_LARGA" in b.renderizar("faq", "¿" + "MUY_LARGA" * 30 + "?")  # palabra sin espacios: se corta
+
+
+# --- Contador real de llamadas en las herramientas de sentimiento (sin red ni base) ------
+
+def _herramienta_evaluacion():
+    import importlib.util
+    ruta = Path(__file__).resolve().parents[2] / "tools" / "evaluar_sentimiento.py"
+    especificacion = importlib.util.spec_from_file_location("evaluar_sentimiento", ruta)
+    modulo = importlib.util.module_from_spec(especificacion)
+    especificacion.loader.exec_module(modulo)
+    return modulo
+
+
+def _lote_evaluacion():
+    datos = json.loads((Path(__file__).resolve().parents[2] / "pipelines/communitylab/ejemplos/"
+                        "evaluacion_sentimiento.json").read_text(encoding="utf-8"))
+    senales = {m["id"]: {"es_logro": False, "es_duda": False, "es_bloqueo": False, "tema": "general",
+                         "relevancia": 0.5, "sentimiento": m["esperado"]} for m in datos["interacciones"]}
+    lote = {"interacciones": [{k: m[k] for k in ("id", "canal", "texto")} for m in datos["interacciones"]]}
+    return lote, senales
+
+
+def test_evaluacion_real_usa_el_contador_del_presupuesto_y_respeta_el_tope():
+    from pipelines.communitylab.gemini_falso import GeminiFalso, configuracion, ok, responder_con_senales
+    herramienta = _herramienta_evaluacion()
+    lote, senales = _lote_evaluacion()
+    falso = GeminiFalso(responder=responder_con_senales(senales))
+    obtenidos, llamadas = herramienta.evaluar_real(lote, configuracion(), 2, transporte=falso.transporte)
+    assert (llamadas, len(falso.peticiones), len(obtenidos)) == (1, 1, 20)
+    assert herramienta.metricas({i: s["sentimiento"] for i, s in senales.items()}, obtenidos)[
+        "exactitud_sobre_analizados"] == 1.0
+    # Respuestas siempre inválidas: escala, pero nunca supera el tope de 2 llamadas.
+    invalido = GeminiFalso(responder=lambda p: ok({"resultados": []}))
+    with pytest.raises(Exception):
+        herramienta.evaluar_real(lote, configuracion(), 2, transporte=invalido.transporte)
+    assert len(invalido.peticiones) <= 2
+
+
+def test_reproceso_usa_el_contador_del_presupuesto_y_el_tope_restante():
+    from backend.scripts.reprocesar_sentimiento import analizador_gemini
+    from pipelines.communitylab.gemini_falso import GeminiFalso, configuracion, ok, responder_con_senales
+    lote, senales = _lote_evaluacion()
+    falso = GeminiFalso(responder=responder_con_senales(senales))
+    resultados, llamadas = analizador_gemini(configuracion(), transporte=falso.transporte)(lote, 5)
+    assert (llamadas, len(resultados)) == (1, 20)
+    assert resultados["ev-01"]["sentimiento"] == "positivo"
+    invalido = GeminiFalso(responder=lambda p: ok({"resultados": []}))
+    with pytest.raises(Exception):
+        analizador_gemini(configuracion(), transporte=invalido.transporte)(lote, 1)
+    assert len(invalido.peticiones) == 1  # el tope restante (1) se aplica como tope duro

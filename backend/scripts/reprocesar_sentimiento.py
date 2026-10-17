@@ -110,6 +110,21 @@ def ejecutar(url, analizar, tamano_bloque, limite, max_llamadas, canal=None):
     return resumen
 
 
+def analizador_gemini(cfg, transporte=None):
+    """analizar(lote, maximo) para ejecutar(): la misma llamada de análisis del grafo, con un
+    cliente nuevo por bloque cuyo tope duro de llamadas es el presupuesto restante."""
+    from dataclasses import replace
+    from pipelines.communitylab import analisis_gemini
+    from pipelines.communitylab.gemini import ClienteGemini
+
+    def analizar(lote, maximo):
+        cliente = ClienteGemini(replace(cfg, max_llamadas=max(1, min(cfg.max_llamadas, maximo))),
+                                transporte=transporte)
+        # El contador vive en el presupuesto del cliente (cuenta reintentos y escalamiento).
+        return analisis_gemini.analizar(lote, cliente), cliente.presupuesto.llamadas
+    return analizar
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Reproceso controlado de sentimiento histórico")
     sub = parser.add_subparsers(dest="comando", required=True)
@@ -135,17 +150,10 @@ def main(argv=None):
         parser.error("La ejecución real requiere --confirmo-consumo (y autorización explícita)")
     if not 1 <= args.limite <= 5000 or not 1 <= args.max_llamadas <= 200:
         parser.error("--limite debe estar entre 1 y 5000 y --max-llamadas entre 1 y 200")
-    from dataclasses import replace
-    from pipelines.communitylab import analisis_gemini
-    from pipelines.communitylab.gemini import ClienteGemini, ConfiguracionGemini
+    from pipelines.communitylab.gemini import ConfiguracionGemini
     cfg = ConfiguracionGemini.desde_entorno()
-
-    def analizar(lote, maximo):
-        # Cliente nuevo por bloque con tope duro = presupuesto restante.
-        cliente = ClienteGemini(replace(cfg, max_llamadas=max(1, min(cfg.max_llamadas, maximo))))
-        return analisis_gemini.analizar(lote, cliente), cliente.llamadas
-    print(json.dumps(ejecutar(url, analizar, cfg.tamano_bloque, args.limite, args.max_llamadas, args.canal),
-                     ensure_ascii=False))
+    print(json.dumps(ejecutar(url, analizador_gemini(cfg), cfg.tamano_bloque, args.limite, args.max_llamadas,
+                              args.canal), ensure_ascii=False))
     return 0
 
 
