@@ -14,7 +14,16 @@ RESPALDO=${1:?Uso: probar-restauracion.sh <carpeta-de-respaldo>}
 IMAGEN_PG=${POSTGRES_IMAGE:-postgres:16-alpine}
 IMAGEN_SQLITE=${DISCORD_IMAGE:-$IMAGEN_PREFIJO-discord:local}
 nombre="cl-restauracion-$(sufijo)"
-trap 'docker rm -f "$nombre" >/dev/null 2>&1 || true' EXIT
+# Registro del resultado (OK/FALLA, código y fecha) en el propio respaldo, para auditar después.
+registrar() {
+  local codigo=$? resultado=FALLA
+  [ "$codigo" = 0 ] && resultado=OK
+  docker rm -f "$nombre" >/dev/null 2>&1 || true
+  printf '{"resultado": "%s", "codigo_salida": %s, "fecha": "%s", "imagen_postgres": "%s"}\n' \
+    "$resultado" "$codigo" "$(date -u +%FT%TZ)" "$IMAGEN_PG" > "$RESPALDO/restauracion-$(date -u +%Y%m%dT%H%M%SZ).json" || true
+  logger -t cl-operador "restauracion $RESPALDO: $resultado" 2>/dev/null || true
+}
+trap registrar EXIT
 
 docker run -d --name "$nombre" --network none -e POSTGRES_USER=prueba -e POSTGRES_PASSWORD=prueba \
   -e POSTGRES_DB=prueba "$IMAGEN_PG" >/dev/null

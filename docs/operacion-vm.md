@@ -20,10 +20,34 @@ worker, postgres, db-init, discord-reader, discord-bridge y discord-bot; y
 `docker compose config | grep -c 443` debe ser mayor que 0. No usar `docker compose config` completo
 en pantalla compartida: resuelve variables.
 
-Los hooks de certbot (`/usr/local/sbin/communitylab-certbot-pre|post`) hacen `cd` a la carpeta y
-ejecutan `docker compose stop|up -d proxy`; con `COMPOSE_FILE` en `.env` heredan el override HTTPS.
-Si faltara una variable obligatoria de Discord, `docker compose` fallaría y el post-hook dejaría el
-proxy detenido: verificar `docker compose config --quiet` tras cualquier cambio del `.env`.
+El `.env` de la carpeta es la **única** fuente de configuración: no mantener copias paralelas
+(`.env.nuevo`, `~/.env.communitylab.nuevo`) como configuración en uso. Un `.env` sin `COMPOSE_FILE`
+hace que `docker compose up` sin parámetros levante solo `docker-compose.yml`: modo y proxy locales,
+sin HTTPS ni Discord.
+
+### Hooks de certbot
+
+Versionados en `ops/vm/certbot-pre` y `ops/vm/certbot-post`; se instalan como
+`/usr/local/sbin/communitylab-certbot-pre|post` (root, 750) y se referencian como `pre_hook` y
+`post_hook` en `/etc/letsencrypt/renewal/<dominio>.conf`.
+
+- `certbot-pre` comprueba que el `.env` declare `COMPOSE_FILE` con HTTPS y que la configuración
+  resuelta tenga el proxy con 443 **antes** de detenerlo. Si no, sale con error sin tocar el proxy:
+  la renovación falla y el sitio sigue sirviendo.
+- `certbot-post` levanta solo el proxy (`up -d --no-deps`), valida `nginx -t` y recarga.
+
+No ejecutar `certbot renew --dry-run` en producción sin ventana de mantenimiento: también corre los
+hooks y detiene el proxy durante la prueba.
+
+### Proxy y archivo de configuración montado
+
+El proxy monta `proxy/nginx.https.conf` solo cuando se crea con `compose.https.yml`. Un proxy creado
+con otra combinación de archivos debe **recrearse** con la invocación canónica
+(`docker compose up -d --no-deps proxy` desde la carpeta, con el `.env` canónico); reiniciarlo no
+cambia su definición. Comprobación sin reiniciar:
+`docker inspect -f '{{index .Config.Labels "com.docker.compose.project.config_files"}}' <proxy>`
+debe incluir `compose.https.yml`, y el `sha256sum` de `/etc/nginx/conf.d/default.conf` dentro del
+contenedor debe coincidir con `proxy/nginx.https.conf`.
 
 ## Variables privadas (solo nombres)
 
@@ -120,11 +144,30 @@ Plantillas en `ops/vm/` (ruta real `/home/tareck/G10-CommunityLabE32`), instalad
 `/usr/local/sbin` (root, 755): `cl-estado`, `cl-logs <servicio>`, `cl-reiniciar`, `cl-respaldo`,
 `cl-actualizar <sha> <env-nuevo>`, `cl-revertir <carpeta-estado>`.
 
+Instalación (reemplaza versiones antiguas que apunten a `/opt/communitylab`):
+`install -m 755 -o root -g root ops/vm/cl-* /usr/local/sbin/`.
+
+## Procedencia de imágenes
+
+`desplegar.sh` exporta `GIT_REVISION=<sha>` al construir; cada imagen propia lleva la etiqueta OCI
+`org.opencontainers.image.revision` y la etapa 2 la registra en `<estado>/imagenes.nuevas`.
+Comprobación: `docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}'
+communitylab-api:local`. Una etiqueta de nombre (`:<sha>`) por sí sola no prueba la procedencia.
+
+## Registro de restauraciones
+
+`probar-restauracion.sh` deja `restauracion-<fecha>.json` (resultado OK/FALLA, código de salida,
+fecha) dentro de la carpeta del respaldo y lo informa a `logger -t cl-operador`. Un respaldo con
+listado legible (`pg_restore -l`) no equivale a una restauración comprobada: solo cuenta el registro
+con resultado OK.
+
 ## Pruebas de la operación
 
 - `ops/vm/tests/test_puertas_despliegue.py` (bash + git, sin Docker): orden de etapas, conservación
   de imágenes en ejecución antes del build y bloqueo ante fallos de build, pruebas, respaldo,
-  restauración o migración; reversión automática ante fallos del corte o la verificación.
+  restauración o migración; reversión automática ante fallos del corte o la verificación; rechazo de
+  un `.env` con Discord sin `DISCORD_CONFIG_DIR`; hooks de certbot que no tocan el proxy si el `.env`
+  no es el canónico.
 - `ops/vm/tests/test_operacion_docker.py` (`CL_OPS_DOCKER=1`, Docker real): respaldo con los tres
   SQLite en WAL y escrituras concurrentes, restauración desechable, respaldos alterados, esquema
   previo a la migración, imagen con archivos ilegibles, despliegue fallido con reversión automática y
