@@ -58,7 +58,9 @@ contenedor debe coincidir con `proxy/nginx.https.conf`.
 | `DISCORD_BOT_TOKEN` (y opcional `DISCORD_LECTOR_TOKEN`) | discord-reader, discord-bot |
 | `GEMINI_API_KEY`, `GEMINI_MODELOS`, opcional `COMMUNITYLAB_GEMINI_MODEL` | discord-bot |
 | `DISCORD_CONFIG_DIR` (carpeta privada con `lector.json` y `bot.json`) | discord-reader, discord-bot |
-| `PUENTE_PERIODO` (`semana`/`dia`), `PUENTE_GRACIA_SEGUNDOS`, `PUENTE_INTERVALO` | discord-bridge |
+| `PUENTE_PERIODO` (`semana`/`dia`), `PUENTE_GRACIA_SEGUNDOS`, `PUENTE_INTERVALO`, `PUENTE_MAX_PREVIOS` | discord-bridge |
+| `PUENTE_TOKEN` (mismo valor en api y discord-bridge; vacío = sin «Procesar pendientes») | api, discord-bridge |
+| `OPERADOR_TOKEN` (acciones protegidas; vacío = deshabilitadas con 503) | api |
 | `DOCKER_PLATFORM=linux/arm64`, `HTTP_*`, `HTTPS_*`, `LETSENCRYPT_DIR` | proxy y construcción |
 
 Ejemplos de `lector.json`/`bot.json`: `integrations/discord/config-servicios.example/`.
@@ -84,6 +86,8 @@ Cada período (semana ISO UTC o día) se envía **una sola vez** con `cierre_per
 pipelines.communitylab.puente_discord cerrar --periodo 2026-W42`. Los mensajes que llegan después a un
 período ya cerrado quedan registrados como tardíos y no se envían. No hay cierre incremental continuo:
 el contenido (post, FAQ, highlights) se genera al cerrar el período; el bot sí responde en tiempo real.
+Además, «Procesar pendientes» (Ingesta) adelanta borradores con lotes parciales sin cerrar el
+período; el cierre se aplaza mientras haya parciales en curso. Ver `docs/flujo-hibrido-banners.md`.
 
 ## Procedimiento único de despliegue
 

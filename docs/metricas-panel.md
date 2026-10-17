@@ -9,8 +9,8 @@ origen/período con lotes registrados, para el selector del panel.
 |---|---|---|
 | `total_mensajes` | Mensajes guardados del ámbito (deduplicados por `id_mensaje`). | Mensajes procesados con éxito: se guardan al encolar, aunque el trabajo falle después. |
 | `mensajes_por_tipo` | Conteo por `tipo` (`sin_clasificar` si el lote no lo trajo). | Clasificación de la IA: el análisis del grafo no se escribe en `mensajes`. |
-| `distribucion_sentimiento` | Solo mensajes con `sentimiento_ref` explícito. | Que el resto sea neutral. |
-| `sentimiento.estado` | `sin_datos` (ninguno clasificado), `parcial` o `completo`. | — |
+| `distribucion_sentimiento` | Solo mensajes con `sentimiento_ref` explícito: `positivo`, `negativo`, `neutral` o `indeterminado` (tono no determinable, resultado explícito del análisis). | Que el resto sea neutral: `NULL` = sin analizar. |
+| `sentimiento.estado` | `sin_datos` (ninguno clasificado), `parcial` o `completo`. `GET /api/mensajes/sentimiento/resumen` da los mismos conteos con filtros y porcentajes sobre analizados. | — |
 | `activos_generados` | Total de contenidos en curaduría (todos los estados). | — |
 | `activos_por_estado` | Conteo por estado de curaduría. | — |
 | `borradores_pendientes` | Estados `generado` + `revisado` (pendientes de decisión humana). | — |
