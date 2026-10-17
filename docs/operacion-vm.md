@@ -1,7 +1,47 @@
 # Operación de CommunityLab en la VM
 
-VM OCI ARM64. Repositorio en `/home/tareck/G10-CommunityLabE32`, proyecto Compose
-`g10-communitylabe32`. Comandos como root (o `sudo`) desde esa carpeta.
+VM OCI ARM64. Ruta canónica de la aplicación: **`/srv/communitylab`**, propiedad del usuario de
+servicio `communitylab` (sin login). Proyecto Compose `g10-communitylabe32`. Comandos como root (o
+`sudo`) desde esa carpeta. Mientras no se ejecute la migración (ver «Ubicación y usuario de
+servicio»), la aplicación sigue en la ruta histórica `/home/tareck/G10-CommunityLabE32`; los
+scripts de `ops/vm` deducen la ruta de su propio checkout y funcionan en ambas.
+
+## Ubicación y usuario de servicio
+
+Estructura según el Filesystem Hierarchy Standard (FHS 3.0):
+
+| Ruta | Contenido | Dueño |
+|---|---|---|
+| `/srv/communitylab` | Código, archivos Compose y `.env` (600) | `communitylab` (cuenta de sistema, `nologin`, sin carpeta personal) |
+| `/etc/communitylab/discord` | Configuración privada de Discord | root |
+| `/var/lib/communitylab/despliegues` | Estado de cada despliegue (reversión) | root (700) |
+| `/var/backups/communitylab` | Respaldos | root (700) |
+| `/usr/local/sbin/cl-*`, `communitylab-certbot-*` | Comandos de operación y hooks HTTPS | root |
+| Volúmenes `g10-communitylabe32_*` | Datos (PostgreSQL, SQLite de Discord) | Docker |
+
+- Las personas conservan sus cuentas (`ubuntu`, `tareck`, …) y operan con `sudo cl-*`. Quien deba
+  leer código y logs puede entrar al grupo `communitylab` (`usermod -aG communitylab <usuario>`);
+  el `.env` sigue siendo 600 y no lo lee el grupo.
+- Todo `git` sobre el checkout se ejecuta con el usuario dueño de la carpeta (`git_app` en
+  `comun.sh`, vía `runuser`): los despliegues ya no dejan archivos de root en el repositorio.
+- El token de operador no cambia: vive en el `.env` y se mueve con él.
+
+### Migración desde la ruta histórica (una sola vez; requiere autorización)
+
+Script: `ops/vm/migrar-a-srv.sh` (root). No mueve datos: el `.env` fija `COMPOSE_PROJECT_NAME`, así
+que el proyecto conserva sus volúmenes (el script se niega a continuar si falta esa línea).
+
+1. Elegir una ventana fuera de cierres semanales (p. ej. después del cierre del lunes 01:00 UTC).
+2. `sudo /home/tareck/G10-CommunityLabE32/ops/vm/migrar-a-srv.sh comprobar` — solo comprueba.
+3. `sudo /home/tareck/G10-CommunityLabE32/ops/vm/migrar-a-srv.sh ejecutar`:
+   respaldo comprobado → usuario `communitylab` → `docker compose down` (sin `-v`) →
+   `mv` a `/srv/communitylab` → dueño `communitylab` (carpeta 750, `.env` 600) → instala `cl-*` y
+   hooks desde la ruta nueva → `up -d` → salud y verificación HTTPS. Corte estimado: 1–2 min.
+   Cualquier fallo durante el corte deshace la mudanza automáticamente.
+4. Reversión posterior: `sudo /srv/communitylab/ops/vm/migrar-a-srv.sh deshacer` (devuelve la
+   carpeta, el dueño anterior y los `cl-*`/hooks guardados en `/var/lib/communitylab/migracion-srv`).
+5. Después de migrar, los `.env` preparados para despliegues deben vivir fuera del repo (p. ej.
+   `/root` o `/etc/communitylab`), con permisos 600.
 
 ## Invocación canónica
 
@@ -144,7 +184,7 @@ el script lo informa y se sigue el procedimiento manual de Reversión con la car
 
 ## Comandos `cl-*`
 
-Plantillas en `ops/vm/` (ruta real `/home/tareck/G10-CommunityLabE32`), instaladas en
+Plantillas en `ops/vm/` (ruta canónica `/srv/communitylab`), instaladas en
 `/usr/local/sbin` (root, 755): `cl-estado`, `cl-logs <servicio>`, `cl-reiniciar`, `cl-respaldo`,
 `cl-actualizar <sha> <env-nuevo>`, `cl-revertir <carpeta-estado>`.
 

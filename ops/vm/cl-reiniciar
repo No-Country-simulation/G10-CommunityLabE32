@@ -1,6 +1,6 @@
 #!/bin/bash
 set -eu
-APP=/home/tareck/G10-CommunityLabE32
+APP=/srv/communitylab
 logger -t cl-operador "reiniciar por ${SUDO_USER:-?}"
 # Usa COMPOSE_FILE del .env: incluye HTTPS y Discord. No recrea contenedores ni toca volúmenes.
 cd "$APP" && docker compose restart
