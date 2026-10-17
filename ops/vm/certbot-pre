@@ -1,0 +1,15 @@
+#!/bin/bash
+# pre_hook de renovación (certbot standalone necesita el puerto 80 libre).
+# Instalar como /usr/local/sbin/communitylab-certbot-pre (root, 750). Ver docs/operacion-vm.md.
+# Antes de detener el proxy comprueba que el .env canónico produce la configuración HTTPS
+# completa: si no, sale con error SIN tocar el proxy (la renovación falla y el sitio sigue).
+set -euo pipefail
+APP=${APP:-/home/tareck/G10-CommunityLabE32}
+cd "$APP"
+grep -q '^COMPOSE_FILE=.*compose.https.yml' .env \
+  || { logger -t cl-certbot "pre: .env sin COMPOSE_FILE canónico; proxy intacto"; exit 1; }
+servicios=$(docker compose config --services)
+grep -qx proxy <<<"$servicios" && grep -q '443' <(docker compose config 2>/dev/null) \
+  || { logger -t cl-certbot "pre: configuración sin proxy HTTPS; proxy intacto"; exit 1; }
+logger -t cl-certbot "pre: deteniendo proxy para la renovación"
+docker compose stop proxy

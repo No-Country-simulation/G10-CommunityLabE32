@@ -6,6 +6,8 @@ x-discord: &discord
   build:
     context: .
     dockerfile: integrations/discord/Dockerfile
+    labels:
+      org.opencontainers.image.revision: ${GIT_REVISION:-desconocido}
   platform: ${DOCKER_PLATFORM:-linux/arm64}
   restart: unless-stopped
   read_only: true

@@ -1,16 +1,26 @@
 'use client';
 
 import axios from 'axios';
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   MessageSquare, Edit3, CheckCircle2, XCircle, Clock, BookOpen,
-  Layers, Loader2, Save, ChevronLeft, ChevronRight, X,
+  Layers, Loader2, Save, ChevronLeft, ChevronRight, X, AlertTriangle, ArrowLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { listarActivos, obtenerDetalleActivo, actualizarActivo, Activo, EstadoActivo } from '@/services/api';
 import Sidebar from '@/components/Sidebar';
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Etiquetas de los controles de fidelidad (pipelines/communitylab/generadores/fidelidad.py).
+const ETIQUETA_ADVERTENCIA: Record<string, string> = {
+  cifra_no_sustentada: 'Cifra que no aparece en las fuentes',
+  detalle_no_sustentado: 'Detalle no mencionado en las fuentes',
+  archivo_no_sustentado: 'Archivo no mencionado en las fuentes',
+  diagnostico_no_sustentado: 'Afirma una causa que las fuentes no plantean',
+  posible_atribucion_individual: 'Logro colectivo presentado como individual',
+};
 
 const estadoBadge = (estado: string) => {
   switch (estado) {
@@ -21,7 +31,17 @@ const estadoBadge = (estado: string) => {
   }
 };
 
-export default function CuraduriaPage() {
+// useSearchParams requiere un límite Suspense para no bloquear el prerender (docs de Next 16).
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <CuraduriaPage />
+    </Suspense>
+  );
+}
+
+function CuraduriaPage() {
+  const parametros = useSearchParams();
   const [activos, setActivos] = useState<Activo[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedActivo, setSelectedActivo] = useState<Activo | null>(null);
@@ -33,6 +53,10 @@ export default function CuraduriaPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [saving, setSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Móvil: se alterna entre listado y detalle; en escritorio se ven ambos.
+  const [vistaMovil, setVistaMovil] = useState<'lista' | 'detalle'>('lista');
+  // Filtro opcional por trabajo, desde el enlace "Ver resultados" de la ingesta.
+  const [trabajo, setTrabajo] = useState<string | null>(() => parametros.get('trabajo'));
 
   const [editCopy, setEditCopy] = useState('');
   const [comentario, setComentario] = useState('');
@@ -41,7 +65,7 @@ export default function CuraduriaPage() {
 
   useEffect(() => {
     let vigente = true;
-    listarActivos(page, 10, filtroEstado).then(res => {
+    listarActivos(page, 10, filtroEstado, trabajo).then(res => {
       if (!vigente) return;
       setActivos(res.items);
       setTotalPages(res.total_pages || 1);
@@ -52,7 +76,7 @@ export default function CuraduriaPage() {
       console.error('Error al cargar activos:', error);
     });
     return () => { vigente = false; };
-  }, [page, filtroEstado]);
+  }, [page, filtroEstado, trabajo]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -76,6 +100,13 @@ export default function CuraduriaPage() {
 
   const handleUpdate = async (nuevoEstado?: EstadoActivo) => {
     if (!selectedId || selectedActivo?.id_activo !== selectedId) return;
+
+    const pendientes = selectedActivo?.advertencias_fidelidad?.length ?? 0;
+    if (nuevoEstado === 'aprobado' && pendientes > 0 && !window.confirm(
+      `Este contenido tiene ${pendientes} advertencia(s) de fidelidad. ¿Confirmas que revisaste el texto frente a las fuentes?`,
+    )) {
+      return;
+    }
 
     if (nuevoEstado === 'aprobado' && tieneConsentimiento) {
       if (!editCopy.toLowerCase().includes('aprobación de demostración')) {
@@ -103,15 +134,26 @@ export default function CuraduriaPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full overflow-hidden relative">
+    <div className="flex min-h-screen w-full md:overflow-hidden relative">
       <Sidebar />
 
-      {/* Panel izquierdo: lista de borradores */}
-      <div className="w-80 shrink-0 flex flex-col h-screen bg-surface border-r border-border">
+      {/* Panel izquierdo: lista de borradores (en móvil, solo en la vista de listado) */}
+      <div className={`${vistaMovil === 'lista' ? 'flex' : 'hidden'} md:flex w-full md:w-80 shrink-0 flex-col min-h-[60dvh] md:h-[calc(100dvh-var(--topbar-h))] bg-surface border-r border-border`}>
         <div className="p-5 border-b border-border">
           <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
             <Layers className="w-5 h-5 text-primary" /> Borradores
           </h2>
+          {trabajo && (
+            <p className="mt-3 badge-info max-w-full">
+              <span className="truncate">Trabajo {trabajo.slice(0, 8)}…</span>
+              <button
+                onClick={() => { setTrabajo(null); setPage(1); setLoadingList(true); window.history.replaceState(null, '', '/curaduria'); }}
+                className="underline underline-offset-2 shrink-0"
+              >
+                Quitar filtro
+              </button>
+            </p>
+          )}
           <div className="flex flex-wrap gap-2 mt-4">
             {['', 'generado', 'revisado', 'aprobado'].map(st => (
               <button
@@ -135,16 +177,23 @@ export default function CuraduriaPage() {
           ) : activos.map(a => (
             <div
               key={a.id_activo}
-              onClick={() => setSelectedId(a.id_activo)}
+              onClick={() => { setSelectedId(a.id_activo); setVistaMovil('detalle'); }}
               className={`px-4 py-3.5 cursor-pointer border-b border-border border-l-2 transition-colors ${
                 selectedId === a.id_activo
                   ? 'bg-primary-soft border-l-primary'
                   : 'border-l-transparent hover:bg-surface-hover'
               }`}
             >
-              <div className="flex justify-between items-center mb-1.5">
+              <div className="flex justify-between items-center mb-1.5 gap-2">
                 <span className="badge-violet">{a.formato}</span>
-                <span className={estadoBadge(a.estado)}>{a.estado}</span>
+                <span className="flex items-center gap-1.5">
+                  {!!a.advertencias_fidelidad?.length && (
+                    <span className="badge-warning" title="Advertencias de fidelidad">
+                      <AlertTriangle className="w-3 h-3" /> {a.advertencias_fidelidad.length}
+                    </span>
+                  )}
+                  <span className={estadoBadge(a.estado)}>{a.estado}</span>
+                </span>
               </div>
               <h3 className="text-sm font-medium text-foreground truncate">{a.titulo}</h3>
               <p className="text-xs text-subtle-foreground truncate mt-0.5 font-mono">{a.id_activo}</p>
@@ -173,12 +222,15 @@ export default function CuraduriaPage() {
         </div>
       </div>
 
-      {/* Editor principal */}
-      <div className="flex-1 min-w-0 flex flex-col h-screen relative">
+      {/* Editor principal (en móvil, solo en la vista de detalle) */}
+      <div className={`${vistaMovil === 'detalle' ? 'flex' : 'hidden'} md:flex flex-1 min-w-0 flex-col md:h-[calc(100dvh-var(--topbar-h))] relative`}>
         {selectedActivo && selectedActivo.id_activo === selectedId ? (
           <>
-            <div className="px-6 py-5 border-b border-border bg-surface flex justify-between items-center gap-4">
-              <div className="min-w-0">
+            <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border bg-surface flex flex-wrap justify-between items-center gap-3">
+              <button onClick={() => setVistaMovil('lista')} className="btn-ghost px-2! py-2! md:hidden" aria-label="Volver al listado">
+                <ArrowLeft className="w-4 h-4" /> Listado
+              </button>
+              <div className="min-w-0 flex-1 basis-full order-last md:order-none md:basis-0">
                 <h1 className="text-xl font-bold text-foreground mb-1 truncate">{selectedActivo.titulo}</h1>
                 <p className="text-xs text-muted-foreground">
                   Versión {selectedActivo.version} · Actualizado {new Date(selectedActivo.fecha_actualizacion).toLocaleString()}
@@ -190,7 +242,22 @@ export default function CuraduriaPage() {
               </button>
             </div>
 
-            <div className="flex-1 p-6 flex flex-col gap-4 overflow-y-auto">
+            <div className="flex-1 p-4 sm:p-6 flex flex-col gap-4 md:overflow-y-auto">
+              {!!selectedActivo.advertencias_fidelidad?.length && (
+                <div className="rounded-xl border border-warning/30 bg-warning-soft p-4 text-sm">
+                  <p className="font-semibold text-warning flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" /> Revisar fidelidad frente a las fuentes
+                  </p>
+                  <ul className="mt-2 space-y-1 text-foreground">
+                    {selectedActivo.advertencias_fidelidad.map((adv, i) => (
+                      <li key={i}>{ETIQUETA_ADVERTENCIA[adv.tipo] ?? adv.tipo}: <span className="font-mono">{adv.detalle}</span></li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Controles automáticos: no detectan toda afirmación inventada. Contrasta el texto con «Ver fuentes».
+                  </p>
+                </div>
+              )}
               <div className="card flex-1 flex flex-col p-5 min-h-[250px]">
                 <div className="flex justify-between items-center mb-3">
                   <label className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider">
@@ -259,7 +326,7 @@ export default function CuraduriaPage() {
             </div>
 
             {/* Barra de acciones */}
-            <div className="px-6 py-4 border-t border-border bg-surface flex justify-between items-center shrink-0 gap-3 flex-wrap">
+            <div className="px-4 sm:px-6 py-4 border-t border-border bg-surface flex justify-between items-center shrink-0 gap-3 flex-wrap">
               <button disabled={saving || !isDirty} onClick={() => handleUpdate()} className="btn-secondary">
                 <Save className="w-4 h-4" /> Guardar texto
               </button>

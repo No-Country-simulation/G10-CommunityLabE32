@@ -16,6 +16,7 @@ from backend.app.schemas.curaduria import (
     FormatoActivoEnum,
     FuenteMensajeDetalle
 )
+from backend.app.services.ambito import ids_activos_de_trabajo
 from backend.app.services.oci import subir_activo_aprobado_oci
 
 router = APIRouter(prefix="/api/curaduria", tags=["Curaduría de Activos"])
@@ -34,6 +35,7 @@ async def listar_activos(
     limit: int = Query(15, ge=1, le=100, description="Cantidad de registros por página"),
     estado: Optional[EstadoActivoEnum] = Query(None),
     formato: Optional[FormatoActivoEnum] = Query(None),
+    trabajo: Optional[str] = Query(None, max_length=64, description="Solo activos de este trabajo"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -49,6 +51,10 @@ async def listar_activos(
     if formato:
         query = query.where(Activo.formato == formato.value)
         count_query = count_query.where(Activo.formato == formato.value)
+    if trabajo:
+        ids = sorted(await ids_activos_de_trabajo(db, trabajo)) or [""]
+        query = query.where(Activo.id_activo.in_(ids))
+        count_query = count_query.where(Activo.id_activo.in_(ids))
 
     # 1. Total de registros para la paginación del frontend
     total_res = await db.execute(count_query)
@@ -111,6 +117,7 @@ async def obtener_detalle_activo(id_activo: str, db: AsyncSession = Depends(get_
         fuentes=activo.fuentes,
         version=activo.version,
         comentario_curador=activo.comentario_curador,
+        advertencias_fidelidad=activo.advertencias_fidelidad,
         fecha_creacion=activo.fecha_creacion,
         fecha_actualizacion=activo.fecha_actualizacion,
         fuentes_detalle=fuentes_detalle

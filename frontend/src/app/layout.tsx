@@ -30,7 +30,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="min-h-full flex flex-col bg-background text-foreground pb-16 md:pb-0">
+        {/* pb-16 en móvil: espacio para la barra de navegación inferior (Sidebar) */}
         <Script
           id="tema-inicial"
           strategy="beforeInteractive"

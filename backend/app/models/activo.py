@@ -18,5 +18,7 @@ class Activo(Base):
     fuentes: Mapped[List[str]] = mapped_column(JSON, default=list)
     version: Mapped[int] = mapped_column(default=1)
     comentario_curador: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    # Controles automáticos de fidelidad (ver pipelines/communitylab/generadores/fidelidad.py).
+    advertencias_fidelidad: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     fecha_creacion: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     fecha_actualizacion: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

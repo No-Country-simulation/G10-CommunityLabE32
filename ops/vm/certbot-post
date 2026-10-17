@@ -1,0 +1,13 @@
+#!/bin/bash
+# post_hook de renovación: vuelve a levantar SOLO el proxy con la configuración canónica.
+# Instalar como /usr/local/sbin/communitylab-certbot-post (root, 750). Ver docs/operacion-vm.md.
+# --no-deps: no recrea web/api/worker aunque su definición hubiera cambiado.
+set -euo pipefail
+APP=${APP:-/home/tareck/G10-CommunityLabE32}
+cd "$APP"
+grep -q '^COMPOSE_FILE=.*compose.https.yml' .env \
+  || { logger -t cl-certbot "post: .env sin COMPOSE_FILE canónico; revisar a mano"; exit 1; }
+docker compose up -d --no-deps proxy
+docker compose exec -T proxy nginx -t
+docker compose exec -T proxy nginx -s reload
+logger -t cl-certbot "post: proxy levantado y recargado"

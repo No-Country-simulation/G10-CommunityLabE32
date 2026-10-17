@@ -43,6 +43,9 @@ services:
       context: ./frontend
       args:
         API_PROXY_TARGET: http://api:8000
+      # Procedencia: desplegar.sh exporta GIT_REVISION con el commit construido.
+      labels:
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconocido}
     platform: ${DOCKER_PLATFORM:-linux/arm64}
     environment:
       NODE_ENV: production
@@ -63,6 +66,8 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      labels:
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconocido}
     platform: ${DOCKER_PLATFORM:-linux/arm64}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
@@ -85,6 +90,8 @@ services:
     build:
       context: .
       dockerfile: worker/Dockerfile
+      labels:
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconocido}
     platform: ${DOCKER_PLATFORM:-linux/arm64}
     environment:
       <<: *database
@@ -122,6 +129,8 @@ services:
     build:
       context: .
       dockerfile: worker/Dockerfile
+      labels:
+        org.opencontainers.image.revision: ${GIT_REVISION:-desconocido}
     platform: ${DOCKER_PLATFORM:-linux/arm64}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}

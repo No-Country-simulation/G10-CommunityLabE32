@@ -18,3 +18,5 @@ CREATE INDEX IF NOT EXISTS trabajos_worker_pendientes ON trabajos_worker (estado
 ALTER TABLE trabajos_worker ADD COLUMN IF NOT EXISTS clave_idempotencia text;
 CREATE UNIQUE INDEX IF NOT EXISTS trabajos_worker_idempotencia
     ON trabajos_worker (clave_idempotencia);
+-- Advertencias de fidelidad editorial por activo (aditiva; NULL en activos anteriores).
+ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS advertencias_fidelidad jsonb;

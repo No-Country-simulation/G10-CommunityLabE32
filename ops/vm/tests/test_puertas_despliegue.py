@@ -142,3 +142,40 @@ def test_rechaza_env_nuevo_sin_https(entorno, tmp_path):
     p = subprocess.run(["bash", str(OPS / "desplegar.sh"), entorno["nuevo"], str(env)], capture_output=True,
                        text=True, env={**os.environ, "APP": str(entorno["app"])}, timeout=60)
     assert p.returncode != 0 and "compose.https.yml" in p.stderr
+
+
+def test_rechaza_env_con_discord_sin_config_privada(entorno, tmp_path):
+    env = tmp_path / "discord-sin-config.env"
+    env.write_text("WORKER_MODE=gemini\nCOMPOSE_FILE=docker-compose.yml:compose.https.yml:compose.discord.yml\n")
+    p = subprocess.run(["bash", str(OPS / "desplegar.sh"), entorno["nuevo"], str(env)], capture_output=True,
+                       text=True, env={**os.environ, "APP": str(entorno["app"])}, timeout=60)
+    assert p.returncode != 0 and "DISCORD_CONFIG_DIR" in p.stderr
+
+
+DOCKER_HOOK = r"""#!/bin/bash
+echo "docker $*" >> "$REGISTRO"
+case "$*" in
+  "compose config --services") printf 'proxy\nweb\napi\n' ;;
+  "compose config") echo '      - "0.0.0.0:443:443"' ;;
+esac
+exit 0
+"""
+
+
+@pytest.mark.parametrize("hook", ["certbot-pre", "certbot-post"])
+def test_hooks_certbot_no_tocan_el_proxy_sin_env_canonico(tmp_path, hook):
+    app, bin_ = tmp_path / "app", tmp_path / "bin"
+    app.mkdir(); bin_.mkdir()
+    ejecutable(bin_ / "docker", DOCKER_HOOK)
+    ejecutable(bin_ / "logger", "#!/bin/bash\nexit 0\n")
+    registro = tmp_path / "registro.log"
+    env = {**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}", "APP": str(app), "REGISTRO": str(registro)}
+    (app / ".env").write_text("WORKER_MODE=simulado\n")  # .env viejo, sin COMPOSE_FILE
+    p = subprocess.run(["bash", str(OPS / hook)], env=env, capture_output=True, text=True, timeout=30)
+    llamadas = registro.read_text() if registro.exists() else ""
+    assert p.returncode != 0 and "proxy" not in llamadas
+    (app / ".env").write_text("COMPOSE_PATH_SEPARATOR=:\nCOMPOSE_FILE=docker-compose.yml:compose.https.yml:compose.discord.yml\n")
+    p = subprocess.run(["bash", str(OPS / hook)], env=env, capture_output=True, text=True, timeout=30)
+    assert p.returncode == 0, p.stderr
+    esperado = "compose stop proxy" if hook == "certbot-pre" else "compose up -d --no-deps proxy"
+    assert esperado in registro.read_text()

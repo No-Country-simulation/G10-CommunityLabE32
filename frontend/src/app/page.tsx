@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { obtenerMensajes, obtenerKPIs, Mensaje, DashboardKPIs } from '@/services/api';
+import Link from 'next/link';
+import { obtenerMensajes, obtenerKPIs, obtenerAmbitos, Ambito, Mensaje, DashboardKPIs } from '@/services/api';
 import {
-  Loader2, Wifi, MessageSquare, Layers, CheckCircle2, AlertTriangle, Activity,
+  Loader2, Wifi, WifiOff, MessageSquare, Layers, CheckCircle2, AlertTriangle, Activity, UploadCloud,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
@@ -25,59 +26,35 @@ const itemAnim = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } };
 export default function CommunityDashboard() {
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
+  const [ambitos, setAmbitos] = useState<Ambito[]>([]);
+  const [ambito, setAmbito] = useState<Ambito | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [cargandoMock, setCargandoMock] = useState(false);
+  const [conectado, setConectado] = useState<boolean | null>(null);
 
   useEffect(() => {
-    Promise.all([obtenerKPIs(), obtenerMensajes()])
+    obtenerAmbitos().then(setAmbitos).catch(() => setAmbitos([]));
+  }, []);
+
+  useEffect(() => {
+    let vigente = true;
+    Promise.all([obtenerKPIs(ambito), obtenerMensajes(0, 9, undefined, ambito)])
       .then(([kpiData, msgsData]) => {
+        if (!vigente) return;
         setKpis(kpiData);
         setMensajes(msgsData.items);
+        setConectado(true);
         setCargando(false);
       })
       .catch((err) => {
+        if (!vigente) return;
         console.error('Error conectando al backend:', err);
+        setConectado(false);
         setCargando(false);
       });
-  }, []);
+    return () => { vigente = false; };
+  }, [ambito]);
 
-  // Funcionalidad de pruebas de Tareck preservada
-  const probarApiBackend = async () => {
-    setCargandoMock(true);
-    try {
-      const respuesta = await fetch('/api/v1/procesamientos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          origen_comunidad: 'discord_comunidad_alura',
-          periodo_referencia: '2026-W38',
-          interacciones: [
-            'Conseguí mi primer empleo como Dev Jr.',
-            '¿Cómo configuro reintentos en LangGraph?',
-            'Tengo la misma duda sobre reintentos.',
-            'Participé en una mentoría de portafolios.',
-            'Esta semana compartimos avances de OCI.',
-            'Tengo un bloqueo con un timeout de OCI.',
-          ].map((texto, index) => ({
-            id: `m-0${index + 1}`,
-            autor: `persona_demo_${index + 1}`,
-            canal: 'pruebas',
-            fecha: '2026-09-23T10:00:00Z',
-            texto,
-          })),
-        }),
-      });
-
-      if (!respuesta.ok) throw new Error('Error en la respuesta del backend');
-      alert('Respuesta de demostración recibida. Esta prueba no guarda datos.');
-      window.location.reload();
-    } catch {
-      alert('No se pudo consultar el backend. Revisa que los servicios locales estén disponibles.');
-    } finally {
-      setCargandoMock(false);
-    }
-  };
-
+  const sentimiento = kpis?.sentimiento;
   const tarjetas = kpis
     ? [
         {
@@ -85,37 +62,40 @@ export default function CommunityDashboard() {
           valor: kpis.total_mensajes,
           icono: MessageSquare,
           tono: tonos.info,
-          pie: (
-            <div className="flex justify-between">
+          pie: !sentimiento || sentimiento.estado === 'sin_datos' ? (
+            <span>Sentimiento: sin datos ({kpis.total_mensajes} sin clasificar)</span>
+          ) : (
+            <div className="flex justify-between gap-2">
               <span className="text-success font-medium">
-                +{kpis.distribucion_sentimiento?.positivo || 0} positivos
+                +{kpis.distribucion_sentimiento.positivo} positivos
               </span>
               <span className="text-danger font-medium">
-                {kpis.distribucion_sentimiento?.negativo || 0} quejas
+                {kpis.distribucion_sentimiento.negativo} negativos
               </span>
+              {sentimiento.sin_clasificar > 0 && <span>{sentimiento.sin_clasificar} sin clasificar</span>}
             </div>
           ),
         },
         {
-          titulo: 'Borradores IA',
-          valor: kpis.activos_generados,
+          titulo: 'Borradores por revisar',
+          valor: kpis.borradores_pendientes,
           icono: Layers,
           tono: tonos.info,
-          pie: <span>Activos listos para revisión en el panel</span>,
+          pie: <span>Generados o revisados, de {kpis.activos_generados} contenidos en total</span>,
         },
         {
-          titulo: 'Publicaciones',
+          titulo: 'Aprobados',
           valor: kpis.activos_aprobados,
           icono: CheckCircle2,
           tono: tonos.success,
-          pie: <span>Aprobados listos para OCI Storage</span>,
+          pie: <span>Sin publicar: la publicación externa aún no está habilitada</span>,
         },
         {
           titulo: 'Alertas internas',
           valor: kpis.alertas_internas,
           icono: AlertTriangle,
           tono: kpis.alertas_internas > 0 ? tonos.danger : tonos.warning,
-          pie: <span>Bloqueos que requieren atención manual</span>,
+          pie: <span>Mensajes con bloqueo detectado por el pipeline (no se publican)</span>,
         },
       ]
     : [];
@@ -124,29 +104,51 @@ export default function CommunityDashboard() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
 
-      <main className="flex-1 min-w-0 p-6 md:p-10 h-screen overflow-y-auto">
+      <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
         <header className="mb-8 flex flex-wrap justify-between items-end gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground mb-1.5">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mb-1.5">
               Centro de Operaciones
             </h1>
             <p className="text-muted-foreground text-[15px]">
-              Métricas en tiempo real e interacciones procesadas.
+              Métricas e interacciones procesadas{ambito ? ` · ${ambito.origen} · ${ambito.periodo}` : ' · todos los lotes'}.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={probarApiBackend} disabled={cargandoMock} className="btn-secondary">
-              {cargandoMock ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Activity className="w-3.5 h-3.5 text-primary" />
-              )}
-              Test Ingesta (Tareck)
-            </button>
-            <span className="badge-success py-1.5! px-3!">
-              <Wifi className="w-3.5 h-3.5" />
-              API conectada
-            </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="sr-only" htmlFor="ambito">Ámbito de las métricas</label>
+            <select
+              id="ambito"
+              className="input py-2! w-auto max-w-full"
+              value={ambito ? `${ambito.origen}\u0000${ambito.periodo}` : ''}
+              onChange={(e) => {
+                const elegido = ambitos.find((a) => `${a.origen}\u0000${a.periodo}` === e.target.value) ?? null;
+                setCargando(true);
+                setAmbito(elegido);
+              }}
+            >
+              <option value="">Todos los lotes (incluye históricos)</option>
+              {ambitos.map((a) => (
+                <option key={`${a.origen}\u0000${a.periodo}`} value={`${a.origen}\u0000${a.periodo}`}>
+                  {a.origen} · {a.periodo}
+                </option>
+              ))}
+            </select>
+            {/* Reemplaza el antiguo "Test Ingesta", que llamaba a un endpoint de demostración sin persistencia. */}
+            <Link href="/ingesta" className="btn-secondary">
+              <UploadCloud className="w-3.5 h-3.5 text-primary" />
+              Nueva ingesta
+            </Link>
+            {conectado === false ? (
+              <span className="badge-danger py-1.5! px-3!">
+                <WifiOff className="w-3.5 h-3.5" />
+                Sin conexión con la API
+              </span>
+            ) : conectado ? (
+              <span className="badge-success py-1.5! px-3!">
+                <Wifi className="w-3.5 h-3.5" />
+                API conectada
+              </span>
+            ) : null}
           </div>
         </header>
 
@@ -186,8 +188,11 @@ export default function CommunityDashboard() {
 
             <div>
               <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary" /> Flujo en tiempo real
+                <Activity className="w-5 h-5 text-primary" /> Mensajes recientes
               </h2>
+              <p className="text-xs text-subtle-foreground -mt-2 mb-4">
+                Ordenados por fecha del mensaje. Usa el selector para separar históricos, pruebas y actividad actual.
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {mensajes.slice(0, 9).map((msg) => (
                   <motion.div

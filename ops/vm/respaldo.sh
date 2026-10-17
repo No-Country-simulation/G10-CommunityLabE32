@@ -90,7 +90,8 @@ done
 reanudar; pausado=0
 
 # --- Configuración privada y manifiesto ---
-config_discord=$(leer_env DISCORD_CONFIG_DIR)
+# DISCORD_CONFIG_DIR_RESPALDO permite respaldar la config desde otra ruta (ajuste traído de la VM).
+config_discord=${DISCORD_CONFIG_DIR_RESPALDO:-$(leer_env DISCORD_CONFIG_DIR)}
 python3 - "$DESTINO/configuracion-privada.tgz" "$APP/.env" "$config_discord" <<'EOF'
 import os, sys, tarfile
 destino, env, config = sys.argv[1:]

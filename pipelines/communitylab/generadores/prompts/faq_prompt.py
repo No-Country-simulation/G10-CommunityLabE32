@@ -80,6 +80,8 @@ EXTENSIÓN
 RESTRICCIONES
 
 - No inventar causas, configuraciones o comportamientos.
+- Distinguir recomendación de diagnóstico. Si las fuentes solo preguntan cómo hacer algo, responder con recomendaciones generales ("una opción es…", "para configurarlo puedes…") y no afirmar causas, errores, configuraciones faltantes o defectuosas de quien pregunta (prohibido "carecía de…", "la causa es…", "se debe a…") salvo que las fuentes lo digan.
+- No presentar como hechos de la comunidad datos que no figuren en las fuentes.
 - Utilizar únicamente información proporcionada.
 - Priorizar la resolución del problema sobre la explicación conceptual.
 - Evitar respuestas ambiguas.

@@ -10,7 +10,9 @@ Política única para todo un trabajo:
 
 No usa el SDK google-genai a propósito: el SDK reintenta por su cuenta y multiplicaría
 los reintentos de esta política y del worker. Los errores y los logs nunca incluyen
-textos del lote, respuestas del modelo ni mensajes del proveedor.
+textos del lote, respuestas del modelo ni mensajes del proveedor. De un rechazo 4xx solo se
+conserva un diagnóstico estructurado (diagnostico.py): estado HTTP, categoría interna, estado y
+razón del proveedor de catálogos permitidos, rutas de campos normalizadas y métricas de tamaño.
 """
 from __future__ import annotations
 
@@ -24,6 +26,9 @@ import time
 
 import httpx
 
+# diagnostico_seguro se reexporta: cliente, grafo y pruebas lo importan desde aquí.
+from .diagnostico import diagnostico_seguro  # noqa: F401
+
 URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models/"
 LOG = logging.getLogger("communitylab.gemini")
 MODELO_VALIDO = re.compile(r"gemini-[a-z0-9][a-z0-9.\-]*")
@@ -36,8 +41,10 @@ class ErrorIA(Exception):
     """Base: el mensaje es siempre un código controlado, sin texto externo."""
     codigo = "ia_error"
 
-    def __init__(self, detalle=None):
+    def __init__(self, detalle=None, diagnostico=None):
         super().__init__(detalle or self.codigo)
+        # Diagnóstico de catálogo (ver diagnostico.py); nunca texto del proveedor.
+        self.diagnostico = diagnostico
 
 
 class ErrorConfiguracionIA(ErrorIA):
@@ -204,6 +211,22 @@ def _json(respuesta):
     return datos if isinstance(datos, dict) else {}
 
 
+def _forma_peticion(cuerpo, esquema):
+    """Métricas de tamaño de la petición, sin contenido."""
+    def contar_enum(nodo):
+        if isinstance(nodo, dict):
+            propio = len(nodo["enum"]) if isinstance(nodo.get("enum"), list) else 0
+            return propio + sum(contar_enum(v) for v in nodo.values())
+        if isinstance(nodo, list):
+            return sum(contar_enum(v) for v in nodo)
+        return 0
+    items = ((esquema.get("properties") or {}).get("resultados") or {}) if isinstance(esquema, dict) else {}
+    return {"bytes_peticion": len(json.dumps(cuerpo, ensure_ascii=False).encode()),
+            "bytes_esquema": len(json.dumps(esquema, ensure_ascii=False).encode()),
+            "valores_enum": contar_enum(esquema),
+            "items_esperados": items.get("maxItems") or 0}
+
+
 class ClienteGemini:
     def __init__(self, cfg, *, transporte=None, reloj=time.monotonic, dormir=time.sleep):
         self.cfg = cfg
@@ -267,7 +290,9 @@ class ClienteGemini:
                 datos = _json(respuesta)
                 if estado in (400, 401, 403, 404):
                     self._metrica(tarea, modelo, intento, "configuracion", estado, inicio)
-                    raise ErrorConfiguracionIA(f"http_{estado}")
+                    diagnostico = diagnostico_seguro(estado, datos, _forma_peticion(cuerpo, esquema))
+                    self._diagnostico(tarea, modelo, diagnostico)
+                    raise ErrorConfiguracionIA(f"http_{estado}", diagnostico)
                 if estado == 402:
                     self._metrica(tarea, modelo, intento, "cuota", estado, inicio)
                     raise ErrorCuotaIA("http_402")
@@ -281,7 +306,9 @@ class ClienteGemini:
                     ultimo_cuota, espera = False, _retry_after(respuesta, datos)
                 else:
                     self._metrica(tarea, modelo, intento, "configuracion", estado, inicio)
-                    raise ErrorConfiguracionIA(f"http_{estado}")
+                    diagnostico = diagnostico_seguro(estado, datos, _forma_peticion(cuerpo, esquema))
+                    self._diagnostico(tarea, modelo, diagnostico)
+                    raise ErrorConfiguracionIA(f"http_{estado}", diagnostico)
             if intento == self.cfg.reintentos:
                 break
             espera = min(2.0 ** intento, self.cfg.espera_maxima) if espera is None else espera
@@ -329,6 +356,12 @@ class ClienteGemini:
             raise _FalloContrato("vacio")
         self._metrica(tarea, modelo, intento, "ok", 200, inicio, tokens)
         return texto
+
+    def _diagnostico(self, tarea, modelo, d):
+        LOG.warning("gemini diagnostico tarea=%s modelo=%s http=%s categoria=%s estado_proveedor=%s "
+                    "razon=%s campos=%s peticion=%s", tarea, modelo, d["http"], d["categoria"],
+                    d["estado_proveedor"], d["razon"], ",".join(d["campos"]) or "-",
+                    json.dumps(d.get("peticion", {})))
 
     def _metrica(self, tarea, modelo, intento, resultado, http, inicio, tokens=None):
         LOG.info("gemini tarea=%s modelo=%s intento=%d resultado=%s http=%s latencia_ms=%d "

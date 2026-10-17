@@ -28,6 +28,13 @@ ESPERA_SALUD=${ESPERA_SALUD:-300}
 [ -f "$ENV_NUEVO" ] || fallar "no existe $ENV_NUEVO"
 grep -q '^COMPOSE_FILE=.*compose.https.yml' "$ENV_NUEVO" || [ -n "${PERMITIR_SIN_HTTPS:-}" ] \
   || fallar "el .env nuevo debe definir COMPOSE_FILE con compose.https.yml"
+# Con los servicios de Discord, su config privada debe estar declarada (ajuste traído de la VM).
+if grep -q '^COMPOSE_FILE=.*compose.discord.yml' "$ENV_NUEVO"; then
+  [ -n "$(sed -n 's/^DISCORD_CONFIG_DIR=//p' "$ENV_NUEVO" | tail -1)" ] \
+    || fallar "el .env nuevo no define DISCORD_CONFIG_DIR"
+fi
+# Las URLs de verificación de la VM las define cl-actualizar (VERIFICAR_URLS); sin valor por
+# defecto aquí: el script también corre en pruebas y CI, donde el dominio público no aplica.
 [ -z "$(cd "$APP" && git status --porcelain --untracked-files=no)" ] || fallar "cambios locales en $APP"
 (cd "$APP" && git fetch --quiet origin) || log "aviso: git fetch falló; se usa el sha local"
 SHA=$(cd "$APP" && git rev-parse --verify "$SHA_PEDIDO^{commit}") || fallar "sha inexistente: $SHA_PEDIDO"
@@ -61,10 +68,16 @@ limpiar_arbol() { (cd "$APP" && git worktree remove --force "$ARBOL" >/dev/null 
 trap limpiar_arbol EXIT
 export API_IMAGE="$IMAGEN_PREFIJO-api:$CORTO" WORKER_IMAGE="$IMAGEN_PREFIJO-worker:$CORTO"
 export WEB_IMAGE="$IMAGEN_PREFIJO-web:$CORTO" DISCORD_IMAGE="$IMAGEN_PREFIJO-discord:$CORTO"
+# Procedencia verificable: etiqueta OCI org.opencontainers.image.revision en cada imagen propia.
+export GIT_REVISION="$SHA"
 archivos=$(sed -n 's/^COMPOSE_FILE=//p' "$ENV_NUEVO" | tail -1)
 (cd "$ARBOL" && COMPOSE_FILE="${archivos:-docker-compose.yml}" COMPOSE_PATH_SEPARATOR=: \
   docker compose --env-file "$ENV_NUEVO" build) || fallar "2/6 build falló; producción intacta"
 "$PROBAR_IMAGENES" "$CORTO" "$ARBOL" || fallar "2/6 pruebas de imágenes fallaron; producción intacta"
+for repo in $REPOS_IMAGEN; do
+  docker image inspect -f "$repo {{.Id}} {{index .Config.Labels \"org.opencontainers.image.revision\"}}" \
+    "$IMAGEN_PREFIJO-$repo:$CORTO" >> "$ESTADO/imagenes.nuevas" 2>/dev/null || true
+done
 log "2/6 imágenes $CORTO construidas y probadas"
 
 # --- 3. Respaldo consistente y restauración comprobada (con la versión en servicio) ---
