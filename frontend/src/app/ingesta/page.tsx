@@ -12,6 +12,7 @@ import {
   ErrorLegible, EstadoTrabajo, RespuestaSubida, Trabajo,
 } from '@/services/api';
 import Sidebar from '@/components/Sidebar';
+import ProcesarPendientes from '@/components/ProcesarPendientes';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const EXTENSIONES = ['.json', '.jsonl', '.csv'];
@@ -448,6 +449,8 @@ export default function IngestaPage() {
                 )}
               </section>
             )}
+
+            <ProcesarPendientes />
 
             <aside className="card p-5 sm:p-6 text-sm min-w-0">
               <h2 className="text-[15px] font-semibold text-foreground mb-3 flex items-center gap-2">
