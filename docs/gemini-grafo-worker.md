@@ -49,6 +49,21 @@ algo o si el presupuesto no cabe en `WORKER_TIMEOUT`.
 - Métricas en el log `communitylab.gemini`: tarea, modelo, intento, resultado, código HTTP,
   latencia, tokens y llamadas. Sin claves, textos ni mensajes del proveedor.
 
+## Diagnóstico de rechazos (HTTP 4xx)
+
+Un 400/401/403/404 no se escala ni se reintenta (no se oculta un error de contrato). El cliente
+registra `gemini diagnostico` con: estado HTTP, categoría (`peticion_rechazada`, `credencial`,
+`permiso`, `modelo_o_ruta`), `status` y `reason` del proveedor, rutas de campos de `BadRequest`,
+un detalle de hasta 160 caracteres sin fragmentos entre comillas ni claves, y la forma de la
+petición (bytes de la petición y del esquema, valores de enum, ítems esperados). El mismo
+diagnóstico queda en `resultado.diagnostico` del trabajo con error. Nunca se registran textos del
+lote ni respuestas del modelo.
+
+El HTTP 400 observado el 17/10 con un lote histórico de 423 interacciones ocurrió en la primera
+llamada de análisis (bloque de 40, esquema con enum de 40 IDs y `minItems`/`maxItems` 40). Su causa
+**no está confirmada**: el diagnóstico estructurado permite contrastar las hipótesis (complejidad
+del esquema, contenido del bloque) en el próximo intento.
+
 ## Pruebas
 
 - Sin red ni claves (CI): `pipelines/communitylab/tests/test_gemini.py`,

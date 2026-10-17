@@ -21,6 +21,14 @@ class ConflictoIdempotencia(ValueError):
     pass
 
 
+class ConflictoMensaje(ValueError):
+    """Un ID de mensaje ya guardado llega con otro contenido (autor, fecha, canal, tipo o texto)."""
+
+    def __init__(self, id_mensaje):
+        super().__init__("ID de mensaje existente con contenido diferente")
+        self.id_mensaje = id_mensaje
+
+
 def canonico(entrada):
     copia = deepcopy(entrada)
     for mensaje in copia["interacciones"]:
@@ -54,6 +62,10 @@ class ColaPostgres:
             c.execute(Path(__file__).with_name("schema.sql").read_text(encoding="utf-8"))
 
     def encolar(self, entrada, clave_idempotencia=None):
+        return self.encolar_detalle(entrada, clave_idempotencia)[0]
+
+    def encolar_detalle(self, entrada, clave_idempotencia=None):
+        """(id, nuevo): nuevo=False cuando la misma clave y el mismo contenido reutilizan un trabajo."""
         from pipelines.communitylab.grafo import validar_lote
         entrada = validar_lote(entrada)
         if not entrada["interacciones"]:
@@ -78,7 +90,7 @@ class ColaPostgres:
                                       (clave_idempotencia,)).fetchone()
                 if canonico(existente["entrada"]) != contenido:
                     raise ConflictoIdempotencia("La clave de idempotencia ya identifica otro lote")
-                return existente["id"]
+                return existente["id"], False
             # Datos fuente inmutables: no sobrescribir el texto de un activo curado.
             for m in entrada["interacciones"]:
                 fuente = {"autor": m["autor"], "fecha": m["fecha"], "canal": m["canal"],
@@ -93,8 +105,8 @@ class ColaPostgres:
                 campos = [k for k in existente if k != "tipo" or m.get("tipo")]
                 if any((fecha_utc(existente[k]) != fecha_utc(fuente[k])) if k == "fecha"
                        else existente[k] != fuente[k] for k in campos):
-                    raise ValueError("ID de mensaje existente con contenido diferente")
-        return identificador
+                    raise ConflictoMensaje(m["id"])
+        return identificador, True
 
     def obtener(self, identificador):
         with self.conectar() as c:
@@ -131,13 +143,15 @@ class ColaPostgres:
                 WHERE id=%s AND token=%s AND estado='procesando' AND vence>clock_timestamp()""",
                 (self.lease, trabajo.id, trabajo.token)).rowcount == 1
 
-    def fallar(self, trabajo, codigo):
+    def fallar(self, trabajo, codigo, diagnostico=None):
+        # El diagnóstico llega redactado desde el cliente de IA; se guarda para la consulta del trabajo.
+        resultado = Jsonb({"diagnostico": diagnostico}) if diagnostico else None
         with self.conectar() as c:
             return c.execute("""UPDATE trabajos_worker SET estado='error', error_codigo=%s,
-                token=NULL, vence=NULL, historial=historial || '["error"]'::jsonb,
+                resultado=%s, token=NULL, vence=NULL, historial=historial || '["error"]'::jsonb,
                 actualizado=clock_timestamp()
                 WHERE id=%s AND token=%s AND estado='procesando' AND vence>clock_timestamp()""",
-                (codigo, trabajo.id, trabajo.token)).rowcount == 1
+                (codigo, resultado, trabajo.id, trabajo.token)).rowcount == 1
 
     def terminar(self, trabajo, resultado):
         if resultado.get("estado") != "completado_local" or resultado.get("errores"):
@@ -157,11 +171,17 @@ class ColaPostgres:
                 # IDs estables por trabajo: un reintento no duplica ni pisa contenido revisado.
                 id_activo = "act-" + sha256((trabajo.id + activo["id_activo"]).encode()).hexdigest()[:40]
                 titulo = ("[SIMULADO] " if resultado["simulado"] else "") + titulos[formato]
+                advertencias = activo.get("advertencias_fidelidad") or []
                 c.execute("""INSERT INTO activos
-                    (id_activo,formato,titulo,copy,estado,fuentes,version,fecha_creacion,fecha_actualizacion)
-                    VALUES (%s,%s,%s,%s,'generado',%s,1,clock_timestamp(),clock_timestamp())
+                    (id_activo,formato,titulo,copy,estado,fuentes,version,fecha_creacion,fecha_actualizacion,
+                     advertencias_fidelidad)
+                    VALUES (%s,%s,%s,%s,'generado',%s,1,clock_timestamp(),clock_timestamp(),%s)
                     ON CONFLICT (id_activo) DO NOTHING""",
-                    (id_activo, formato, titulo, activo["copy"], Jsonb(activo["fuentes"])))
+                    (id_activo, formato, titulo, activo["copy"], Jsonb(activo["fuentes"]), Jsonb(advertencias)))
+                activo["id_activo_curaduria"] = id_activo
+            # Persistencia real (PostgreSQL); "almacenamiento" del grafo describe solo la copia externa.
+            resultado["persistencia"] = {"postgres": "guardado",
+                                         "activos": len(resultado["activos_distribucion_generados"])}
             c.execute("""UPDATE trabajos_worker SET estado='terminado', resultado=%s,
                 token=NULL, vence=NULL, error_codigo=NULL,
                 historial=historial || '["terminado"]'::jsonb, actualizado=clock_timestamp()

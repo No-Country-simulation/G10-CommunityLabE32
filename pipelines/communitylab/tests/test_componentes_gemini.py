@@ -80,7 +80,12 @@ class PruebasComponentesGemini(unittest.TestCase):
         self.assertEqual(salida["estado"], "error")
         self.assertEqual((salida["activos_distribucion_generados"], salida["alertas_internas"]), ([], []))
         self.assertEqual(salida["errores"][0]["tipo"], "ErrorConfiguracionIA")
-        self.assertNotIn("401", json.dumps(salida["errores"]))
+        # Diagnóstico estructurado y redactado: estado y categoría, nunca textos del lote.
+        diagnostico = salida["errores"][0]["diagnostico"]
+        self.assertEqual((diagnostico["http"], diagnostico["categoria"]), (401, "credencial"))
+        serializado = json.dumps(salida["errores"], ensure_ascii=False)
+        for m in ENTRADA["interacciones"]:
+            self.assertNotIn(m["texto"], serializado)
 
     def test_analisis_con_ids_inventados_falla_sin_inventar_resultados(self):
         def responder(p):

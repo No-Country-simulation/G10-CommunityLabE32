@@ -10,10 +10,18 @@ from typing import Callable, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
+from .generadores.fidelidad import revisar_fidelidad
 from .router_base import Configuracion, enrutar_lote
 
 
 VERSION = "grafo-local-v1-provisional"
+# El grafo no publica ni copia a almacenamiento externo; los activos se guardan en PostgreSQL
+# cuando el worker termina el trabajo. Este bloque describe solo la copia externa (OCI).
+ALMACENAMIENTO_EXTERNO = {
+    "capa": "objetos_externos_oci", "proveedor": "pendiente", "estado": "no_persistido",
+    "nota": "Copia externa no implementada; no indica pérdida de los activos guardados en PostgreSQL.",
+}
+DIAGNOSTICO_CAMPOS = {"http", "categoria", "estado_proveedor", "razon", "campos", "detalle", "peticion"}
 FORMATOS = {
     "generador_post_linkedin_x": "post_linkedin_x",
     "generador_faq_tip": "faq_tip_tecnico",
@@ -156,9 +164,13 @@ def construir_grafo(componentes: Componentes, configuracion: Configuracion | Non
             try:
                 cambios = funcion(estado)
             except Exception as exc:
-                cambios = {"errores": [{"nodo": nombre, "codigo": "fallo_de_nodo",
-                                         "tipo": type(exc).__name__,
-                                         "mensaje": "Falló el componente o su contrato; revisar con su responsable."}]}
+                error = {"nodo": nombre, "codigo": "fallo_de_nodo", "tipo": type(exc).__name__,
+                         "mensaje": "Falló el componente o su contrato; revisar con su responsable."}
+                # Solo diagnósticos ya redactados por el cliente de IA (dict con campos conocidos).
+                diagnostico = getattr(exc, "diagnostico", None)
+                if isinstance(diagnostico, dict) and set(diagnostico) <= DIAGNOSTICO_CAMPOS:
+                    error["diagnostico"] = deepcopy(diagnostico)
+                cambios = {"errores": [error]}
             return {**cambios, "traza": estado.get("traza", []) + [nombre]}
         return nodo
 
@@ -190,6 +202,9 @@ def construir_grafo(componentes: Componentes, configuracion: Configuracion | Non
     def generador(destino, funcion):
         def ejecutar(estado):
             d = estado["actual"]
+            # Defensa adicional al router: un bloqueo nunca llega a contenido público.
+            if any(estado["analisis"].get(i, {}).get("es_bloqueo") for i in d["fuentes"]):
+                raise ContratoInvalido("Una fuente con bloqueo no puede generar contenido público")
             # Se comparte únicamente el subconjunto seleccionado; nunca el lote completo.
             peticion = {"ruta": d["ruta"], "formato": FORMATOS[destino],
                         "origen_comunidad": estado["lote"]["origen_comunidad"],
@@ -204,10 +219,15 @@ def construir_grafo(componentes: Componentes, configuracion: Configuracion | Non
             if (not isinstance(fuentes, list) or any(not isinstance(i, str) for i in fuentes)
                     or len(fuentes) != len(set(fuentes)) or set(fuentes) != set(d["fuentes"])):
                 raise ContratoInvalido("El generador cambió u omitió las fuentes seleccionadas")
+            # Controles comprobables para el curador; no sustituyen la revisión humana.
+            advertencias = revisar_fidelidad(
+                contenido, peticion["interacciones"], FORMATOS[destino],
+                contexto=(peticion["origen_comunidad"], peticion["periodo_referencia"]))
             activo = {"id_activo": identificador("activo-", estado["lote"], d),
                       "formato": FORMATOS[destino], "copy": contenido,
                       "fuentes": sorted(fuentes), "estado": "borrador",
-                      "simulado": componentes.simulado}
+                      "simulado": componentes.simulado,
+                      "advertencias_fidelidad": advertencias}
             return {"borradores": estado["borradores"] + [activo]}
         return ejecutar
 
@@ -233,7 +253,7 @@ def construir_grafo(componentes: Componentes, configuracion: Configuracion | Non
                         for i in referencias],
             "enrutamiento": deepcopy(estado.get("enrutamiento", {})),
             "errores": deepcopy(estado["errores"]),
-            "almacenamiento": {"proveedor": "pendiente", "estado": "no_persistido"},
+            "almacenamiento": deepcopy(ALMACENAMIENTO_EXTERNO),
             "traza": estado["traza"] + ["consolidacion"],
         }
         return {"salida": salida, "traza": salida["traza"],

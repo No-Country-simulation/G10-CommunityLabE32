@@ -86,6 +86,8 @@ RESTRICCIONES ADICIONALES
 - No utilizar técnicas de venta.
 - No forzar llamadas a la acción.
 - No asumir beneficios, aprendizajes o impactos.
+- No inventar cifras, contenidos de charlas o proyectos, documentación, responsabilidades ni resultados que no figuren en los mensajes; copiar las cifras exactamente.
+- Si un mensaje describe un logro colectivo ("organizamos", "terminamos", "nuestro equipo"), presentarlo como logro del equipo y no en exclusiva de quien escribió.
 - Priorizar claridad y síntesis.
 - La introducción debe resumir la actividad del periodo sin explicaciones
 - Evitar introducciones genéricas sin modificaciones.

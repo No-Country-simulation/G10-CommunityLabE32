@@ -17,6 +17,10 @@ class ReservaPerdida(Exception):
 class ProcesamientoFallido(Exception):
     """Código controlado, sin texto del lote ni secretos."""
 
+    def __init__(self, codigo, diagnostico=None):
+        super().__init__(codigo)
+        self.diagnostico = diagnostico  # dict ya redactado por el cliente de IA, o None
+
 
 # Errores de IA del grafo (pipelines.communitylab.gemini) traducidos a códigos persistibles.
 CODIGOS_IA = {"ia_configuracion", "ia_cuota", "ia_transitorio", "ia_respuesta_invalida",
@@ -36,6 +40,14 @@ def codigo_de_errores(errores):
         if codigo:
             return codigo
     return "fallo_grafo"
+
+
+def diagnostico_de_errores(errores):
+    """Diagnóstico redactado del primer error que lo traiga (lo arma el cliente de Gemini)."""
+    for error in errores or []:
+        if isinstance(error, dict) and isinstance(error.get("diagnostico"), dict):
+            return error["diagnostico"]
+    return None
 
 
 class Cola(Protocol):
@@ -67,18 +79,24 @@ class Worker:
             if not isinstance(resultado, dict):
                 raise ProcesamientoFallido("fallo_grafo")
             if resultado.get("estado") != "completado_local":
-                raise ProcesamientoFallido(codigo_de_errores(resultado.get("errores")))
+                raise ProcesamientoFallido(codigo_de_errores(resultado.get("errores")),
+                                           diagnostico_de_errores(resultado.get("errores")))
             if type(resultado.get("simulado")) is not bool:
                 raise ProcesamientoFallido("contrato_resultado")
             if resultado.get("errores"):
-                raise ProcesamientoFallido(codigo_de_errores(resultado["errores"]))
+                raise ProcesamientoFallido(codigo_de_errores(resultado["errores"]),
+                                           diagnostico_de_errores(resultado["errores"]))
         except ReservaPerdida:
             return True  # Otro intento posee el trabajo; nunca sobrescribirlo.
         except ProcesamientoFallido as exc:
             codigo = str(exc)
             if codigo not in CODIGOS:
                 codigo = "fallo_procesador"
-            self.cola.fallar(trabajo, codigo)
+            diagnostico = getattr(exc, "diagnostico", None)
+            if diagnostico:
+                self.cola.fallar(trabajo, codigo, diagnostico=diagnostico)
+            else:
+                self.cola.fallar(trabajo, codigo)
         except Exception:
             self.cola.fallar(trabajo, "fallo_procesador")
         else:
