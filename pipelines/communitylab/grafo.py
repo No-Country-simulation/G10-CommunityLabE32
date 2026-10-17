@@ -14,6 +14,8 @@ from .diagnostico import normalizar_diagnostico
 from .generadores.fidelidad import revisar_fidelidad
 from .router_base import Configuracion, enrutar_lote
 
+SENTIMIENTOS = ("positivo", "negativo", "neutral", "indeterminado")
+
 
 VERSION = "grafo-local-v1-provisional"
 # El grafo no publica ni copia a almacenamiento externo; los activos se guardan en PostgreSQL
@@ -112,6 +114,12 @@ def validar_lote(entrada):
         # 'tipo' es una pista para Santiago, no sustituye las señales del router.
         if "tipo" in item:
             m["tipo"] = texto(item["tipo"], "tipo")
+        # 'previo': ya procesado en un lote parcial del mismo período; es contexto.
+        if item.get("previo") is not None:
+            if type(item["previo"]) is not bool:
+                raise ContratoInvalido("previo debe ser booleano")
+            if item["previo"]:
+                m["previo"] = True
         mensajes.append(m)
     return {"origen_comunidad": origen, "periodo_referencia": periodo,
             "cierre_periodo": cierre, "interacciones": sorted(mensajes, key=lambda m: m["id"])}
@@ -125,8 +133,12 @@ def validar_ids(mapa, ids):
 def validar_analisis(mapa, ids):
     validar_ids(mapa, ids)
     for a in mapa.values():
-        if not isinstance(a, dict) or set(a) != {"es_logro", "es_duda", "es_bloqueo", "tema"}:
+        campos = {"es_logro", "es_duda", "es_bloqueo", "tema"}
+        # 'sentimiento' es opcional (los componentes simulados no lo producen).
+        if not isinstance(a, dict) or not campos <= set(a) <= campos | {"sentimiento"}:
             raise ContratoInvalido("Campos de análisis inválidos")
+        if "sentimiento" in a and a["sentimiento"] not in SENTIMIENTOS:
+            raise ContratoInvalido("Sentimiento fuera del contrato")
         if any(type(a[k]) is not bool for k in ("es_logro", "es_duda", "es_bloqueo")):
             raise ContratoInvalido("Las señales deben ser booleanos reales")
         if not isinstance(a["tema"], str) or (a["es_duda"] and not a["tema"].strip()):
@@ -191,7 +203,8 @@ def construir_grafo(componentes: Componentes, configuracion: Configuracion | Non
     def enrutar(estado):
         lote = deepcopy(estado["lote"])
         for m in lote["interacciones"]:
-            m["analisis"] = {**estado["analisis"][m["id"]], "relevancia": estado["puntuaciones"][m["id"]]}
+            senales = {k: v for k, v in estado["analisis"][m["id"]].items() if k != "sentimiento"}
+            m["analisis"] = {**senales, "relevancia": estado["puntuaciones"][m["id"]]}
         resultado = enrutar_lote(lote, cfg)
         return {"enrutamiento": resultado, "pendientes": resultado["decisiones"]}
 
@@ -254,6 +267,9 @@ def construir_grafo(componentes: Componentes, configuracion: Configuracion | Non
             "enrutamiento": deepcopy(estado.get("enrutamiento", {})),
             "errores": deepcopy(estado["errores"]),
             "almacenamiento": deepcopy(ALMACENAMIENTO_EXTERNO),
+            # Sentimiento por mensaje analizado (vacío si el análisis no lo produjo, p. ej. simulado).
+            "sentimientos": {} if fallo else {
+                i: a["sentimiento"] for i, a in estado.get("analisis", {}).items() if "sentimiento" in a},
             "traza": estado["traza"] + ["consolidacion"],
         }
         return {"salida": salida, "traza": salida["traza"],

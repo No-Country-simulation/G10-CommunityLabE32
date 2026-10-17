@@ -67,12 +67,14 @@ def escribir_simulados_temporal():
     return ruta
 
 
-def _pedir(url, datos=None, timeout=10, clave=None):
+def _pedir(url, datos=None, timeout=10, clave=None, cabeceras=None):
     cuerpo = None if datos is None else json.dumps(datos, ensure_ascii=False).encode("utf-8")
     peticion = urllib.request.Request(url, data=cuerpo, method="POST" if cuerpo else "GET",
                                       headers={"Content-Type": "application/json; charset=utf-8"})
     if clave:
         peticion.add_header('Idempotency-Key', clave)
+    for nombre, valor in (cabeceras or {}).items():
+        peticion.add_header(nombre, valor)
     try:
         with urllib.request.urlopen(peticion, timeout=timeout) as respuesta:
             resultado = json.loads(respuesta.read().decode("utf-8"))

@@ -180,7 +180,8 @@ class PruebasDiagnosticoGemini(unittest.TestCase):
         self.assertEqual(len(falso.peticiones), 1)  # Un 400 no se escala ni se reintenta.
         diagnostico = salida["errores"][0]["diagnostico"]
         self.assertEqual(diagnostico["peticion"]["items_esperados"], 20)
-        self.assertEqual(diagnostico["peticion"]["valores_enum"], 20)
+        # 20 IDs + 4 valores del enum de sentimiento.
+        self.assertEqual(diagnostico["peticion"]["valores_enum"], 24)
         texto = "\n".join(registro.output) + json.dumps(salida, ensure_ascii=False)
         self.assertIn("gemini diagnostico", texto)
         sin_marcadores(self, texto)
