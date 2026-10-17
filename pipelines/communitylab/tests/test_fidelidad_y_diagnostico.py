@@ -8,9 +8,10 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 
-from pipelines.communitylab import ejecutar_lote
+from pipelines.communitylab import Componentes, ejecutar_lote
 from pipelines.communitylab import grafo as modulo_grafo
 from pipelines.communitylab.componentes_gemini import crear_componentes_gemini
+from pipelines.communitylab.diagnostico import normalizar_diagnostico
 from pipelines.communitylab.gemini import diagnostico_seguro
 from pipelines.communitylab.gemini_falso import (
     CLAVE_FICTICIA, GeminiFalso, configuracion, error, responder_con_senales, tarea_de,
@@ -111,43 +112,94 @@ class PruebasFidelidad(unittest.TestCase):
                       tipos(revisar_fidelidad("Incluye un deploy.yml listo.", [POR_ID["demo-13"]], "post_linkedin_x")))
 
 
-class PruebasDiagnosticoGemini(unittest.TestCase):
-    def test_redacta_citas_clave_y_limita_longitud(self):
-        cuerpo = {"error": {"code": 400, "status": "INVALID_ARGUMENT",
-                            "message": 'Valor "texto privado del lote" inválido; key AIzaSyA1234567890abcdefXYZ ' + "x" * 400,
-                            "details": [{"@type": "type.googleapis.com/google.rpc.BadRequest",
-                                         "fieldViolations": [{"field": "generation_config.response_schema",
-                                                              "description": "demasiado complejo"}]},
-                                        {"@type": "type.googleapis.com/google.rpc.ErrorInfo",
-                                         "reason": "API_KEY_INVALID"}]}}
-        d = diagnostico_seguro(400, cuerpo, {"bytes_peticion": 10, "valores_enum": 40})
-        self.assertEqual((d["http"], d["categoria"], d["estado_proveedor"], d["razon"]),
-                         (400, "peticion_rechazada", "INVALID_ARGUMENT", "API_KEY_INVALID"))
-        self.assertEqual(d["campos"], ["generation_config.response_schema"])
-        self.assertNotIn("texto privado", d["detalle"])
-        self.assertNotIn("AIza", d["detalle"])
-        self.assertLessEqual(len(d["detalle"]), 160)
-        self.assertEqual(d["peticion"]["valores_enum"], 40)
+MARCADOR = "CONTENIDO_PRIVADO_FICTICIO_7429"
+CLAVE_MARCADOR = "AIzaSyFICTICIA_" + "0123456789abcdefXYZ"
+CONVERSACION = "Hola, soy Laura y llevo tres días bloqueada con el despliegue"
 
-    def test_400_en_analisis_no_escala_y_registra_forma_de_la_peticion(self):
-        falso = GeminiFalso(responder=lambda p: error(400, "Request contains an invalid argument.",
-                                                       [{"@type": "x.BadRequest", "fieldViolations": [
-                                                           {"field": "generation_config"}]}]))
+
+def cuerpo_hostil():
+    """Respuesta 400 que refleja datos de la petición en todos los campos de texto."""
+    return {"error": {
+        "code": 400, "status": MARCADOR,
+        "message": f'Invalid input: {MARCADOR} "{MARCADOR}" key={CLAVE_MARCADOR} texto: {CONVERSACION}',
+        "details": [
+            {"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": MARCADOR,
+             "metadata": {"valor": MARCADOR}},
+            {"@type": "type.googleapis.com/google.rpc.BadRequest", "fieldViolations": [
+                {"field": f"contents[0].parts[0].{MARCADOR}", "description": MARCADOR},
+                {"field": MARCADOR, "description": CONVERSACION},
+                {"field": "generationConfig.responseJsonSchema", "description": MARCADOR},
+                {"field": 42}, "no-es-un-dict"]},
+            "texto suelto", 7, None]}}
+
+
+def sin_marcadores(prueba, texto):
+    for marcador in (MARCADOR, CLAVE_MARCADOR, "AIza", "Laura", "bloqueada"):
+        prueba.assertNotIn(marcador, texto)
+
+
+class PruebasDiagnosticoGemini(unittest.TestCase):
+    def test_texto_libre_status_reason_y_campos_no_se_copian(self):
+        d = diagnostico_seguro(400, cuerpo_hostil(), {"bytes_peticion": 10, "valores_enum": 40, "otro": MARCADOR})
+        sin_marcadores(self, json.dumps(d, ensure_ascii=False))
+        self.assertEqual((d["http"], d["categoria"], d["estado_proveedor"], d["razon"]),
+                         (400, "peticion_rechazada", "OTRO", "otra"))
+        self.assertEqual(d["campos"], ["contents[].parts[].*", "*", "generation_config.response_json_schema"])
+        self.assertEqual(d["peticion"], {"bytes_peticion": 10, "valores_enum": 40})
+        self.assertEqual(d["detalle"], "El proveedor rechazó la petición.")
+
+    def test_valores_conocidos_conservan_categorias_utiles(self):
+        cuerpo = {"error": {"status": "INVALID_ARGUMENT", "message": "Request contains an invalid argument.",
+                            "details": [{"reason": "API_KEY_INVALID"},
+                                        {"fieldViolations": [{"field": "generation_config.response_json_schema"}]}]}}
+        d = diagnostico_seguro(400, cuerpo)
+        self.assertEqual((d["estado_proveedor"], d["razon"], d["campos"]),
+                         ("INVALID_ARGUMENT", "API_KEY_INVALID", ["generation_config.response_json_schema"]))
+        self.assertIn("argumento inválido", d["detalle"])
+        self.assertNotIn("Request contains", json.dumps(d))
+        self.assertEqual(diagnostico_seguro(401, {})["categoria"], "credencial")
+        self.assertEqual(diagnostico_seguro(404, {})["categoria"], "modelo_o_ruta")
+
+    def test_estructuras_inesperadas_no_provocan_excepciones(self):
+        for cuerpo in (None, [], "texto", {"error": "texto"}, {"error": {"details": "x", "status": 5}},
+                       {"error": {"details": [{"reason": ["lista"]}, {"fieldViolations": "x"}]}}):
+            d = diagnostico_seguro(400, cuerpo)
+            self.assertEqual(d["categoria"], "peticion_rechazada")
+        self.assertIsNone(normalizar_diagnostico("no-es-dict"))
+        self.assertEqual(normalizar_diagnostico({"http": "400", "campos": "x"})["categoria"], "otro")
+        # Idempotente: normalizar dos veces no cambia el resultado.
+        d = diagnostico_seguro(400, cuerpo_hostil())
+        self.assertEqual(normalizar_diagnostico(d), d)
+
+    def test_400_hostil_no_llega_a_logs_ni_al_resultado_del_grafo(self):
+        falso = GeminiFalso(responder=lambda p: (400, cuerpo_hostil(), {}))
         componentes = crear_componentes_gemini(configuracion(tamano_bloque=40), transporte=falso.transporte)
-        entrada = {**DATASET, "interacciones": DATASET["interacciones"]}
-        with self.assertLogs("communitylab.gemini", level="WARNING") as registro:
-            salida = ejecutar_lote(entrada, componentes)
+        with self.assertLogs("communitylab.gemini", level="INFO") as registro:
+            salida = ejecutar_lote({**DATASET}, componentes)
         self.assertEqual(salida["estado"], "error")
         self.assertEqual(len(falso.peticiones), 1)  # Un 400 no se escala ni se reintenta.
         diagnostico = salida["errores"][0]["diagnostico"]
-        self.assertEqual(diagnostico["campos"], ["generation_config"])
         self.assertEqual(diagnostico["peticion"]["items_esperados"], 20)
         self.assertEqual(diagnostico["peticion"]["valores_enum"], 20)
-        texto_logs = "\n".join(registro.output)
-        self.assertIn("gemini diagnostico", texto_logs)
-        self.assertNotIn(CLAVE_FICTICIA, texto_logs)
+        texto = "\n".join(registro.output) + json.dumps(salida, ensure_ascii=False)
+        self.assertIn("gemini diagnostico", texto)
+        sin_marcadores(self, texto)
+        self.assertNotIn(CLAVE_FICTICIA, texto)
         for m in DATASET["interacciones"]:
-            self.assertNotIn(m["texto"], texto_logs)
+            self.assertNotIn(m["texto"], texto)
+
+    def test_grafo_normaliza_diagnosticos_de_cualquier_componente(self):
+        class ErrorConDiagnostico(Exception):
+            diagnostico = {"http": 400, "estado_proveedor": MARCADOR, "razon": MARCADOR,
+                           "detalle": MARCADOR, "campos": [MARCADOR], "extra": MARCADOR}
+
+        def analizar(_):
+            raise ErrorConDiagnostico()
+        componentes = Componentes(analizar=analizar, puntuar=dict, generar_post=dict, generar_faq=dict,
+                                  generar_highlights=dict, simulado=False)
+        salida = ejecutar_lote({**DATASET}, componentes)
+        sin_marcadores(self, json.dumps(salida, ensure_ascii=False))
+        self.assertEqual(salida["errores"][0]["diagnostico"]["estado_proveedor"], "OTRO")
 
 
 class PruebasBloques(unittest.TestCase):

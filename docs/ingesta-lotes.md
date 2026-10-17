@@ -57,5 +57,5 @@ abre `/curaduria?trabajo=<id>` (`GET /api/curaduria/activos?trabajo=<id>`).
 - `almacenamiento: {capa: "objetos_externos_oci", estado: "no_persistido"}`: describe solo la copia
   externa en OCI Object Storage, aún no implementada; no indica pérdida de datos.
 - Trabajos con error de IA: `error_codigo` y, si el proveedor rechazó la petición,
-  `resultado.diagnostico` (estado HTTP, categoría, estado del proveedor, campos y detalle redactado;
-  ver `docs/gemini-grafo-worker.md`).
+  `resultado.diagnostico`: estado HTTP, categoría y valores de catálogo; nunca texto del proveedor
+  ni del lote (ver `docs/gemini-grafo-worker.md`).

@@ -34,7 +34,7 @@ export const obtenerMensajes = async (
   ambito?: Ambito | null
 ): Promise<PaginatedMensajes> => {
   const response = await apiClient.get('/mensajes', { 
-    params: { skip, limit, canal, origen: ambito?.origen, periodo: ambito?.periodo } 
+    params: { skip, limit, canal, origen: ambito?.origen, periodo: ambito?.periodo }
   });
   return response.data;
 };
@@ -174,11 +174,13 @@ export interface AdvertenciaFidelidad {
   detalle: string;
 }
 
+// Solo valores de catálogo generados por el backend; nunca texto del proveedor.
 export interface DiagnosticoIA {
-  http?: number;
+  http?: number | null;
   categoria?: string;
   estado_proveedor?: string | null;
-  detalle?: string | null;
+  razon?: string | null;
+  detalle?: string;
 }
 
 export interface Trabajo {

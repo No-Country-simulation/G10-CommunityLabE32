@@ -7,6 +7,7 @@ import os
 from fastapi import APIRouter, HTTPException, UploadFile, Header
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from worker.store_postgres import ColaPostgres, ConflictoIdempotencia, ConflictoMensaje
+from pipelines.communitylab.diagnostico import normalizar_diagnostico
 from pipelines.communitylab.fechas import fecha_utc
 
 router = APIRouter(prefix="/api/v1/trabajos", tags=["Trabajos asíncronos"])
@@ -110,6 +111,11 @@ async def consultar_trabajo(identificador: str):
         raise HTTPException(503, "Consulta temporalmente no disponible.") from None
     if trabajo is None:
         raise HTTPException(404, "Trabajo no encontrado")
+    resultado = trabajo.get("resultado")
+    if isinstance(resultado, dict) and "diagnostico" in resultado:
+        # Defensa en la salida: aunque una fila tenga otro contenido, solo se exponen valores de catálogo.
+        trabajo = {**trabajo, "resultado": {**resultado,
+                                            "diagnostico": normalizar_diagnostico(resultado["diagnostico"])}}
     return trabajo
 
 

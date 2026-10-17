@@ -2,6 +2,8 @@
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
+from pipelines.communitylab.diagnostico import normalizar_diagnostico
+
 
 @dataclass(frozen=True)
 class Trabajo:
@@ -19,7 +21,7 @@ class ProcesamientoFallido(Exception):
 
     def __init__(self, codigo, diagnostico=None):
         super().__init__(codigo)
-        self.diagnostico = diagnostico  # dict ya redactado por el cliente de IA, o None
+        self.diagnostico = normalizar_diagnostico(diagnostico)  # solo valores de catálogo, o None
 
 
 # Errores de IA del grafo (pipelines.communitylab.gemini) traducidos a códigos persistibles.
@@ -43,10 +45,10 @@ def codigo_de_errores(errores):
 
 
 def diagnostico_de_errores(errores):
-    """Diagnóstico redactado del primer error que lo traiga (lo arma el cliente de Gemini)."""
+    """Diagnóstico normalizado del primer error que lo traiga (ver pipelines.communitylab.diagnostico)."""
     for error in errores or []:
         if isinstance(error, dict) and isinstance(error.get("diagnostico"), dict):
-            return error["diagnostico"]
+            return normalizar_diagnostico(error["diagnostico"])
     return None
 
 

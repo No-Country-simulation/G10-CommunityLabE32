@@ -10,6 +10,7 @@ from typing import Callable, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
+from .diagnostico import normalizar_diagnostico
 from .generadores.fidelidad import revisar_fidelidad
 from .router_base import Configuracion, enrutar_lote
 
@@ -21,7 +22,6 @@ ALMACENAMIENTO_EXTERNO = {
     "capa": "objetos_externos_oci", "proveedor": "pendiente", "estado": "no_persistido",
     "nota": "Copia externa no implementada; no indica pérdida de los activos guardados en PostgreSQL.",
 }
-DIAGNOSTICO_CAMPOS = {"http", "categoria", "estado_proveedor", "razon", "campos", "detalle", "peticion"}
 FORMATOS = {
     "generador_post_linkedin_x": "post_linkedin_x",
     "generador_faq_tip": "faq_tip_tecnico",
@@ -166,10 +166,10 @@ def construir_grafo(componentes: Componentes, configuracion: Configuracion | Non
             except Exception as exc:
                 error = {"nodo": nombre, "codigo": "fallo_de_nodo", "tipo": type(exc).__name__,
                          "mensaje": "Falló el componente o su contrato; revisar con su responsable."}
-                # Solo diagnósticos ya redactados por el cliente de IA (dict con campos conocidos).
-                diagnostico = getattr(exc, "diagnostico", None)
-                if isinstance(diagnostico, dict) and set(diagnostico) <= DIAGNOSTICO_CAMPOS:
-                    error["diagnostico"] = deepcopy(diagnostico)
+                # Solo valores de catálogo (diagnostico.py); nunca texto del proveedor ni del lote.
+                diagnostico = normalizar_diagnostico(getattr(exc, "diagnostico", None))
+                if diagnostico:
+                    error["diagnostico"] = diagnostico
                 cambios = {"errores": [error]}
             return {**cambios, "traza": estado.get("traza", []) + [nombre]}
         return nodo

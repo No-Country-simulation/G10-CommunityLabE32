@@ -51,13 +51,27 @@ algo o si el presupuesto no cabe en `WORKER_TIMEOUT`.
 
 ## Diagnóstico de rechazos (HTTP 4xx)
 
-Un 400/401/403/404 no se escala ni se reintenta (no se oculta un error de contrato). El cliente
-registra `gemini diagnostico` con: estado HTTP, categoría (`peticion_rechazada`, `credencial`,
-`permiso`, `modelo_o_ruta`), `status` y `reason` del proveedor, rutas de campos de `BadRequest`,
-un detalle de hasta 160 caracteres sin fragmentos entre comillas ni claves, y la forma de la
-petición (bytes de la petición y del esquema, valores de enum, ítems esperados). El mismo
-diagnóstico queda en `resultado.diagnostico` del trabajo con error. Nunca se registran textos del
-lote ni respuestas del modelo.
+Un 400/401/403/404 no se escala ni se reintenta (no se oculta un error de contrato).
+`pipelines/communitylab/diagnostico.py` arma el diagnóstico **sin copiar texto del proveedor**:
+`error.message` y cualquier texto libre se descartan, porque el proveedor puede reflejar datos
+de la petición con o sin comillas. Solo se conservan:
+
+| Campo | Origen |
+|---|---|
+| `http` | Estado HTTP (entero). |
+| `categoria` | Interna, derivada del HTTP: `peticion_rechazada`, `credencial`, `permiso`, `modelo_o_ruta` u `otro`. |
+| `estado_proveedor` | `error.status` solo si está en el catálogo (`INVALID_ARGUMENT`, `FAILED_PRECONDITION`…); si no, `OTRO`. |
+| `razon` | `ErrorInfo.reason` solo si está en el catálogo (`API_KEY_INVALID`, `SERVICE_DISABLED`…); si no, `otra`. |
+| `campos` | Rutas de `fieldViolations` normalizadas contra el vocabulario de la petición generateContent; los segmentos desconocidos pasan a `*` (p. ej. `contents[].parts[].*`). |
+| `peticion` | Métricas numéricas: `bytes_peticion`, `bytes_esquema`, `valores_enum`, `items_esperados`. |
+| `detalle` | Texto generado internamente desde categoría y estado (nunca del proveedor). |
+
+El diagnóstico se registra en el log `gemini diagnostico` y se propaga al resultado del grafo, a
+`resultado.diagnostico` del trabajo con error y a `GET /api/v1/trabajos/{id}`. Cada capa
+(grafo, worker, persistencia y API) vuelve a aplicar `normalizar_diagnostico`, así que solo
+viajan valores del catálogo aunque un componente o una fila antigua traigan otra cosa. Si hiciera
+falta el mensaje original del proveedor para investigar, debe obtenerse por un canal restringido
+aparte, nunca por la API ni los logs generales.
 
 El HTTP 400 observado el 17/10 con un lote histórico de 423 interacciones ocurrió en la primera
 llamada de análisis (bloque de 40, esquema con enum de 40 IDs y `minItems`/`maxItems` 40). Su causa

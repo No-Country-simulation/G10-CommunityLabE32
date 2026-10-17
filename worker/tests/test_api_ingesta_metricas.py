@@ -214,13 +214,37 @@ def test_resultado_aclara_persistencia_y_curaduria_filtra_por_trabajo(cliente, c
     assert "m-bloqueo" not in {f for a in todos["items"] for f in a["fuentes"]}
 
 
-def test_trabajo_con_error_expone_diagnostico_redactado(cliente, cola):
+MARCADOR = "CONTENIDO_PRIVADO_FICTICIO_7429"
+
+
+def test_trabajo_con_error_expone_solo_diagnostico_de_catalogo(cliente, cola):
     identificador = cola.encolar(lote_con_bloqueo("2026-W43"))
-    diagnostico = {"http": 400, "categoria": "peticion_rechazada", "estado_proveedor": "INVALID_ARGUMENT",
-                   "razon": None, "campos": ["generation_config"], "detalle": "Request contains an invalid argument.",
-                   "peticion": {"items_esperados": 2}}
-    salida_error = {"estado": "error", "errores": [{"tipo": "ErrorConfiguracionIA", "diagnostico": diagnostico}]}
+    hostil = {"http": 400, "categoria": MARCADOR, "estado_proveedor": MARCADOR, "razon": MARCADOR,
+              "campos": [f"contents[0].{MARCADOR}", "generation_config"],
+              "detalle": f"Invalid input: {MARCADOR} AIzaSyFICTICIA0123456789",
+              "peticion": {"items_esperados": 2, "otro": MARCADOR}, "extra": MARCADOR}
+    salida_error = {"estado": "error", "errores": [{"tipo": "ErrorConfiguracionIA", "diagnostico": hostil}]}
     Worker(cola, lambda entrada, renovar: salida_error).ejecutar_uno()
-    trabajo = cliente.get(f"/api/v1/trabajos/{identificador}").json()
+    with cola.conectar() as c:  # Lo guardado por el worker
+        guardado = c.execute("SELECT resultado FROM trabajos_worker WHERE id=%s", (identificador,)).fetchone()["resultado"]
+    respuesta = cliente.get(f"/api/v1/trabajos/{identificador}")
+    for texto in (json.dumps(guardado, ensure_ascii=False), respuesta.text):
+        assert MARCADOR not in texto and "AIza" not in texto
+    trabajo = respuesta.json()
     assert (trabajo["estado"], trabajo["error_codigo"]) == ("error", "ia_configuracion")
-    assert trabajo["resultado"]["diagnostico"] == diagnostico
+    assert trabajo["resultado"]["diagnostico"] == {
+        "http": 400, "categoria": "peticion_rechazada", "estado_proveedor": "OTRO", "razon": "otra",
+        "campos": ["contents[].*", "generation_config"], "detalle": "El proveedor rechazó la petición.",
+        "peticion": {"items_esperados": 2}}
+
+
+def test_api_normaliza_diagnosticos_guardados_por_versiones_anteriores(cliente, cola):
+    identificador = cola.encolar(lote_con_bloqueo("2026-W43"))
+    with cola.conectar() as c:  # Fila con el formato anterior (detalle libre del proveedor)
+        c.execute("""UPDATE trabajos_worker SET estado='error', error_codigo='ia_configuracion',
+                     resultado=%s WHERE id=%s""",
+                  (json.dumps({"diagnostico": {"http": 400, "detalle": f"Invalid input: {MARCADOR}",
+                                               "razon": MARCADOR}}), identificador))
+    respuesta = cliente.get(f"/api/v1/trabajos/{identificador}")
+    assert MARCADOR not in respuesta.text
+    assert respuesta.json()["resultado"]["diagnostico"]["categoria"] == "peticion_rechazada"

@@ -10,9 +10,9 @@ Política única para todo un trabajo:
 
 No usa el SDK google-genai a propósito: el SDK reintenta por su cuenta y multiplicaría
 los reintentos de esta política y del worker. Los errores y los logs nunca incluyen
-textos del lote ni respuestas del modelo. De un rechazo 4xx solo se conserva un diagnóstico
-estructurado (diagnostico_seguro): estado, categoría y un detalle del proveedor acotado y sin
-fragmentos citados ni claves.
+textos del lote, respuestas del modelo ni mensajes del proveedor. De un rechazo 4xx solo se
+conserva un diagnóstico estructurado (diagnostico.py): estado HTTP, categoría interna, estado y
+razón del proveedor de catálogos permitidos, rutas de campos normalizadas y métricas de tamaño.
 """
 from __future__ import annotations
 
@@ -25,6 +25,9 @@ import re
 import time
 
 import httpx
+
+# diagnostico_seguro se reexporta: cliente, grafo y pruebas lo importan desde aquí.
+from .diagnostico import diagnostico_seguro  # noqa: F401
 
 URL_BASE = "https://generativelanguage.googleapis.com/v1beta/models/"
 LOG = logging.getLogger("communitylab.gemini")
@@ -40,7 +43,7 @@ class ErrorIA(Exception):
 
     def __init__(self, detalle=None, diagnostico=None):
         super().__init__(detalle or self.codigo)
-        # Diagnóstico ya redactado (ver diagnostico_seguro); nunca el cuerpo crudo del proveedor.
+        # Diagnóstico de catálogo (ver diagnostico.py); nunca texto del proveedor.
         self.diagnostico = diagnostico
 
 
@@ -208,56 +211,6 @@ def _json(respuesta):
     return datos if isinstance(datos, dict) else {}
 
 
-_CATEGORIA_POR_HTTP = {400: "peticion_rechazada", 401: "credencial", 403: "permiso",
-                       404: "modelo_o_ruta"}
-_ENTRE_COMILLAS = re.compile(r"(\"[^\"]*\"|'[^']*'|`[^`]*`)")
-_CLAVE_API = re.compile(r"AIza[0-9A-Za-z_\-]{10,}")
-_CAMPO_SEGURO = re.compile(r"[A-Za-z0-9_.\[\]]{1,120}")
-MAX_DETALLE = 160
-
-
-def _redactar(texto):
-    """Texto corto del proveedor sin fragmentos citados (pueden reproducir el lote) ni claves."""
-    limpio = _CLAVE_API.sub("[clave]", str(texto or ""))
-    limpio = _ENTRE_COMILLAS.sub("[…]", limpio)
-    limpio = " ".join(limpio.split())
-    return limpio[:MAX_DETALLE]
-
-
-def diagnostico_seguro(estado_http, cuerpo, peticion=None):
-    """Diagnóstico estructurado de un rechazo del proveedor, apto para logs y para la API.
-
-    Conserva el estado HTTP, una categoría propia, el estado de Google (INVALID_ARGUMENT…),
-    la razón de ErrorInfo, las rutas de campos de BadRequest y un detalle redactado y acotado.
-    Añade el tamaño de la petición (bytes, ítems, enum de IDs) para contrastar hipótesis sin
-    registrar textos. Nunca incluye la clave ni el contenido de las interacciones.
-    """
-    error = cuerpo.get("error") if isinstance(cuerpo, dict) else None
-    error = error if isinstance(error, dict) else {}
-    razon, campos = None, []
-    for detalle in error.get("details", []) or []:
-        if not isinstance(detalle, dict):
-            continue
-        if razon is None and isinstance(detalle.get("reason"), str):
-            razon = detalle["reason"][:60]
-        for violacion in detalle.get("fieldViolations", []) or []:
-            campo = violacion.get("field") if isinstance(violacion, dict) else None
-            if isinstance(campo, str) and _CAMPO_SEGURO.fullmatch(campo) and len(campos) < 5:
-                campos.append(campo)
-    estado_proveedor = error.get("status")
-    diagnostico = {
-        "http": estado_http,
-        "categoria": _CATEGORIA_POR_HTTP.get(estado_http, "otro"),
-        "estado_proveedor": estado_proveedor[:40] if isinstance(estado_proveedor, str) else None,
-        "razon": razon,
-        "campos": campos,
-        "detalle": _redactar(error.get("message")) or None,
-    }
-    if isinstance(peticion, dict):
-        diagnostico["peticion"] = {k: v for k, v in peticion.items() if isinstance(v, (int, float))}
-    return diagnostico
-
-
 def _forma_peticion(cuerpo, esquema):
     """Métricas de tamaño de la petición, sin contenido."""
     def contar_enum(nodo):
@@ -406,9 +359,9 @@ class ClienteGemini:
 
     def _diagnostico(self, tarea, modelo, d):
         LOG.warning("gemini diagnostico tarea=%s modelo=%s http=%s categoria=%s estado_proveedor=%s "
-                    "razon=%s campos=%s detalle=%s peticion=%s", tarea, modelo, d["http"],
-                    d["categoria"], d["estado_proveedor"], d["razon"], ",".join(d["campos"]) or "-",
-                    json.dumps(d["detalle"], ensure_ascii=False), json.dumps(d.get("peticion", {})))
+                    "razon=%s campos=%s peticion=%s", tarea, modelo, d["http"], d["categoria"],
+                    d["estado_proveedor"], d["razon"], ",".join(d["campos"]) or "-",
+                    json.dumps(d.get("peticion", {})))
 
     def _metrica(self, tarea, modelo, intento, resultado, http, inicio, tokens=None):
         LOG.info("gemini tarea=%s modelo=%s intento=%d resultado=%s http=%s latencia_ms=%d "

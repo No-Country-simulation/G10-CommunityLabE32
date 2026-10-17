@@ -14,6 +14,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from worker.core import Trabajo
+from pipelines.communitylab.diagnostico import normalizar_diagnostico
 from pipelines.communitylab.fechas import fecha_utc
 
 
@@ -144,7 +145,8 @@ class ColaPostgres:
                 (self.lease, trabajo.id, trabajo.token)).rowcount == 1
 
     def fallar(self, trabajo, codigo, diagnostico=None):
-        # El diagnóstico llega redactado desde el cliente de IA; se guarda para la consulta del trabajo.
+        # Se guarda solo la versión normalizada (valores de catálogo), sea cual sea su origen.
+        diagnostico = normalizar_diagnostico(diagnostico)
         resultado = Jsonb({"diagnostico": diagnostico}) if diagnostico else None
         with self.conectar() as c:
             return c.execute("""UPDATE trabajos_worker SET estado='error', error_codigo=%s,
