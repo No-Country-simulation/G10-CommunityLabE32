@@ -71,6 +71,10 @@ services:
     platform: ${DOCKER_PLATFORM:-linux/arm64}
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
+      # Vacíos = acciones protegidas deshabilitadas (503). Ver docs/flujo-hibrido-banners.md.
+      OPERADOR_TOKEN: ${OPERADOR_TOKEN:-}
+      PUENTE_TOKEN: ${PUENTE_TOKEN:-}
+      PUENTE_ORIGEN: ${PUENTE_ORIGEN:-discord}
     networks: [frontend, database, outbound]
     depends_on:
       postgres:

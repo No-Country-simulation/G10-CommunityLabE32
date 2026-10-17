@@ -94,6 +94,7 @@ def responder_con_senales(senales, copy="Borrador generado para revisión editor
         ids = [m["id"] for m in json.loads(peticion["cuerpo"]["contents"][0]["parts"][0]["text"])]
         if tarea == "analizar":
             return ok({"resultados": [{"id": i, **{k: senales[i][k] for k in
-                       ("es_logro", "es_duda", "es_bloqueo", "tema")}} for i in ids]})
+                       ("es_logro", "es_duda", "es_bloqueo", "tema")},
+                       "sentimiento": senales[i].get("sentimiento", "neutral")} for i in ids]})
         return ok({"resultados": [{"id": i, "relevancia": senales[i]["relevancia"]} for i in ids]})
     return responder

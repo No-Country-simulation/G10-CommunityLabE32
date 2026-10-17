@@ -13,8 +13,14 @@ SISTEMA_ANALISIS = (
     "- es_bloqueo: expresa que no puede avanzar o una frustración que requiere apoyo.\n"
     "- tema: 1 a 4 palabras en minúsculas. Usa exactamente la misma cadena para mensajes "
     "sobre el mismo asunto. Si es una duda, el tema no puede quedar vacío.\n"
+    "- sentimiento: tono expresado en el propio mensaje: positivo, negativo, neutral o "
+    "indeterminado (si el tono no se puede determinar con el texto). Es independiente de la "
+    "intención: una duda o un bloqueo no son negativos por sí mismos; una pregunta neutral es "
+    "neutral. No infieras estados psicológicos ni rasgos de la persona.\n"
     "Devuelve un resultado por cada id recibido, sin omitir ni inventar ids."
 )
+SENTIMIENTOS = ("positivo", "negativo", "neutral", "indeterminado")
+VERSION_SENTIMIENTO = "gemini-analizar-v1"
 SISTEMA_PUNTUACION = (
     "Evalúa la relevancia comunitaria de cada mensaje entre 0.0 y 1.0. Asigna más de 0.60 "
     "solo a hitos concretos, dudas útiles para otros o problemas graves; saludos y mensajes "
@@ -50,12 +56,12 @@ def _esquema(ids, propiedades):
             "required": ["resultados"], "additionalProperties": False}
 
 
-def _por_id(objeto, ids, campos):
+def _por_id(objeto, ids, campos, opcionales=()):
     if not isinstance(objeto, dict) or set(objeto) != {"resultados"} or not isinstance(objeto["resultados"], list):
         raise ValueError("Se esperaba {'resultados': [...]}")
     mapa = {}
     for r in objeto["resultados"]:
-        if not isinstance(r, dict) or set(r) != {"id", *campos}:
+        if not isinstance(r, dict) or not {"id", *campos} <= set(r) <= {"id", *campos, *opcionales}:
             raise ValueError("Campos de resultado inválidos")
         if r["id"] not in ids or r["id"] in mapa:
             raise ValueError("ID inventado o duplicado")
@@ -66,18 +72,22 @@ def _por_id(objeto, ids, campos):
 
 
 def analizar(lote, cliente):
-    """Mapa por ID con es_logro, es_duda, es_bloqueo (bool) y tema (str)."""
+    """Mapa por ID con es_logro, es_duda, es_bloqueo (bool), tema (str) y, si es válido, sentimiento."""
     salida = {}
     for bloque in _bloques(lote["interacciones"], cliente.cfg.tamano_bloque):
         ids = _ids(bloque)
         contexto = [{"id": m["id"], "canal": m["canal"], "texto": m["texto"],
                      **({"tipo_sugerido": m["tipo"]} if m.get("tipo") else {})} for m in bloque]
         esquema = _esquema(ids, {"es_logro": {"type": "boolean"}, "es_duda": {"type": "boolean"},
-                                 "es_bloqueo": {"type": "boolean"}, "tema": {"type": "string"}})
+                                 "es_bloqueo": {"type": "boolean"}, "tema": {"type": "string"},
+                                 "sentimiento": {"type": "string", "enum": list(SENTIMIENTOS)}})
 
         def validar(objeto, ids=ids):
             resultado = {}
-            for i, r in _por_id(objeto, ids, ("es_logro", "es_duda", "es_bloqueo", "tema")).items():
+            # El sentimiento es secundario: si falta o sale del contrato, ese mensaje queda
+            # "sin analizar" (nunca neutral) y el lote sigue; las señales sí son obligatorias.
+            for i, r in _por_id(objeto, ids, ("es_logro", "es_duda", "es_bloqueo", "tema"),
+                                ("sentimiento",)).items():
                 if any(type(r[k]) is not bool for k in ("es_logro", "es_duda", "es_bloqueo")):
                     raise ValueError("Las señales deben ser booleanos")
                 if not isinstance(r["tema"], str) or len(r["tema"]) > MAX_TEMA:
@@ -87,6 +97,8 @@ def analizar(lote, cliente):
                     raise ValueError("Una duda requiere tema")
                 resultado[i] = {"es_logro": r["es_logro"], "es_duda": r["es_duda"],
                                 "es_bloqueo": r["es_bloqueo"], "tema": tema}
+                if r.get("sentimiento") in SENTIMIENTOS:
+                    resultado[i]["sentimiento"] = r["sentimiento"]
             return resultado
 
         salida.update(cliente.generar_json("analizar", SISTEMA_ANALISIS,

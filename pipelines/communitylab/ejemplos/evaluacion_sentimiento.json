@@ -1,0 +1,26 @@
+{
+  "descripcion": "Evaluación pequeña etiquetada a mano (mensajes ficticios) para una prueba real futura del sentimiento. Etiqueta = tono expresado en el texto, independiente de la intención. No ejecutar contra Gemini sin autorización explícita.",
+  "version_contrato": "gemini-analizar-v1",
+  "interacciones": [
+    {"id": "ev-01", "canal": "logros", "texto": "¡Por fin aprobé la certificación! Gracias a todos por el apoyo.", "esperado": "positivo"},
+    {"id": "ev-02", "canal": "dudas", "texto": "¿Cuál es la diferencia entre un volumen y un bind mount en Docker?", "esperado": "neutral"},
+    {"id": "ev-03", "canal": "soporte", "texto": "Llevo tres días sin poder entrar a la plataforma y ya estoy harto.", "esperado": "negativo"},
+    {"id": "ev-04", "canal": "soporte", "texto": "La plataforma me devuelve error 500 al iniciar sesión.", "esperado": "neutral"},
+    {"id": "ev-05", "canal": "general", "texto": "Mañana a las 18:00 es la sesión de repaso.", "esperado": "neutral"},
+    {"id": "ev-06", "canal": "general", "texto": "Qué buena la charla de ayer, aprendí muchísimo.", "esperado": "positivo"},
+    {"id": "ev-07", "canal": "dudas", "texto": "No entiendo nada de LangGraph y me frustra no avanzar.", "esperado": "negativo"},
+    {"id": "ev-08", "canal": "general", "texto": "ok", "esperado": "indeterminado"},
+    {"id": "ev-09", "canal": "general", "texto": "jaja bueno, ya veremos", "esperado": "indeterminado"},
+    {"id": "ev-10", "canal": "logros", "texto": "Subí mi primer proyecto a GitHub, estoy muy contenta.", "esperado": "positivo"},
+    {"id": "ev-11", "canal": "dudas", "texto": "¿Alguien sabe si el examen incluye preguntas de redes?", "esperado": "neutral"},
+    {"id": "ev-12", "canal": "soporte", "texto": "Gracias, ya me funciona el acceso.", "esperado": "positivo"},
+    {"id": "ev-13", "canal": "general", "texto": "Otra vez se cayó el servidor justo antes de la entrega, qué desastre.", "esperado": "negativo"},
+    {"id": "ev-14", "canal": "general", "texto": "Comparto el enlace del repositorio: github.com/ejemplo/demo", "esperado": "neutral"},
+    {"id": "ev-15", "canal": "dudas", "texto": "Tengo una duda rápida, ¿la entrega es el viernes?", "esperado": "neutral"},
+    {"id": "ev-16", "canal": "general", "texto": "Me encantó trabajar con este equipo, ¡son geniales!", "esperado": "positivo"},
+    {"id": "ev-17", "canal": "soporte", "texto": "Esto no sirve, nadie responde en el canal de soporte.", "esperado": "negativo"},
+    {"id": "ev-18", "canal": "general", "texto": "👀", "esperado": "indeterminado"},
+    {"id": "ev-19", "canal": "logros", "texto": "Conseguí mi primera entrevista técnica, nervioso pero feliz.", "esperado": "positivo"},
+    {"id": "ev-20", "canal": "dudas", "texto": "Sigo bloqueado con el despliegue y ya no sé qué más probar, estoy agotado.", "esperado": "negativo"}
+  ]
+}

@@ -48,6 +48,27 @@ def validar_limites(interaccion):
             raise ValueError(f"El campo {campo} supera {maximo} caracteres")
 
 
+def guardar_sentimientos(c, trabajo, resultado):
+    """Guarda el sentimiento de cada mensaje del lote, solo si aún no tenía uno.
+
+    Se ignoran IDs que no pertenecen al lote y valores fuera del contrato; un valor válido ya
+    guardado nunca se sobrescribe (ni con otro ni con vacío). Devuelve cuántos se guardaron.
+    """
+    from pipelines.communitylab.analisis_gemini import SENTIMIENTOS, VERSION_SENTIMIENTO
+    if resultado.get("simulado"):
+        return 0  # Un análisis simulado no produce sentimiento real.
+    ids = {m["id"] for m in trabajo.entrada["interacciones"]}
+    guardados = 0
+    for id_mensaje, valor in sorted((resultado.get("sentimientos") or {}).items()):
+        if id_mensaje not in ids or valor not in SENTIMIENTOS:
+            continue
+        guardados += c.execute("""UPDATE mensajes SET sentimiento_ref=%s, sentimiento_origen='gemini',
+            sentimiento_version=%s, sentimiento_trabajo=%s, sentimiento_fecha=clock_timestamp()
+            WHERE id_mensaje=%s AND sentimiento_ref IS NULL""",
+            (valor, VERSION_SENTIMIENTO, trabajo.id, id_mensaje)).rowcount
+    return guardados
+
+
 class ColaPostgres:
     def __init__(self, url, lease=30, max_intentos=3):
         if lease < 2 or max_intentos < 1:
@@ -181,9 +202,11 @@ class ColaPostgres:
                     ON CONFLICT (id_activo) DO NOTHING""",
                     (id_activo, formato, titulo, activo["copy"], Jsonb(activo["fuentes"]), Jsonb(advertencias)))
                 activo["id_activo_curaduria"] = id_activo
+            sentimientos = guardar_sentimientos(c, trabajo, resultado)
             # Persistencia real (PostgreSQL); "almacenamiento" del grafo describe solo la copia externa.
             resultado["persistencia"] = {"postgres": "guardado",
-                                         "activos": len(resultado["activos_distribucion_generados"])}
+                                         "activos": len(resultado["activos_distribucion_generados"]),
+                                         "sentimientos": sentimientos}
             c.execute("""UPDATE trabajos_worker SET estado='terminado', resultado=%s,
                 token=NULL, vence=NULL, error_codigo=NULL,
                 historial=historial || '["terminado"]'::jsonb, actualizado=clock_timestamp()

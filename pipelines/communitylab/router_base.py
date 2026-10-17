@@ -75,7 +75,10 @@ def _validar(lote):
         a["tema"] = _canonico(analisis["tema"])
         if a["es_duda"] and not a["tema"]:
             raise EntradaInvalida(f"{prefijo}.analisis.tema: obligatorio para agrupar dudas")
-        mensajes.append({**campos, "analisis": a})
+        previo = raw.get("previo", False)
+        if type(previo) is not bool:
+            raise EntradaInvalida(f"{prefijo}.previo: se requiere true o false")
+        mensajes.append({**campos, "analisis": a, "previo": previo})
     return origen, periodo, cierre, sorted(mensajes, key=lambda m: m["id"])
 
 
@@ -84,6 +87,9 @@ def enrutar_lote(lote, configuracion=None):
 
     Precedencia por mensaje: bloqueo > duda recurrente > logro.
     Período es una agregación independiente, habilitada por cierre_periodo.
+    Mensajes con previo=true (ya procesados en un lote parcial del mismo período) son
+    contexto: cuentan para la recurrencia de dudas y para el resumen del cierre, pero no
+    generan alertas, posts ni una FAQ sin al menos una duda nueva en el grupo.
     """
     cfg = configuracion if configuracion is not None else Configuracion()
     if not isinstance(cfg, Configuracion):
@@ -103,7 +109,9 @@ def enrutar_lote(lote, configuracion=None):
     elegibles = []
     for m in mensajes:
         a = m["analisis"]
-        if a["es_bloqueo"]:
+        if a["es_bloqueo"] and m["previo"]:
+            motivos[m["id"]] = "Bloqueo ya alertado en un lote anterior; excluido de contenido."
+        elif a["es_bloqueo"]:
             agregar("bloqueo", "alerta_interna", [m["id"]],
                     "Bloqueo detectado; excluido de todas las rutas de contenido.", "interna")
         elif a["relevancia"] >= cfg.relevancia_minima:
@@ -117,12 +125,12 @@ def enrutar_lote(lote, configuracion=None):
             grupos.setdefault(m["analisis"]["tema"], []).append(m)
     for tema, grupo in sorted(grupos.items()):
         autores = {_canonico(m["autor"]) for m in grupo}
-        if len(autores) >= cfg.autores_minimos_duda:
+        if len(autores) >= cfg.autores_minimos_duda and any(not m["previo"] for m in grupo):
             agregar("dudas", "generador_faq_tip", [m["id"] for m in grupo],
                     f"Duda recurrente sobre '{tema}' entre {len(autores)} autores distintos.")
 
     for m in elegibles:
-        if not asignadas[m["id"]] and m["analisis"]["es_logro"]:
+        if not asignadas[m["id"]] and m["analisis"]["es_logro"] and not m["previo"]:
             agregar("logro", "generador_post_linkedin_x", [m["id"]],
                     "Logro relevante sin bloqueo ni prioridad de duda recurrente.")
 
@@ -134,6 +142,8 @@ def enrutar_lote(lote, configuracion=None):
     for m in mensajes:
         if not asignadas[m["id"]]:
             motivo = motivos.get(m["id"])
+            if motivo is None and m["previo"]:
+                motivo = "Procesado en un lote parcial anterior; incluido como contexto."
             if motivo is None:
                 motivo = ("Duda sin recurrencia suficiente y sin otra ruta aplicable."
                           if m["analisis"]["es_duda"] else "Sin regla de enrutamiento aplicable.")

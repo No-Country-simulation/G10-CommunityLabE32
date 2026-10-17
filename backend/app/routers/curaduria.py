@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
 from typing import Optional
 import math
 
+from backend.app.core.acceso import requiere_operador
 from backend.app.core.dependencias import get_db
 from backend.app.models.activo import Activo
 from backend.app.models.mensaje import Mensaje
@@ -127,11 +128,16 @@ async def obtener_detalle_activo(id_activo: str, db: AsyncSession = Depends(get_
 async def actualizar_activo(
     id_activo: str,
     dto: ActivoUpdateDTO,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    x_operador_token: Optional[str] = Header(default=None, max_length=256),
 ):
     """
     Permite editar el copy, versionar los cambios y transicionar estados de curaduría.
+    Aprobar requiere X-Operador-Token. Editar el texto de un activo aprobado invalida la
+    aprobación (vuelve a «revisado») y deja desactualizado cualquier banner anterior.
     """
+    if dto.estado and dto.estado.value == "aprobado":
+        requiere_operador(x_operador_token)
     query = select(Activo).where(Activo.id_activo == id_activo)
     result = await db.execute(query)
     activo = result.scalar_one_or_none()
@@ -161,6 +167,9 @@ async def actualizar_activo(
     if dto.copy is not None and dto.copy != activo.copy:
         activo.copy = dto.copy
         activo.version += 1
+        # Un texto aprobado que cambia sin aprobarse de nuevo en la misma acción deja de estar aprobado.
+        if activo.estado == "aprobado" and not (dto.estado and dto.estado.value == "aprobado"):
+            activo.estado = "revisado"
 
     if dto.comentario_curador is not None:
         activo.comentario_curador = dto.comentario_curador

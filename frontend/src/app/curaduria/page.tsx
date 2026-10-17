@@ -1,6 +1,5 @@
 'use client';
 
-import axios from 'axios';
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -8,8 +7,10 @@ import {
   Layers, Loader2, Save, ChevronLeft, ChevronRight, X, AlertTriangle, ArrowLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { listarActivos, obtenerDetalleActivo, actualizarActivo, Activo, EstadoActivo } from '@/services/api';
+import { listarActivos, obtenerDetalleActivo, actualizarActivo, describirError, Activo, EstadoActivo } from '@/services/api';
 import Sidebar from '@/components/Sidebar';
+import PanelBanner from '@/components/PanelBanner';
+import TokenOperador from '@/components/TokenOperador';
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -127,7 +128,9 @@ function CuraduriaPage() {
       setActivos(prev => prev.map(a => a.id_activo === selectedId ? { ...a, ...res } : a));
       setIsDirty(false);
     } catch (error: unknown) {
-      alert(axios.isAxiosError(error) && typeof error.response?.data?.detail === 'string' ? error.response.data.detail : 'Error guardando los cambios.');
+      const legible = describirError(error);
+      // Los títulos de describirError están pensados para la subida de archivos; aquí basta el mensaje.
+      alert(legible.tipo === 'acceso' ? `${legible.titulo}: ${legible.mensaje}` : legible.mensaje || 'Error guardando los cambios.');
     } finally {
       setSaving(false);
     }
@@ -323,13 +326,23 @@ function CuraduriaPage() {
                   />
                 </div>
               </div>
+
+              <PanelBanner
+                idActivo={selectedActivo.id_activo}
+                estadoActivo={selectedActivo.estado}
+                version={selectedActivo.version}
+              />
             </div>
 
             {/* Barra de acciones */}
             <div className="px-4 sm:px-6 py-4 border-t border-border bg-surface flex justify-between items-center shrink-0 gap-3 flex-wrap">
-              <button disabled={saving || !isDirty} onClick={() => handleUpdate()} className="btn-secondary">
-                <Save className="w-4 h-4" /> Guardar texto
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <button disabled={saving || !isDirty} onClick={() => handleUpdate()} className="btn-secondary">
+                  <Save className="w-4 h-4" /> Guardar texto
+                </button>
+                {/* Aprobar textos y banners requiere token de operador. */}
+                <TokenOperador className="max-w-xs" />
+              </div>
               <div className="flex gap-2.5 flex-wrap">
                 <button disabled={saving || selectedActivo.estado === 'rechazado'} onClick={() => handleUpdate('rechazado')} className="btn-danger-soft">
                   <XCircle className="w-4 h-4" /> Rechazar

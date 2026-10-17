@@ -8,6 +8,31 @@ export const apiClient = axios.create({
   },
 });
 
+// --- Token de operador ---
+// Solo en sessionStorage de esta pestaña (se borra al cerrarla); se envía en X-Operador-Token
+// para acciones protegidas: procesar pendientes, aprobar textos, generar y revisar banners.
+const CLAVE_OPERADOR = 'communitylab-operador';
+export const EVENTO_OPERADOR = 'communitylab-operador';
+export const leerTokenOperador = (): string => {
+  try {
+    return sessionStorage.getItem(CLAVE_OPERADOR) ?? '';
+  } catch {
+    return '';
+  }
+};
+export const guardarTokenOperador = (token: string) => {
+  try {
+    if (token) sessionStorage.setItem(CLAVE_OPERADOR, token);
+    else sessionStorage.removeItem(CLAVE_OPERADOR);
+  } catch {}
+  window.dispatchEvent(new Event(EVENTO_OPERADOR));
+};
+apiClient.interceptors.request.use((config) => {
+  const token = typeof window === 'undefined' ? '' : leerTokenOperador();
+  if (token) config.headers.set('X-Operador-Token', token);
+  return config;
+});
+
 // Tipado estricto basado en tu Pydantic del Backend
 export interface Mensaje {
   id_mensaje: string;
@@ -16,9 +41,32 @@ export interface Mensaje {
   canal: string;
   tipo: string;
   texto: string;
-  sentimiento_ref?: string;
+  // null = sin analizar; positivo | negativo | neutral | indeterminado.
+  sentimiento_ref?: string | null;
+  sentimiento_origen?: string | null;
+  sentimiento_version?: string | null;
   tema_ref?: string;
 }
+
+export type Sentimiento = 'positivo' | 'negativo' | 'neutral' | 'indeterminado';
+export type FiltroSentimiento = Sentimiento | 'sin_analizar';
+
+export interface ResumenSentimiento {
+  total: number;
+  analizados: number;
+  sin_analizar: number;
+  por_valor: Record<Sentimiento, number>;
+  porcentaje_sobre_analizados: Record<Sentimiento, number | null>;
+  denominador: 'analizados';
+  estado: 'sin_datos' | 'parcial' | 'completo';
+}
+
+export const obtenerResumenSentimiento = async (canal?: string, ambito?: Ambito | null): Promise<ResumenSentimiento> => {
+  const response = await apiClient.get('/mensajes/sentimiento/resumen', {
+    params: { canal, origen: ambito?.origen, periodo: ambito?.periodo },
+  });
+  return response.data;
+};
 
 // Reemplaza tu función obtenerMensajes por esta:
 
@@ -31,10 +79,11 @@ export const obtenerMensajes = async (
   skip: number = 0, 
   limit: number = 10, 
   canal?: string,
-  ambito?: Ambito | null
+  ambito?: Ambito | null,
+  sentimiento?: FiltroSentimiento,
 ): Promise<PaginatedMensajes> => {
   const response = await apiClient.get('/mensajes', { 
-    params: { skip, limit, canal, origen: ambito?.origen, periodo: ambito?.periodo }
+    params: { skip, limit, canal, origen: ambito?.origen, periodo: ambito?.periodo, sentimiento }
   });
   return response.data;
 };
@@ -134,7 +183,7 @@ export const actualizarActivo = async (
 export interface DashboardKPIs {
   total_mensajes: number;
   mensajes_por_tipo: Record<string, number>;
-  distribucion_sentimiento: { positivo: number; negativo: number; neutral: number };
+  distribucion_sentimiento: Record<Sentimiento, number>;
   sentimiento: { estado: 'sin_datos' | 'parcial' | 'completo'; clasificados: number; sin_clasificar: number };
   activos_generados: number;
   activos_por_estado: Record<string, number>;
@@ -195,7 +244,7 @@ export interface Trabajo {
     simulado?: boolean;
     activos_distribucion_generados?: { advertencias_fidelidad?: AdvertenciaFidelidad[] }[];
     alertas_internas?: unknown[];
-    persistencia?: { postgres: string; activos: number };
+    persistencia?: { postgres: string; activos: number; sentimientos?: number };
     diagnostico?: DiagnosticoIA;
   } | null;
 }
@@ -205,8 +254,101 @@ export const consultarTrabajo = async (id: string, signal?: AbortSignal): Promis
   return response.data;
 };
 
+// --- Procesar pendientes de Discord (lotes parciales sin cerrar el período) ---
+export type EstadoSolicitud =
+  | 'pendiente' | 'tomada' | 'en_curso' | 'sin_pendientes' | 'completada' | 'completada_con_errores' | 'cancelada';
+
+export interface LoteSolicitud {
+  periodo: string;
+  nuevos: number;
+  contexto: number;
+  trabajo: string | null;
+  estado: string;
+  trabajo_estado: EstadoTrabajo | null;
+  activos: number;
+  alertas: number;
+}
+
+export interface SolicitudPendientes {
+  id: string;
+  origen: string;
+  estado: EstadoSolicitud;
+  lotes: LoteSolicitud[];
+  mensajes_nuevos: number;
+  mensajes_contexto: number;
+  trabajos_terminados: number;
+  trabajos_error: number;
+  activos_creados: number;
+  creado: string;
+  actualizado: string;
+  reutilizada?: boolean;
+}
+
+export interface EstadoPendientes {
+  origen: string;
+  solicitud: SolicitudPendientes | null;
+  puente: { activo: boolean; visto: string; pendientes: number; pendientes_por_periodo: Record<string, number> | null } | null;
+}
+
+export const SOLICITUD_ABIERTA: EstadoSolicitud[] = ['pendiente', 'tomada', 'en_curso'];
+
+export const obtenerEstadoPendientes = async (signal?: AbortSignal): Promise<EstadoPendientes> => {
+  const response = await apiClient.get('/v1/procesamiento-pendientes/actual', { signal, timeout: 15000 });
+  return response.data;
+};
+
+export const solicitarProcesarPendientes = async (): Promise<SolicitudPendientes> => {
+  const response = await apiClient.post('/v1/procesamiento-pendientes');
+  return response.data;
+};
+
+// --- Banners (solo desde un texto aprobado; aprobar el banner no lo publica) ---
+export interface Banner {
+  id: string;
+  id_activo: string;
+  version_texto: number;
+  estado: 'pendiente' | 'generando' | 'generado' | 'error';
+  revision: 'pendiente' | 'aprobado' | 'rechazado';
+  desactualizado: boolean;
+  proveedor: string;
+  error_codigo: string | null;
+  intentos: number;
+  comentario: string | null;
+  url: string | null;
+  actualizado: string;
+  reutilizado?: boolean;
+}
+
+export interface BannersActivo {
+  id_activo: string;
+  estado_activo: EstadoActivo;
+  version_texto: number;
+  puede_generar: boolean;
+  proveedor: string;
+  generacion_ia: boolean;
+  banners: Banner[];
+  vigente: Banner | null;
+}
+
+export const listarBanners = async (id_activo: string): Promise<BannersActivo> => {
+  const response = await apiClient.get(`/curaduria/activos/${encodeURIComponent(id_activo)}/banners`);
+  return response.data;
+};
+
+export const generarBanner = async (id_activo: string): Promise<Banner> => {
+  const response = await apiClient.post(`/curaduria/activos/${encodeURIComponent(id_activo)}/banners`);
+  return response.data;
+};
+
+export const revisarBanner = async (
+  id: string, decision: 'aprobado' | 'rechazado', comentario?: string,
+): Promise<Banner> => {
+  const response = await apiClient.post(`/banners/${encodeURIComponent(id)}/revision`, { decision, comentario });
+  return response.data;
+};
+
 // --- Errores legibles y seguros ---
-export type TipoError = 'validacion' | 'tamano' | 'conflicto' | 'formato' | 'servicio' | 'red' | 'desconocido';
+export type TipoError = 'validacion' | 'tamano' | 'conflicto' | 'formato' | 'servicio' | 'red' | 'acceso' | 'desconocido';
 
 export interface ErrorLegible {
   tipo: TipoError;
@@ -234,6 +376,14 @@ export const describirError = (error: unknown): ErrorLegible => {
   } : null;
   const mensaje = estructurado?.mensaje ?? (typeof detalle === 'string' ? detalle : '');
   const base = { errores: estructurado?.errores ?? [], ayuda: estructurado?.ayuda };
+  if (estado === 401 || (estado === 503 && (detalle as { codigo?: string } | undefined)?.codigo === 'acceso_no_configurado')) {
+    return {
+      ...base, tipo: 'acceso', titulo: 'Acción protegida',
+      mensaje: estado === 401
+        ? 'Ingresa un token de operador válido para esta acción.'
+        : 'El servidor no tiene configurado el acceso de operador; la acción está deshabilitada.',
+    };
+  }
   if (estado === 413) {
     return { ...base, tipo: 'tamano', titulo: 'Archivo demasiado grande', mensaje: 'El máximo es 5 MiB por archivo. Divide el lote en archivos más pequeños.' };
   }

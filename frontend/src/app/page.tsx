@@ -63,7 +63,7 @@ export default function CommunityDashboard() {
           icono: MessageSquare,
           tono: tonos.info,
           pie: !sentimiento || sentimiento.estado === 'sin_datos' ? (
-            <span>Sentimiento: sin datos ({kpis.total_mensajes} sin clasificar)</span>
+            <span>Sentimiento: sin datos ({kpis.total_mensajes} sin analizar)</span>
           ) : (
             <div className="flex justify-between gap-2">
               <span className="text-success font-medium">
@@ -72,7 +72,7 @@ export default function CommunityDashboard() {
               <span className="text-danger font-medium">
                 {kpis.distribucion_sentimiento.negativo} negativos
               </span>
-              {sentimiento.sin_clasificar > 0 && <span>{sentimiento.sin_clasificar} sin clasificar</span>}
+              {sentimiento.sin_clasificar > 0 && <span>{sentimiento.sin_clasificar} sin analizar</span>}
             </div>
           ),
         },
