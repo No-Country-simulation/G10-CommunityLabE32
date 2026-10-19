@@ -34,11 +34,18 @@ class Backend:
         self.solicitudes = []        # ids pendientes de entregar al puente
         self.informes, self.tomas = [], []
         self.posts_trabajo = 0
+        self.auth_trabajos = []      # cabecera Authorization de cada POST/GET a /api/v1/trabajos
+        self.exigir_auth = False     # como la API: /api/v1/trabajos exige el Bearer del puente
+        self.token_trabajos = "Bearer token-local-prueba"
 
     def urlopen(self, peticion, timeout=None):
         if self.caido:
             raise urllib.error.URLError("caida")
         url = peticion.full_url
+        if url.startswith(URL):
+            self.auth_trabajos.append(peticion.get_header("Authorization"))
+            if self.exigir_auth and peticion.get_header("Authorization") != self.token_trabajos:
+                raise urllib.error.HTTPError(url, 401, "x", {}, io.BytesIO(b"{}"))
         if url.startswith(CONTROL):
             if peticion.get_header("Authorization") != "Bearer token-local-prueba":
                 raise urllib.error.HTTPError(url, 401, "x", {}, io.BytesIO(b"{}"))
@@ -97,6 +104,33 @@ class PruebasPuenteParcial(unittest.TestCase):
     def ids(self, lote, previo=None):
         return sorted(m["id"] for m in lote["interacciones"]
                       if previo is None or bool(m.get("previo")) == previo)
+
+    def test_entrega_y_consulta_de_lotes_con_el_bearer_del_puente(self):
+        self.backend.exigir_auth = True
+        self.agregar(1, 2)
+        self.backend.solicitudes = ["s1"]
+        p = self.puente()
+        p.ciclo()
+        self.backend.estado = "terminado"
+        p.ciclo()
+        self.assertEqual(self.backend.posts_trabajo, 1)
+        self.assertTrue(self.backend.auth_trabajos)
+        self.assertEqual(set(self.backend.auth_trabajos), {"Bearer token-local-prueba"})
+
+    def test_credencial_rechazada_no_descarta_el_lote_y_se_reintenta(self):
+        self.backend.exigir_auth = True
+        self.backend.token_trabajos = "Bearer otro-token"   # p. ej. PUENTE_TOKEN rotado solo en la API
+        self.agregar(1)
+        self.backend.solicitudes = ["s1"]
+        with self.assertLogs("communitylab.puente", level="ERROR") as registro:
+            self.puente().ciclo()
+        self.assertTrue(any("credencial_rechazada" in r for r in registro.output))
+        with closing(sqlite3.connect(self.dir / "estado.sqlite3")) as c:
+            estados = {r[0] for r in c.execute("SELECT estado FROM entregas")}
+        self.assertNotIn("rechazado", estados)
+        self.backend.token_trabajos = "Bearer token-local-prueba"
+        self.puente().ciclo()                       # con la credencial correcta, el MISMO lote se entrega
+        self.assertEqual(len(self.backend.trabajos), 1)
 
     def test_sin_solicitud_no_envia_parciales_y_reporta_pendientes(self):
         self.agregar(1, 2)

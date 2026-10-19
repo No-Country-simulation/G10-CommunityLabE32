@@ -90,21 +90,28 @@ def _pedir(url, datos=None, timeout=10, clave=None, cabeceras=None):
         raise SinConexion(str(getattr(error, "reason", error))) from None
 
 
-def enviar_lote(url, lote, clave=None):
+def cabeceras_puente(token=None):
+    """La API exige credencial para /api/v1/trabajos: Bearer PUENTE_TOKEN (variable de entorno por defecto)."""
+    token = token if token is not None else os.environ.get("PUENTE_TOKEN", "")
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
+def enviar_lote(url, lote, clave=None, cabeceras=None):
     """Envía un lote y devuelve el id del procesamiento."""
-    respuesta = _pedir(url, lote, clave=clave)
+    respuesta = _pedir(url, lote, clave=clave, cabeceras=cabeceras)
     identificador = respuesta.get("procesamiento_id")
     if not isinstance(identificador, str) or not identificador:
         raise ErrorBackend(f"respuesta sin procesamiento_id: {respuesta}")
     return identificador
 
 
-def esperar_estado_final(url, identificador, espera_maxima=180, intervalo=2):
+def esperar_estado_final(url, identificador, espera_maxima=180, intervalo=2, cabeceras=None):
     """Consulta el trabajo hasta que termine; devuelve su estado final."""
     limite = time.monotonic() + espera_maxima
     while True:
         restante = limite - time.monotonic()
-        estado = _pedir(f"{url.rstrip('/')}/{identificador}", timeout=max(.1, min(10, restante))).get("estado")
+        estado = _pedir(f"{url.rstrip('/')}/{identificador}", timeout=max(.1, min(10, restante)),
+                        cabeceras=cabeceras).get("estado")
         if estado in ESTADOS_FINALES:
             return estado
         if time.monotonic() >= limite:
@@ -173,12 +180,13 @@ def ejecutar(argv=None, salida=print):
                 continue
             identificador = entrega['trabajo']
             if not identificador:
-                identificador = enviar_lote(args.url, json.loads(entrega['payload']), entrega['clave'])
+                identificador = enviar_lote(args.url, json.loads(entrega['payload']), entrega['clave'],
+                                            cabeceras_puente())
                 entregas.confirmar(entrega['clave'], identificador, 'aceptado')
             if args.sin_esperar:
                 salida(f"  lote {numero}: aceptado id={identificador} (sin esperar estado final)")
                 continue
-            estado = esperar_estado_final(args.url, identificador, args.espera)
+            estado = esperar_estado_final(args.url, identificador, args.espera, cabeceras=cabeceras_puente())
             entregas.confirmar(entrega['clave'], identificador, estado)
             salida(f"  lote {numero}: id={identificador} estado={estado}")
             if estado != "terminado":

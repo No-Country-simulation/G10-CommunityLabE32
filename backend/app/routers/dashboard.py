@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.core.acceso import requiere_usuario
 from backend.app.core.dependencias import get_db
 from backend.app.models.activo import Activo
 from backend.app.models.mensaje import Mensaje
@@ -17,7 +18,7 @@ SENTIMIENTOS = ("positivo", "negativo", "neutral", "indeterminado")
 PENDIENTES_REVISION = ("generado", "revisado")
 
 
-@router.get("/kpis", response_model=Dict[str, Any])
+@router.get("/kpis", response_model=Dict[str, Any], dependencies=[Depends(requiere_usuario)])
 async def obtener_kpis(
     origen: Optional[str] = Query(None, max_length=200, description="origen_comunidad de los lotes"),
     periodo: Optional[str] = Query(None, max_length=100, description="periodo_referencia de los lotes"),
@@ -74,7 +75,7 @@ async def obtener_kpis(
         raise HTTPException(status_code=500, detail="Error al calcular los indicadores.")
 
 
-@router.get("/ambitos")
+@router.get("/ambitos", dependencies=[Depends(requiere_usuario)])
 async def obtener_ambitos(db: AsyncSession = Depends(get_db)):
     """Pares origen/período con lotes registrados, del más reciente al más antiguo."""
     return {"items": await listar_ambitos(db)}

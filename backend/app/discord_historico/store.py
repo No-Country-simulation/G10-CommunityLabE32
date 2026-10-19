@@ -128,10 +128,12 @@ class Store:
         with self.conectar() as c:
             return self._publico(c.execute("SELECT * FROM discord_importaciones WHERE id=%s", (identificador,)).fetchone())
 
-    def listar(self, limite=20):
+    def listar(self, limite=20, solicitante=None):
+        """Últimas importaciones; con solicitante, solo las suyas (visibilidad por cuenta)."""
         with self.conectar() as c:
             return [self._publico(f) for f in c.execute(
-                "SELECT * FROM discord_importaciones ORDER BY creado DESC LIMIT %s", (limite,))]
+                "SELECT * FROM discord_importaciones WHERE (%s::text IS NULL OR solicitante = %s) "
+                "ORDER BY creado DESC LIMIT %s", (solicitante, solicitante, limite))]
 
     def solicitar_cancelacion(self, identificador):
         """Pendiente → cancelada al instante; ejecutando → el runner se detiene entre páginas."""

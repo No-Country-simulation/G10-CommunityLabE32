@@ -359,7 +359,7 @@ def test_importacion_varias_paginas_bordes_filtros_y_sin_historial_anterior(ento
     # Ni POST a Discord, ni mensajes en la tabla pública `mensajes`.
     assert all(p[0] == "GET" for p in d.peticiones)
     assert fila(entorno, "SELECT count(*) n FROM mensajes")["n"] == 0
-    assert api.get("/api/mensajes").json()["total"] == 0
+    assert api.get("/api/mensajes", headers=H).json()["total"] == 0
 
 
 def _todas(e):

@@ -1,4 +1,9 @@
-"""API de importación histórica de Discord. TODOS los endpoints exigen operador.
+"""API de importación histórica de Discord. TODOS los endpoints exigen rol operador.
+
+Visibilidad: cada importación pertenece a quien la solicitó («usuario:<id>» o, por terminal, el token
+compartido «operador:token-compartido»). Un operador solo ve, consulta, cancela y reanuda las suyas;
+un administrador ve todas. Una importación ajena responde 404, igual que una inexistente.
+La Idempotency-Key de una persona se acota a su cuenta (dos cuentas no comparten claves).
 
 Prefijo: /api/v1/discord/historico
   POST /verificar                       comprueba acceso al canal (sin leer mensajes)
@@ -14,13 +19,12 @@ Importar no llama a la IA, no publica, no responde en Discord ni cierra período
 import asyncio
 import os
 from datetime import datetime, timezone
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.app.core.acceso import solicitante_operador
+from backend.app.core.acceso import Operador
 from backend.app.discord_historico.cliente import ClienteDiscord, CredencialInvalida, ErrorDiscord
 from backend.app.discord_historico.configuracion import Configuracion, ConfiguracionInvalida
 from backend.app.discord_historico.fechas import RangoInvalido, normalizar_rango
@@ -28,7 +32,6 @@ from backend.app.discord_historico.servicio import AccesoDenegado, previsualizar
 from backend.app.discord_historico.store import Conflicto, Store, huella_solicitud
 
 router = APIRouter(prefix="/api/v1/discord/historico", tags=["Discord: importación histórica"])
-Operador = Annotated[str, Depends(solicitante_operador)]
 
 
 class Canal(BaseModel):
@@ -113,15 +116,27 @@ async def previsualizar_rango(datos: Previsualizacion, _: Operador):
                               config)
 
 
-def _conflicto(e):
+def _visible(fila, principal):
+    return fila is not None and (principal.es_administrador or fila.get("solicitante") == principal.solicitante)
+
+
+def _clave(principal, idempotency_key):
+    """Clave por persona; el token compartido conserva la clave tal cual (compatibilidad con #36)."""
+    if not idempotency_key or principal.sesion is None:
+        return idempotency_key
+    return f"{principal.solicitante}|{idempotency_key}"
+
+
+def _conflicto(e, principal):
     mensajes = {"importacion_activa_en_el_canal": "Ya hay una importación activa para este canal.",
                 "clave_idempotencia_reutilizada": "La clave de idempotencia ya identifica otra solicitud."}
+    existente = e.existente if _visible(e.existente, principal) else None
     return HTTPException(409, {"codigo": e.codigo, "mensaje": mensajes.get(e.codigo, e.codigo),
-                               "importacion": jsonable_encoder(e.existente)})
+                               "importacion": jsonable_encoder(existente)})
 
 
 @router.post("/importaciones", status_code=202)
-async def crear_importacion(datos: Importacion, solicitante: Operador,
+async def crear_importacion(datos: Importacion, principal: Operador,
                             idempotency_key: str | None = Header(default=None, max_length=128)):
     """Crea la importación. Con Idempotency-Key, repetir la MISMA solicitud devuelve la original.
 
@@ -129,12 +144,13 @@ async def crear_importacion(datos: Importacion, solicitante: Operador,
     incluye hoy, el corte se congeló en la primera solicitud y no se recalcula al reintentar.
     """
     config = _config()
+    solicitante, idempotency_key = principal.solicitante, _clave(principal, idempotency_key)
     solicitud, huella = huella_solicitud(datos.canal_id, datos.desde, datos.hasta, datos.zona, datos.max_mensajes)
     if idempotency_key:
         try:
             previa = await asyncio.to_thread(_store().por_clave, idempotency_key, huella)
         except Conflicto as e:
-            raise _conflicto(e) from None
+            raise _conflicto(e, principal) from None
         if previa is not None:
             # Recuperar no salta la autorización: operador (dependencia) + canal aún en la lista autorizada.
             if config.servidor_de(previa["canal_id"]) is None:
@@ -159,49 +175,50 @@ async def crear_importacion(datos: Importacion, solicitante: Operador,
             max_mensajes=max_mensajes, solicitante=solicitante, clave_idempotencia=idempotency_key,
             solicitud=solicitud, huella=huella)
     except Conflicto as e:
-        raise _conflicto(e) from None
+        raise _conflicto(e, principal) from None
     return {"importacion": importacion, "reutilizada": not nueva,
             "advertencias": list(rango.advertencias) if nueva else []}
 
 
-def _obtener(identificador):
+def _obtener(identificador, principal):
     fila = _store().obtener(identificador)
-    if fila is None:
+    if not _visible(fila, principal):
         raise _error(404, "importacion_no_encontrada", "Importación no encontrada.")
     return fila
 
 
 @router.get("/importaciones")
-async def listar(_: Operador, limite: int = Query(20, ge=1, le=100)):
-    return {"items": await asyncio.to_thread(_store().listar, limite)}
+async def listar(principal: Operador, limite: int = Query(20, ge=1, le=100)):
+    solicitante = None if principal.es_administrador else principal.solicitante
+    return {"items": await asyncio.to_thread(_store().listar, limite, solicitante)}
 
 
 @router.get("/importaciones/{identificador}")
-async def consultar(identificador: str, _: Operador):
-    return await asyncio.to_thread(_obtener, identificador)
+async def consultar(identificador: str, principal: Operador):
+    return await asyncio.to_thread(_obtener, identificador, principal)
 
 
 @router.post("/importaciones/{identificador}/cancelar")
-async def cancelar(identificador: str, _: Operador):
-    await asyncio.to_thread(_obtener, identificador)
+async def cancelar(identificador: str, principal: Operador):
+    await asyncio.to_thread(_obtener, identificador, principal)
     return await asyncio.to_thread(_store().solicitar_cancelacion, identificador)
 
 
 @router.post("/importaciones/{identificador}/reanudar")
-async def reanudar(identificador: str, _: Operador):
-    await asyncio.to_thread(_obtener, identificador)
+async def reanudar(identificador: str, principal: Operador):
+    await asyncio.to_thread(_obtener, identificador, principal)
     try:
         return await asyncio.to_thread(_store().reanudar, identificador)
     except Conflicto as e:
         if e.codigo == "no_reanudable":
             raise HTTPException(409, {"codigo": e.codigo, "mensaje": "La importación no se puede reanudar en su estado actual.",
                                       "importacion": jsonable_encoder(e.existente)}) from None
-        raise _conflicto(e) from None
+        raise _conflicto(e, principal) from None
 
 
 @router.get("/importaciones/{identificador}/mensajes")
-async def mensajes(identificador: str, _: Operador, limite: int = Query(50, ge=1, le=200),
+async def mensajes(identificador: str, principal: Operador, limite: int = Query(50, ge=1, le=200),
                    desplazamiento: int = Query(0, ge=0)):
-    await asyncio.to_thread(_obtener, identificador)
+    await asyncio.to_thread(_obtener, identificador, principal)
     filas, total = await asyncio.to_thread(_store().mensajes, identificador, limite, desplazamiento)
     return {"total": total, "items": filas}

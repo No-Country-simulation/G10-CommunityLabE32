@@ -30,7 +30,7 @@ TRANSICIONES_VALIDAS = {
     "rechazado": {"revisado"}
 }
 
-@router.get("/activos", response_model=PaginatedActivosResponse)
+@router.get("/activos", response_model=PaginatedActivosResponse, dependencies=[Depends(requiere_operador)])
 async def listar_activos(
     page: int = Query(1, ge=1, description="Número de página"),
     limit: int = Query(15, ge=1, le=100, description="Cantidad de registros por página"),
@@ -77,7 +77,7 @@ async def listar_activos(
         total_pages=total_pages
     )
 
-@router.get("/activos/{id_activo}", response_model=ActivoDetalleResponse)
+@router.get("/activos/{id_activo}", response_model=ActivoDetalleResponse, dependencies=[Depends(requiere_operador)])
 async def obtener_detalle_activo(id_activo: str, db: AsyncSession = Depends(get_db)):
     """
     Obtiene el activo y recupera los mensajes fuente reales (Ground Truth) de la tabla mensajes.
@@ -129,12 +129,11 @@ async def actualizar_activo(
     id_activo: str,
     dto: ActivoUpdateDTO,
     db: AsyncSession = Depends(get_db),
-    # Cambiamos la validación manual por la dependencia unificada de operador (JWT o Token antiguo)
-    operador = Depends(requiere_operador),
+    operador=Depends(requiere_operador),
 ):
     """
     Permite editar el copy, versionar los cambios y transicionar estados de curaduría.
-    Aprobar requiere permisos de operador (vía JWT o token). Editar el texto de un activo aprobado invalida la
+    Toda modificación (editar, revisar, aprobar) requiere rol operador. Editar el texto de un activo aprobado invalida la
     aprobación (vuelve a «revisado») y deja desactualizado cualquier banner anterior.
     """
     query = select(Activo).where(Activo.id_activo == id_activo)
@@ -144,7 +143,7 @@ async def actualizar_activo(
     if not activo:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Activo no encontrado.")
 
-    # 1. Validar máquina de estados y permisos si se intenta aprobar
+    # 1. Validar máquina de estados
     if dto.estado and dto.estado.value != activo.estado:
         permitidos = TRANSICIONES_VALIDAS.get(activo.estado, set())
         if dto.estado.value not in permitidos:
@@ -152,8 +151,6 @@ async def actualizar_activo(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Transición inválida: no se puede pasar de '{activo.estado}' a '{dto.estado.value}'."
             )
-        
-        # Si la transición es hacia 'aprobado', la dependencia requiere_operador ya validó los permisos arriba
         activo.estado = dto.estado.value
         
         # Si se aprueba, lo subimos a OCI en /aprobados
