@@ -21,8 +21,6 @@ export const metadata: Metadata = {
 
 const temaInicial = `(function(){try{document.documentElement.dataset.theme=localStorage.getItem('theme')||'light'}catch(e){}})();`;
 
-const desvanecido = "radial-gradient(closest-side, #000 30%, transparent 100%)";
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
@@ -30,27 +28,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground pb-16 md:pb-0">
-        {/* pb-16 en móvil: espacio para la barra de navegación inferior (Sidebar) */}
+      <body className="relative z-0 min-h-full flex flex-col bg-background text-foreground pb-16 md:pb-0">
         <Script
           id="tema-inicial"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: temaInicial }}
         />
 
-        {/* Marca de agua: logo grande con borde desvanecido, centrado en el área principal */}
-        <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        {/* Marca de agua centrada con el PNG correcto */}
+        <div aria-hidden className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/logo.svg"
+            src="/comunity.png"
             alt=""
-            className="absolute left-[60%] top-[55%] w-[780px] max-w-none -translate-x-1/2 -translate-y-1/2 opacity-[0.13] blur-[2px]"
-            style={{ WebkitMaskImage: desvanecido, maskImage: desvanecido }}
+            className="watermark-logo w-[480px] h-[480px] object-contain select-none"
           />
         </div>
 
         <Topbar />
-        {children}
+        <div className="relative z-10 flex-1 flex flex-col">
+          {children}
+        </div>
       </body>
     </html>
   );

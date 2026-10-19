@@ -101,8 +101,12 @@ async def _detalle(db, fila):
             "creado": fila["creado"], "actualizado": fila["actualizado"]}
 
 
-@router.post("/api/v1/procesamiento-pendientes", status_code=202, dependencies=[Depends(requiere_operador)])
-async def crear_solicitud(cuerpo: CrearSolicitud | None = None, db: AsyncSession = Depends(get_db)):
+@router.post("/api/v1/procesamiento-pendientes", status_code=202)
+async def crear_solicitud(
+    cuerpo: CrearSolicitud | None = None, 
+    db: AsyncSession = Depends(get_db),
+    operador = Depends(requiere_operador) # Unificado con JWT
+):
     origen = (cuerpo.origen if cuerpo else None) or origen_por_defecto()
     identificador = "sol-" + uuid4().hex
     try:
@@ -116,7 +120,7 @@ async def crear_solicitud(cuerpo: CrearSolicitud | None = None, db: AsyncSession
     fila = (await db.execute(text("""SELECT * FROM solicitudes_procesamiento
         WHERE origen=:o AND estado IN ('pendiente','tomada','en_curso') ORDER BY creado DESC LIMIT 1"""),
         {"o": origen})).mappings().first()
-    if fila is None:  # Terminó entre el INSERT y la lectura: se muestra la recién creada.
+    if fila is None:
         fila = (await db.execute(text("SELECT * FROM solicitudes_procesamiento WHERE id=:id"),
                                  {"id": identificador})).mappings().first()
     return {**await _detalle(db, fila), "reutilizada": nueva is None}

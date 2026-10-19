@@ -75,9 +75,13 @@ async def listar_banners(id_activo: str, db: AsyncSession = Depends(get_db)):
             "vigente": next((b for b in banners if not b["desactualizado"]), None)}
 
 
-@router.post("/api/curaduria/activos/{id_activo}/banners", status_code=201,
-             dependencies=[Depends(requiere_operador)])
-async def generar_banner(id_activo: str, response: Response, db: AsyncSession = Depends(get_db)):
+@router.post("/api/curaduria/activos/{id_activo}/banners", status_code=201)
+async def generar_banner(
+    id_activo: str, 
+    response: Response, 
+    db: AsyncSession = Depends(get_db),
+    operador = Depends(requiere_operador) # Unificado con JWT
+):
     activo = await _activo(db, id_activo)
     if activo.estado != "aprobado":
         raise HTTPException(409, {"codigo": "texto_no_aprobado",
@@ -101,7 +105,7 @@ async def generar_banner(id_activo: str, response: Response, db: AsyncSession = 
         raise HTTPException(409, {"codigo": "generacion_en_curso", "mensaje": "El banner ya se está generando."})
     await db.execute(text("""UPDATE banners SET estado='generando', intentos=intentos+1, error_codigo=NULL,
         actualizado=clock_timestamp() WHERE id=:id"""), {"id": fila["id"]})
-    await db.commit()  # Estado visible antes de renderizar: un reinicio deja rastro recuperable.
+    await db.commit()
     try:
         svg, estado, error = plantilla.renderizar(formato, copy), "generado", None
     except plantilla.BannerNoGenerable:
@@ -125,8 +129,13 @@ async def ver_banner(identificador: str, db: AsyncSession = Depends(get_db)):
     return Response(svg, media_type="image/svg+xml", headers=CABECERAS_SVG)
 
 
-@router.post("/api/banners/{identificador}/revision", dependencies=[Depends(requiere_operador)])
-async def revisar_banner(identificador: str, revision: Revision, db: AsyncSession = Depends(get_db)):
+@router.post("/api/banners/{identificador}/revision")
+async def revisar_banner(
+    identificador: str, 
+    revision: Revision, 
+    db: AsyncSession = Depends(get_db),
+    operador = Depends(requiere_operador) # Unificado con JWT
+):
     fila = (await db.execute(text(f"SELECT {COLUMNAS} FROM banners WHERE id=:id FOR UPDATE"),
                              {"id": identificador})).mappings().first()
     if fila is None:
@@ -143,5 +152,4 @@ async def revisar_banner(identificador: str, revision: Revision, db: AsyncSessio
     await db.commit()
     fila = (await db.execute(text(f"SELECT {COLUMNAS} FROM banners WHERE id=:id"),
                              {"id": identificador})).mappings().first()
-    # Aprobado no es publicado: la publicación sigue siendo una acción externa y manual.
     return {**_vista(fila, activo), "publicado": False}

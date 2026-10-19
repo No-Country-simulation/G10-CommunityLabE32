@@ -1,8 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { obtenerMensajes, obtenerKPIs, obtenerAmbitos, Ambito, Mensaje, DashboardKPIs } from '@/services/api';
+import {
+  obtenerMensajes,
+  obtenerKPIs,
+  obtenerAmbitos,
+  leerTokenOperador,
+  Ambito,
+  Mensaje,
+  DashboardKPIs,
+} from '@/services/api';
 import {
   Loader2, Wifi, WifiOff, MessageSquare, Layers, CheckCircle2, AlertTriangle, Activity, UploadCloud,
 } from 'lucide-react';
@@ -24,6 +33,8 @@ const sentimentBadge: Record<string, string> = {
 const itemAnim = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } };
 
 export default function CommunityDashboard() {
+  const router = useRouter();
+  const [autorizado, setAutorizado] = useState(false);
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [ambitos, setAmbitos] = useState<Ambito[]>([]);
@@ -32,10 +43,25 @@ export default function CommunityDashboard() {
   const [conectado, setConectado] = useState<boolean | null>(null);
 
   useEffect(() => {
-    obtenerAmbitos().then(setAmbitos).catch(() => setAmbitos([]));
-  }, []);
+    const token = leerTokenOperador();
+    if (!token) {
+      router.replace('/login');
+    } else {
+      // Usamos un setTimeout para evitar el setState sincrónico dentro del effect que rechaza ESLint
+      const timer = setTimeout(() => {
+        setAutorizado(true);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [router]);
 
   useEffect(() => {
+    if (!autorizado) return;
+    obtenerAmbitos().then(setAmbitos).catch(() => setAmbitos([]));
+  }, [autorizado]);
+
+  useEffect(() => {
+    if (!autorizado) return;
     let vigente = true;
     Promise.all([obtenerKPIs(ambito), obtenerMensajes(0, 9, undefined, ambito)])
       .then(([kpiData, msgsData]) => {
@@ -52,7 +78,18 @@ export default function CommunityDashboard() {
         setCargando(false);
       });
     return () => { vigente = false; };
-  }, [ambito]);
+  }, [ambito, autorizado]);
+
+  if (!autorizado) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex items-center gap-3 text-muted-foreground text-sm">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          Verificando sesión segura…
+        </div>
+      </div>
+    );
+  }
 
   const sentimiento = kpis?.sentimiento;
   const tarjetas = kpis
@@ -133,8 +170,7 @@ export default function CommunityDashboard() {
                 </option>
               ))}
             </select>
-            {/* Reemplaza el antiguo "Test Ingesta", que llamaba a un endpoint de demostración sin persistencia. */}
-            <Link href="/ingesta" className="btn-secondary">
+            <Link className="btn-secondary" href="/ingesta">
               <UploadCloud className="w-3.5 h-3.5 text-primary" />
               Nueva ingesta
             </Link>

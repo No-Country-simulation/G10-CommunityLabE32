@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Configuración base apuntando a tu FastAPI
+// Configuración base apuntando a tu FastAPI a través del proxy (/api)
 export const apiClient = axios.create({
   baseURL: '/api',
   headers: {
@@ -8,30 +8,114 @@ export const apiClient = axios.create({
   },
 });
 
-// --- Token de operador ---
-// Solo en sessionStorage de esta pestaña (se borra al cerrarla); se envía en X-Operador-Token
-// para acciones protegidas: procesar pendientes, aprobar textos, generar y revisar banners.
+// --- Gestión unificada de Autenticación JWT + Compatibilidad con Operador ---
 const CLAVE_OPERADOR = 'communitylab-operador';
+const CLAVE_JWT = 'access_token';
+const CLAVE_USUARIO = 'communitylab-usuario';
 export const EVENTO_OPERADOR = 'communitylab-operador';
+
+export interface UsuarioAuth {
+  id: number;
+  email: string;
+  full_name?: string | null;
+  is_active: boolean;
+}
+
+// --- CÓMO DEBE QUEDAR DESPUÉS ---
 export const leerTokenOperador = (): string => {
+  if (typeof window === 'undefined') return '';
   try {
-    return sessionStorage.getItem(CLAVE_OPERADOR) ?? '';
+    return (
+      localStorage.getItem('access_token') ||
+      localStorage.getItem('communitylab_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('token_jwt') ||
+      sessionStorage.getItem('access_token') ||
+      sessionStorage.getItem('communitylab-operador') ||
+      ''
+    );
   } catch {
     return '';
   }
 };
+
 export const guardarTokenOperador = (token: string) => {
+  if (typeof window === 'undefined') return;
   try {
-    if (token) sessionStorage.setItem(CLAVE_OPERADOR, token);
-    else sessionStorage.removeItem(CLAVE_OPERADOR);
+    if (token) {
+      localStorage.setItem(CLAVE_JWT, token);
+      sessionStorage.setItem(CLAVE_OPERADOR, token);
+    } else {
+      localStorage.removeItem(CLAVE_JWT);
+      localStorage.removeItem(CLAVE_USUARIO);
+      sessionStorage.removeItem(CLAVE_OPERADOR);
+    }
   } catch {}
   window.dispatchEvent(new Event(EVENTO_OPERADOR));
 };
+
+export const cerrarSesion = () => {
+  guardarTokenOperador('');
+};
+
+// Único interceptor limpio para inyectar el JWT en todas las peticiones
 apiClient.interceptors.request.use((config) => {
-  const token = typeof window === 'undefined' ? '' : leerTokenOperador();
-  if (token) config.headers.set('X-Operador-Token', token);
+  if (typeof window !== 'undefined') {
+    const token = leerTokenOperador();
+    if (token) {
+      config.headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
   return config;
 });
+// --- Funciones de Autenticación (Login y Registro) ---
+export interface RespuestaToken {
+  access_token: string;
+  token_type: string;
+}
+
+export const iniciarSesion = async (email: string, password: string): Promise<RespuestaToken> => {
+  const formData = new URLSearchParams();
+  formData.append('username', email);
+  formData.append('password', password);
+
+  const response = await apiClient.post<RespuestaToken>('/auth/login', formData, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  guardarTokenOperador(response.data.access_token);
+  return response.data;
+};
+
+export const registrarUsuario = async (
+  full_name: string,
+  email: string,
+  password: string
+): Promise<UsuarioAuth> => {
+  const response = await apiClient.post<UsuarioAuth>('/auth/register', {
+    full_name,
+    email,
+    password,
+  });
+  return response.data;
+};
+
+export const obtenerPerfilActual = async (): Promise<UsuarioAuth> => {
+  const response = await apiClient.get<UsuarioAuth>('/auth/me');
+  return response.data;
+};
+export interface ActualizarPerfilPayload {
+  full_name?: string;
+  email?: string;
+  current_password?: string;
+  new_password?: string;
+}
+
+export const actualizarPerfilUsuario = async (
+  payload: ActualizarPerfilPayload
+): Promise<UsuarioAuth> => {
+  const response = await apiClient.patch<UsuarioAuth>('/auth/me', payload);
+  return response.data;
+};
 
 // Tipado estricto basado en tu Pydantic del Backend
 export interface Mensaje {
@@ -68,22 +152,20 @@ export const obtenerResumenSentimiento = async (canal?: string, ambito?: Ambito 
   return response.data;
 };
 
-// Reemplaza tu función obtenerMensajes por esta:
-
 export interface PaginatedMensajes {
   items: Mensaje[];
   total: number;
 }
 
 export const obtenerMensajes = async (
-  skip: number = 0, 
-  limit: number = 10, 
+  skip: number = 0,
+  limit: number = 10,
   canal?: string,
   ambito?: Ambito | null,
   sentimiento?: FiltroSentimiento,
 ): Promise<PaginatedMensajes> => {
-  const response = await apiClient.get('/mensajes', { 
-    params: { skip, limit, canal, origen: ambito?.origen, periodo: ambito?.periodo, sentimiento }
+  const response = await apiClient.get('/mensajes', {
+    params: { skip, limit, canal, origen: ambito?.origen, periodo: ambito?.periodo, sentimiento },
   });
   return response.data;
 };
@@ -138,7 +220,7 @@ export interface Activo {
   comentario_curador?: string;
   advertencias_fidelidad?: AdvertenciaFidelidad[] | null;
   fecha_actualizacion: string;
-  fuentes_detalle?: FuenteMensajeDetalle[]; // Solo viene al pedir el detalle
+  fuentes_detalle?: FuenteMensajeDetalle[];
 }
 
 export interface PaginatedActivosResponse {
@@ -159,7 +241,7 @@ export const listarActivos = async (
   const params: Record<string, string | number> = { page, limit };
   if (estado) params.estado = estado;
   if (trabajo) params.trabajo = trabajo;
-  
+
   const response = await apiClient.get('/curaduria/activos', { params });
   return response.data;
 };
@@ -176,8 +258,6 @@ export const actualizarActivo = async (
   const response = await apiClient.patch(`/curaduria/activos/${id_activo}`, payload);
   return response.data;
 };
-
-// Al final del archivo añade:
 
 // Semántica documentada en docs/metricas-panel.md.
 export interface DashboardKPIs {
@@ -223,7 +303,6 @@ export interface AdvertenciaFidelidad {
   detalle: string;
 }
 
-// Solo valores de catálogo generados por el backend; nunca texto del proveedor.
 export interface DiagnosticoIA {
   http?: number | null;
   categoria?: string;
@@ -378,9 +457,9 @@ export const describirError = (error: unknown): ErrorLegible => {
   const base = { errores: estructurado?.errores ?? [], ayuda: estructurado?.ayuda };
   if (estado === 401 || (estado === 503 && (detalle as { codigo?: string } | undefined)?.codigo === 'acceso_no_configurado')) {
     return {
-      ...base, tipo: 'acceso', titulo: 'Acción protegida',
+      ...base, tipo: 'acceso', titulo: 'Sesión requerida',
       mensaje: estado === 401
-        ? 'Ingresa un token de operador válido para esta acción.'
+        ? (mensaje || 'Tu sesión expiró o no has iniciado sesión. Ingresa con tu cuenta para continuar.')
         : 'El servidor no tiene configurado el acceso de operador; la acción está deshabilitada.',
     };
   }
@@ -391,7 +470,7 @@ export const describirError = (error: unknown): ErrorLegible => {
     return { ...base, tipo: 'conflicto', titulo: 'Conflicto con datos existentes', mensaje: mensaje || 'El lote entra en conflicto con datos ya registrados.' };
   }
   if (estado === 400) {
-    return { ...base, tipo: 'formato', titulo: 'Formato no soportado', mensaje: mensaje || 'Usa JSON, JSONL o CSV.' };
+    return { ...base, tipo: 'formato', titulo: 'Solicitud no válida', mensaje: mensaje || 'Revisa los datos enviados.' };
   }
   if (estado === 422) {
     return { ...base, tipo: 'validacion', titulo: 'El archivo no pasó la validación', mensaje: mensaje || 'Revisa los campos del archivo.' };
@@ -401,3 +480,5 @@ export const describirError = (error: unknown): ErrorLegible => {
   }
   return { ...base, tipo: 'desconocido', titulo: `Error ${estado}`, mensaje: mensaje || 'La API rechazó la solicitud.' };
 };
+
+export default apiClient;

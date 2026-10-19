@@ -69,12 +69,15 @@ services:
       labels:
         org.opencontainers.image.revision: ${GIT_REVISION:-desconocido}
     platform: ${DOCKER_PLATFORM:-linux/arm64}
+    ports:
+      - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
       # Vacíos = acciones protegidas deshabilitadas (503). Ver docs/flujo-hibrido-banners.md.
       OPERADOR_TOKEN: ${OPERADOR_TOKEN:-}
       PUENTE_TOKEN: ${PUENTE_TOKEN:-}
       PUENTE_ORIGEN: ${PUENTE_ORIGEN:-discord}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-communitylab-key-32-segura}
     networks: [frontend, database, outbound]
     depends_on:
       postgres:
@@ -174,3 +177,5 @@ networks:
 
 volumes:
   postgres_data:
+
+  

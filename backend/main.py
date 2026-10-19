@@ -1,15 +1,16 @@
 from typing import List
 from fastapi import FastAPI
+from backend.app.routers import auth
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 app = FastAPI(
     title="CommunityLab API",
     version="1.0.0",
-    description="Motor de Ingesta y Transformación Comunitaria - Mock Inicial"
+    description="Motor de Ingesta, Transformación Comunitaria y Autenticación Segura (JWT)"
 )
 
-# CORS habilitado para comunicación con Next.js
+# CORS estrictamente controlado o abierto según requerimiento del proxy local
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,6 +18,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Incluir el router de autenticación y seguridad de usuarios
+app.include_router(auth.router)
 
 # --- Esquema de Entrada ---
 class Interaccion(BaseModel):
