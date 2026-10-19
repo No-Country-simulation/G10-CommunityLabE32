@@ -161,3 +161,29 @@ CREATE TABLE IF NOT EXISTS discord_importacion_mensajes (
     resultado text NOT NULL CHECK (resultado IN ('insertado', 'existente', 'existente_en_vivo', 'editado')),
     PRIMARY KEY (importacion_id, id_mensaje)
 );
+
+-- Cuentas de personas y sesiones revocables (backend/app/services/auth.py, docs/politica-acceso.md).
+-- Compatible con la tabla que crea SQLAlchemy (create_all) y con bases anteriores sin `rol`:
+-- las cuentas existentes quedan como «usuario» (sin permisos de operador) hasta que un administrador las promueva.
+CREATE TABLE IF NOT EXISTS usuarios (
+    id serial PRIMARY KEY,
+    email varchar(255) NOT NULL UNIQUE,
+    hashed_password varchar(255) NOT NULL,
+    full_name varchar(255),
+    is_active boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol varchar(20) NOT NULL DEFAULT 'usuario';
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'usuarios_rol_valido') THEN
+        ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_valido CHECK (rol IN ('usuario', 'operador', 'administrador'));
+    END IF;
+END $$;
+CREATE TABLE IF NOT EXISTS sesiones (
+    id text PRIMARY KEY,                       -- claim jti del JWT
+    usuario_id integer NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    creada timestamptz NOT NULL DEFAULT clock_timestamp(),
+    expira timestamptz NOT NULL,
+    revocada timestamptz
+);
+CREATE INDEX IF NOT EXISTS sesiones_usuario_vigentes ON sesiones (usuario_id) WHERE revocada IS NULL;

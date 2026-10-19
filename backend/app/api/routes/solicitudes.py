@@ -101,12 +101,8 @@ async def _detalle(db, fila):
             "creado": fila["creado"], "actualizado": fila["actualizado"]}
 
 
-@router.post("/api/v1/procesamiento-pendientes", status_code=202)
-async def crear_solicitud(
-    cuerpo: CrearSolicitud | None = None, 
-    db: AsyncSession = Depends(get_db),
-    operador = Depends(requiere_operador) # Unificado con JWT
-):
+@router.post("/api/v1/procesamiento-pendientes", status_code=202, dependencies=[Depends(requiere_operador)])
+async def crear_solicitud(cuerpo: CrearSolicitud | None = None, db: AsyncSession = Depends(get_db)):
     origen = (cuerpo.origen if cuerpo else None) or origen_por_defecto()
     identificador = "sol-" + uuid4().hex
     try:
@@ -120,13 +116,13 @@ async def crear_solicitud(
     fila = (await db.execute(text("""SELECT * FROM solicitudes_procesamiento
         WHERE origen=:o AND estado IN ('pendiente','tomada','en_curso') ORDER BY creado DESC LIMIT 1"""),
         {"o": origen})).mappings().first()
-    if fila is None:
+    if fila is None:  # Terminó entre el INSERT y la lectura: se muestra la recién creada.
         fila = (await db.execute(text("SELECT * FROM solicitudes_procesamiento WHERE id=:id"),
                                  {"id": identificador})).mappings().first()
     return {**await _detalle(db, fila), "reutilizada": nueva is None}
 
 
-@router.get("/api/v1/procesamiento-pendientes/actual")
+@router.get("/api/v1/procesamiento-pendientes/actual", dependencies=[Depends(requiere_operador)])
 async def solicitud_actual(origen: str | None = None, db: AsyncSession = Depends(get_db)):
     origen = origen or origen_por_defecto()
     fila = (await db.execute(text("""SELECT * FROM solicitudes_procesamiento WHERE origen=:o
@@ -143,7 +139,7 @@ async def solicitud_actual(origen: str | None = None, db: AsyncSession = Depends
                 "pendientes": sum(pendientes.values()) if pendientes else 0}}
 
 
-@router.get("/api/v1/procesamiento-pendientes/{identificador}")
+@router.get("/api/v1/procesamiento-pendientes/{identificador}", dependencies=[Depends(requiere_operador)])
 async def consultar_solicitud(identificador: str, db: AsyncSession = Depends(get_db)):
     fila = (await db.execute(text("SELECT * FROM solicitudes_procesamiento WHERE id=:id"),
                              {"id": identificador})).mappings().first()

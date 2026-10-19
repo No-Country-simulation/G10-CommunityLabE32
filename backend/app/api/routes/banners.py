@@ -62,7 +62,7 @@ COLUMNAS = ("id, id_activo, version_texto, huella_texto, estado, revision, prove
             "error_codigo, intentos, comentario, creado, actualizado")
 
 
-@router.get("/api/curaduria/activos/{id_activo}/banners")
+@router.get("/api/curaduria/activos/{id_activo}/banners", dependencies=[Depends(requiere_operador)])
 async def listar_banners(id_activo: str, db: AsyncSession = Depends(get_db)):
     activo = await _activo(db, id_activo)
     filas = (await db.execute(text(f"SELECT {COLUMNAS} FROM banners WHERE id_activo=:a "
@@ -75,13 +75,9 @@ async def listar_banners(id_activo: str, db: AsyncSession = Depends(get_db)):
             "vigente": next((b for b in banners if not b["desactualizado"]), None)}
 
 
-@router.post("/api/curaduria/activos/{id_activo}/banners", status_code=201)
-async def generar_banner(
-    id_activo: str, 
-    response: Response, 
-    db: AsyncSession = Depends(get_db),
-    operador = Depends(requiere_operador) # Unificado con JWT
-):
+@router.post("/api/curaduria/activos/{id_activo}/banners", status_code=201,
+             dependencies=[Depends(requiere_operador)])
+async def generar_banner(id_activo: str, response: Response, db: AsyncSession = Depends(get_db)):
     activo = await _activo(db, id_activo)
     if activo.estado != "aprobado":
         raise HTTPException(409, {"codigo": "texto_no_aprobado",
@@ -105,7 +101,7 @@ async def generar_banner(
         raise HTTPException(409, {"codigo": "generacion_en_curso", "mensaje": "El banner ya se está generando."})
     await db.execute(text("""UPDATE banners SET estado='generando', intentos=intentos+1, error_codigo=NULL,
         actualizado=clock_timestamp() WHERE id=:id"""), {"id": fila["id"]})
-    await db.commit()
+    await db.commit()  # Estado visible antes de renderizar: un reinicio deja rastro recuperable.
     try:
         svg, estado, error = plantilla.renderizar(formato, copy), "generado", None
     except plantilla.BannerNoGenerable:
@@ -120,7 +116,8 @@ async def generar_banner(
     return {**_vista(fila, activo), "reutilizado": False}
 
 
-@router.get("/api/banners/{identificador}.svg")
+# Borradores sin publicar: solo operadores (la cookie de sesión viaja con <img> del mismo sitio).
+@router.get("/api/banners/{identificador}.svg", dependencies=[Depends(requiere_operador)])
 async def ver_banner(identificador: str, db: AsyncSession = Depends(get_db)):
     svg = (await db.execute(text("SELECT svg FROM banners WHERE id=:id AND estado='generado'"),
                             {"id": identificador})).scalar()
@@ -129,13 +126,8 @@ async def ver_banner(identificador: str, db: AsyncSession = Depends(get_db)):
     return Response(svg, media_type="image/svg+xml", headers=CABECERAS_SVG)
 
 
-@router.post("/api/banners/{identificador}/revision")
-async def revisar_banner(
-    identificador: str, 
-    revision: Revision, 
-    db: AsyncSession = Depends(get_db),
-    operador = Depends(requiere_operador) # Unificado con JWT
-):
+@router.post("/api/banners/{identificador}/revision", dependencies=[Depends(requiere_operador)])
+async def revisar_banner(identificador: str, revision: Revision, db: AsyncSession = Depends(get_db)):
     fila = (await db.execute(text(f"SELECT {COLUMNAS} FROM banners WHERE id=:id FOR UPDATE"),
                              {"id": identificador})).mappings().first()
     if fila is None:
@@ -152,4 +144,5 @@ async def revisar_banner(
     await db.commit()
     fila = (await db.execute(text(f"SELECT {COLUMNAS} FROM banners WHERE id=:id"),
                              {"id": identificador})).mappings().first()
+    # Aprobado no es publicado: la publicación sigue siendo una acción externa y manual.
     return {**_vista(fila, activo), "publicado": False}

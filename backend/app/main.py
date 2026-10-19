@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,14 +14,17 @@ app = FastAPI(
     description="Motor backend para procesamiento, curaduría, distribución comunitaria y autenticación segura."
 )
 
-# Configuración CORS para conectar con Next.js (puerto 3000)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# La interfaz llega por el mismo origen (rewrites de Next.js en local, nginx en la VM), así que
+# no hace falta CORS. CORS_ORIGENES (lista separada por comas) solo para un origen distinto explícito.
+_origenes = [o.strip() for o in os.environ.get("CORS_ORIGENES", "").split(",") if o.strip()]
+if _origenes:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origenes,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PATCH"],
+        allow_headers=["Content-Type", "X-CSRF-Token", "Idempotency-Key"],
+    )
 
 # Registrar todos los routers
 app.include_router(mensajes.router)
