@@ -119,7 +119,7 @@ const integrantes: MiembroEquipo[] = [
     bio: 'Coordinación general del equipo de trabajo en No Country, planificación de sprints y control de calidad para el Demo Day.',
     stack: ['Agile', 'Scrum', 'Jira', 'QA Management'],
     colorGradiente: 'from-yellow-500 to-amber-600',
-    linkedin: 'https://www.linkedin.com/',
+    linkedin: 'https://www.linkedin.com/in/eav1804/',
   },
 ];
 
