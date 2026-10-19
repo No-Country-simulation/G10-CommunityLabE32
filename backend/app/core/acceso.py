@@ -29,3 +29,14 @@ def requiere_operador(x_operador_token: str | None = Header(default=None, max_le
 def requiere_puente(authorization: str | None = Header(default=None, max_length=300)) -> None:
     token = authorization[7:] if authorization and authorization.startswith("Bearer ") else None
     _comparar("PUENTE_TOKEN", token, "Token del puente")
+
+
+def solicitante_operador(x_operador_token: str | None = Header(default=None, max_length=256)) -> str:
+    """Igual que requiere_operador, pero devuelve quién solicita, para registrarlo.
+
+    Hoy el token es compartido y no identifica a la persona: se registra «operador:token-compartido».
+    Cuando exista el sistema de usuarios, esta función devolverá el usuario autenticado y los
+    endpoints que la usan no tendrán que cambiar.
+    """
+    requiere_operador(x_operador_token)
+    return "operador:token-compartido"
