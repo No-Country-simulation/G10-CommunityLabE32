@@ -66,11 +66,13 @@ def procesar_gemini_falso(cola, sentimientos, relevancia=0.1):
 
     def responder(p):
         # analizar y puntuar reciben una lista de {"id", ...}; con relevancia baja no hay generación.
+        # Gemini recibe alias (m01…); como un modelo, se identifica cada mensaje por su texto ficticio.
         items = json.loads(p["cuerpo"]["contents"][0]["parts"][0]["text"])
+        original = {m["id"]: m["texto"].removeprefix("Mensaje ficticio ") for m in items}
         if tarea_de(p) == "analizar":
             return ok({"resultados": [{"id": m["id"], "es_logro": False, "es_duda": False, "es_bloqueo": False,
-                                       "tema": "general", **({"sentimiento": sentimientos[m["id"]]}
-                                                             if m["id"] in sentimientos else {})}
+                                       "tema": "general", **({"sentimiento": sentimientos[original[m["id"]]]}
+                                                             if original[m["id"]] in sentimientos else {})}
                                       for m in items]})
         return ok({"resultados": [{"id": m["id"], "relevancia": relevancia} for m in items]})
 
@@ -440,7 +442,7 @@ def test_evaluacion_real_usa_el_contador_del_presupuesto_y_respeta_el_tope():
     from pipelines.communitylab.gemini_falso import GeminiFalso, configuracion, ok, responder_con_senales
     herramienta = _herramienta_evaluacion()
     lote, senales = _lote_evaluacion()
-    falso = GeminiFalso(responder=responder_con_senales(senales))
+    falso = GeminiFalso(responder=responder_con_senales(senales, interacciones=lote["interacciones"]))
     obtenidos, llamadas = herramienta.evaluar_real(lote, configuracion(), 2, transporte=falso.transporte)
     assert (llamadas, len(falso.peticiones), len(obtenidos)) == (1, 1, 20)
     assert herramienta.metricas({i: s["sentimiento"] for i, s in senales.items()}, obtenidos)[
@@ -456,7 +458,7 @@ def test_reproceso_usa_el_contador_del_presupuesto_y_el_tope_restante():
     from backend.scripts.reprocesar_sentimiento import analizador_gemini
     from pipelines.communitylab.gemini_falso import GeminiFalso, configuracion, ok, responder_con_senales
     lote, senales = _lote_evaluacion()
-    falso = GeminiFalso(responder=responder_con_senales(senales))
+    falso = GeminiFalso(responder=responder_con_senales(senales, interacciones=lote["interacciones"]))
     resultados, llamadas = analizador_gemini(configuracion(), transporte=falso.transporte)(lote, 5)
     assert (llamadas, len(resultados)) == (1, 20)
     assert resultados["ev-01"]["sentimiento"] == "positivo"

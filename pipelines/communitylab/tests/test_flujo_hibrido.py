@@ -107,7 +107,7 @@ class PruebasGrafoParcialYSentimiento(unittest.TestCase):
     def test_sentimiento_viaja_en_la_misma_llamada_de_analisis(self):
         senales = {i: {**s, "sentimiento": "positivo" if s["es_logro"] else "indeterminado"}
                    for i, s in self.senales.items()}
-        falso = GeminiFalso(responder=responder_con_senales(senales))
+        falso = GeminiFalso(responder=responder_con_senales(senales, interacciones=self.entrada["interacciones"]))
         salida = ejecutar_lote(self.entrada, crear_componentes_gemini(configuracion(), transporte=falso.transporte))
         self.assertEqual(salida["estado"], "completado_local", salida["errores"])
         self.assertEqual(set(salida["sentimientos"]), {m["id"] for m in self.entrada["interacciones"]})
@@ -118,7 +118,7 @@ class PruebasGrafoParcialYSentimiento(unittest.TestCase):
     def test_sentimiento_ausente_o_invalido_queda_sin_analizar_sin_romper_el_lote(self):
         senales = {i: {**s, "sentimiento": "feliz" if i == "m-01" else "negativo"}
                    for i, s in self.senales.items()}
-        falso = GeminiFalso(responder=responder_con_senales(senales))
+        falso = GeminiFalso(responder=responder_con_senales(senales, interacciones=self.entrada["interacciones"]))
         salida = ejecutar_lote(self.entrada, crear_componentes_gemini(configuracion(), transporte=falso.transporte))
         self.assertEqual(salida["estado"], "completado_local", salida["errores"])
         self.assertNotIn("m-01", salida["sentimientos"])  # nunca se convierte en neutral

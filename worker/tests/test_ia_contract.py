@@ -40,7 +40,7 @@ def gemini(monkeypatch):
 
 def test_modo_gemini_completa_lote_con_componentes_reales(gemini):
     entrada = lote()
-    falso = gemini(responder_con_senales(senales_de(entrada)))
+    falso = gemini(responder_con_senales(senales_de(entrada), interacciones=entrada["interacciones"]))
     salida = ejecutar_grafo(entrada, "gemini")
     assert salida["estado"] == "completado_local" and salida["simulado"] is False
     assert [tarea_de(p) for p in falso.peticiones][:2] == ["analizar", "puntuar"]
@@ -137,7 +137,7 @@ def procesar_gemini(entrada, renovar):
 
 def test_postgres_lote_gemini_terminado_con_activos_validos(cola, gemini):
     entrada = lote()
-    gemini(responder_con_senales(senales_de(entrada), copy="Borrador real para curaduría."))
+    gemini(responder_con_senales(senales_de(entrada), copy="Borrador real para curaduría.", interacciones=entrada["interacciones"]))
     id_ = cola.encolar(entrada)
     Worker(cola, procesar_gemini).ejecutar_uno()
     trabajo = cola.obtener(id_)
@@ -155,7 +155,7 @@ def test_postgres_lote_gemini_terminado_con_activos_validos(cola, gemini):
 
 def test_postgres_fallo_gemini_sin_activos_parciales(cola, gemini):
     entrada = lote()
-    base = responder_con_senales(senales_de(entrada))
+    base = responder_con_senales(senales_de(entrada), interacciones=entrada["interacciones"])
     generados = []
 
     def responder(p):
@@ -175,7 +175,7 @@ def test_postgres_fallo_gemini_sin_activos_parciales(cola, gemini):
 
 def test_postgres_repeticion_no_duplica_activos(cola, gemini):
     entrada = lote()
-    gemini(responder_con_senales(senales_de(entrada)))
+    gemini(responder_con_senales(senales_de(entrada), interacciones=entrada["interacciones"]))
     id_ = cola.encolar(entrada)
     primero = cola.reservar()
     salida = procesar_gemini(primero.entrada, None)
@@ -185,3 +185,78 @@ def test_postgres_repeticion_no_duplica_activos(cola, gemini):
     assert cola.terminar(primero, salida) is False
     with cola.conectar() as c:
         assert c.execute("SELECT count(*) AS n FROM activos").fetchone()["n"] == 3
+
+
+def lote_discord_19():
+    """Escenario del trabajo 7e2f5d03 con datos ficticios: 19 IDs «discord-<snowflake>» (27 caracteres)."""
+    tipos = ["duda"] * 6 + ["logro"] * 5 + ["bloqueo"] * 4 + ["casual"] * 4
+    base = 1559400000000000000
+    return {"origen_comunidad": "discord", "periodo_referencia": "2026-W43", "cierre_periodo": False,
+            "interacciones": [{"id": f"discord-{base + 7_100_000_000_000 * i}", "autor": f"persona-{i}",
+                               "canal": "discord_100000000000000001", "fecha": "2026-10-19T10:00:00Z",
+                               "texto": f"Mensaje ficticio {i} de tipo {t}", "tipo": t}
+                              for i, t in enumerate(tipos)]}
+
+
+def test_postgres_lote_discord_19_ids_largos_conserva_ids_sentimientos_e_idempotencia(cola, gemini):
+    from worker.store_postgres import ColaPostgres
+    entrada = lote_discord_19()
+    ids = [m["id"] for m in entrada["interacciones"]]
+    bloqueos = {m["id"] for m in entrada["interacciones"] if m["tipo"] == "bloqueo"}
+    senales = {i: {**s, "sentimiento": ("positivo", "negativo", "neutral", "indeterminado")[n % 4]}
+               for n, (i, s) in enumerate(senales_de(entrada).items())}
+    falso = gemini(responder_con_senales(senales, interacciones=entrada["interacciones"]))
+    id_ = cola.encolar(entrada, clave_idempotencia="discord-parcial-v1-prueba-a")
+    Worker(cola, procesar_gemini).ejecutar_uno()
+    trabajo = cola.obtener(id_)
+    assert trabajo["estado"] == "terminado", trabajo.get("error_codigo")
+    # Gemini solo vio alias: ningún ID original en las peticiones.
+    for p in falso.peticiones:
+        for i in ids:
+            assert i not in str(p["cuerpo"])
+    with cola.conectar() as c:
+        activos = c.execute("SELECT * FROM activos").fetchall()
+        sent = {f["id_mensaje"]: f["sentimiento_ref"] for f in c.execute(
+            "SELECT id_mensaje, sentimiento_ref FROM mensajes WHERE id_mensaje = ANY(%s)", (ids,)).fetchall()}
+    assert activos and all(set(a["fuentes"]) <= set(ids) and not set(a["fuentes"]) & bloqueos for a in activos)
+    assert sent == {i: senales[i]["sentimiento"] for i in ids}  # 19/19 por ID original (ninguno descartado)
+    total_activos = len(activos)
+    # Reenvío con la misma clave: mismo trabajo, sin duplicar mensajes ni contenidos.
+    assert cola.encolar_detalle(entrada, clave_idempotencia="discord-parcial-v1-prueba-a") == (id_, False)
+    while Worker(cola, procesar_gemini).ejecutar_uno():
+        pass
+    # Nueva solicitud (otra clave) sobre los mismos mensajes: no duplica mensajes ni pisa sentimientos.
+    otro = cola.encolar(entrada, clave_idempotencia="discord-parcial-v1-prueba-b")
+    assert otro != id_
+    with cola.conectar() as c:
+        assert c.execute("SELECT count(*) AS n FROM mensajes WHERE id_mensaje = ANY(%s)", (ids,)).fetchone()["n"] == 19
+        assert c.execute("SELECT count(*) AS n FROM activos").fetchone()["n"] == total_activos
+        assert c.execute("SELECT count(*) AS n FROM trabajos_worker").fetchone()["n"] == 2
+
+
+def test_postgres_fallo_tras_completar_un_bloque_no_persiste_nada(cola, gemini):
+    """Primer bloque de análisis correcto, segundo rechazado: el trabajo falla sin activos ni sentimientos."""
+    from pipelines.communitylab.analisis_gemini import _bloque_efectivo
+    from types import SimpleNamespace
+    base_lote = lote_discord_19()
+    extra = _bloque_efectivo(SimpleNamespace(cfg=configuracion()), "analizar") + 3 - len(base_lote["interacciones"])
+    entrada = {**base_lote, "interacciones": base_lote["interacciones"] + [
+        {**base_lote["interacciones"][0], "id": f"discord-{1569400000000000000 + i}", "texto": f"Mensaje ficticio extra {i}"}
+        for i in range(max(0, extra))]}
+    ids = [m["id"] for m in entrada["interacciones"]]
+    base = responder_con_senales(senales_de(entrada), interacciones=entrada["interacciones"])
+    vistas = []
+
+    def responder(p):
+        vistas.append(p)
+        return base(p) if len(vistas) == 1 else error(400, mensaje="texto libre del proveedor")
+    gemini(responder)
+    id_ = cola.encolar(entrada, clave_idempotencia="discord-parcial-v1-prueba-fallo")
+    Worker(cola, procesar_gemini).ejecutar_uno()
+    trabajo = cola.obtener(id_)
+    assert (trabajo["estado"], trabajo["error_codigo"]) == ("error", "ia_configuracion") and len(vistas) == 2
+    assert "texto libre del proveedor" not in str(trabajo["resultado"])
+    with cola.conectar() as c:
+        assert c.execute("SELECT count(*) AS n FROM activos").fetchone()["n"] == 0
+        assert c.execute("SELECT count(*) AS n FROM mensajes WHERE id_mensaje = ANY(%s) AND sentimiento_ref IS NOT NULL",
+                         (ids,)).fetchone()["n"] == 0
