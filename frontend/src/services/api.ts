@@ -8,82 +8,108 @@ export const apiClient = axios.create({
   },
 });
 
-// --- Gestión unificada de Autenticación JWT + Compatibilidad con Operador ---
-const CLAVE_OPERADOR = 'communitylab-operador';
-const CLAVE_JWT = 'access_token';
-const CLAVE_USUARIO = 'communitylab-usuario';
-export const EVENTO_OPERADOR = 'communitylab-operador';
+// --- Sesión: cookie HttpOnly + CSRF (ver docs/politica-acceso.md) ---
+// El JWT viaja solo en la cookie HttpOnly `cl_sesion` (mismo origen, el navegador la envía sola):
+// JavaScript no puede leerla. El token CSRF se guarda SOLO en memoria y se recupera con
+// GET /auth/sesion tras recargar. No se guarda ningún token en localStorage ni sessionStorage.
+export const EVENTO_SESION = 'communitylab-sesion';
+const METODOS_SEGUROS = ['get', 'head', 'options'];
+// Claves que versiones anteriores usaban para guardar tokens: se eliminan del navegador.
+const CLAVES_ANTIGUAS = ['access_token', 'communitylab_token', 'token', 'token_jwt', 'communitylab-usuario'];
+
+export type RolUsuario = 'usuario' | 'operador' | 'administrador';
 
 export interface UsuarioAuth {
   id: number;
   email: string;
   full_name?: string | null;
+  rol: RolUsuario;
   is_active: boolean;
 }
 
-// --- CÓMO DEBE QUEDAR DESPUÉS ---
-export const leerTokenOperador = (): string => {
-  if (typeof window === 'undefined') return '';
-  try {
-    return (
-      localStorage.getItem('access_token') ||
-      localStorage.getItem('communitylab_token') ||
-      localStorage.getItem('token') ||
-      localStorage.getItem('token_jwt') ||
-      sessionStorage.getItem('access_token') ||
-      sessionStorage.getItem('communitylab-operador') ||
-      ''
-    );
-  } catch {
-    return '';
-  }
-};
+interface RespuestaSesion {
+  usuario: UsuarioAuth;
+  csrf_token: string;
+  expira: string;
+}
 
-export const guardarTokenOperador = (token: string) => {
+let csrfToken = '';
+let usuarioActual: UsuarioAuth | null = null;
+let sesionEnCurso: Promise<UsuarioAuth | null> | null = null;
+
+const limpiarAlmacenamientoAntiguo = () => {
   if (typeof window === 'undefined') return;
   try {
-    if (token) {
-      localStorage.setItem(CLAVE_JWT, token);
-      sessionStorage.setItem(CLAVE_OPERADOR, token);
-    } else {
-      localStorage.removeItem(CLAVE_JWT);
-      localStorage.removeItem(CLAVE_USUARIO);
-      sessionStorage.removeItem(CLAVE_OPERADOR);
-    }
+    CLAVES_ANTIGUAS.forEach((clave) => localStorage.removeItem(clave));
+    ['access_token', 'communitylab-operador'].forEach((clave) => sessionStorage.removeItem(clave));
   } catch {}
-  window.dispatchEvent(new Event(EVENTO_OPERADOR));
+};
+limpiarAlmacenamientoAntiguo();
+
+const fijarSesion = (datos: RespuestaSesion | null) => {
+  csrfToken = datos?.csrf_token ?? '';
+  usuarioActual = datos?.usuario ?? null;
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO_SESION));
 };
 
-export const cerrarSesion = () => {
-  guardarTokenOperador('');
-};
+export const usuarioEnMemoria = (): UsuarioAuth | null => usuarioActual;
 
-// Único interceptor limpio para inyectar el JWT en todas las peticiones
+export const esOperador = (usuario: UsuarioAuth | null): boolean =>
+  usuario?.rol === 'operador' || usuario?.rol === 'administrador';
+
+// Única cabecera añadida: X-CSRF-Token en peticiones que modifican estado.
 apiClient.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = leerTokenOperador();
-    if (token) {
-      config.headers.set('Authorization', `Bearer ${token}`);
-    }
+  if (csrfToken && !METODOS_SEGUROS.includes((config.method || 'get').toLowerCase())) {
+    config.headers.set('X-CSRF-Token', csrfToken);
   }
   return config;
 });
-// --- Funciones de Autenticación (Login y Registro) ---
-export interface RespuestaToken {
-  access_token: string;
-  token_type: string;
-}
 
-export const iniciarSesion = async (email: string, password: string): Promise<RespuestaToken> => {
+// --- Funciones de Autenticación (Login, Sesión, Registro y Cierre) ---
+export const iniciarSesion = async (email: string, password: string): Promise<UsuarioAuth> => {
   const formData = new URLSearchParams();
   formData.append('username', email);
   formData.append('password', password);
 
-  const response = await apiClient.post<RespuestaToken>('/auth/login', formData, {
+  const response = await apiClient.post<RespuestaSesion>('/auth/login', formData, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
-  guardarTokenOperador(response.data.access_token);
-  return response.data;
+  fijarSesion(response.data);
+  return response.data.usuario;
+};
+
+/** Sesión vigente según el servidor (null si no hay o expiró). Una sola petición a la vez. */
+export const obtenerSesion = async (): Promise<UsuarioAuth | null> => {
+  if (!sesionEnCurso) {
+    sesionEnCurso = apiClient
+      .get<RespuestaSesion>('/auth/sesion')
+      .then((r) => {
+        fijarSesion(r.data);
+        return r.data.usuario;
+      })
+      .catch((error) => {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          fijarSesion(null);
+          return null;
+        }
+        throw error;
+      })
+      .finally(() => {
+        sesionEnCurso = null;
+      });
+  }
+  return sesionEnCurso;
+};
+
+/** Revoca la sesión en el servidor y borra el estado local aunque la petición falle. */
+export const cerrarSesion = async (): Promise<void> => {
+  try {
+    await apiClient.post('/auth/logout');
+  } catch {
+    // Sin conexión o sesión ya vencida: igual se limpia el estado local.
+  } finally {
+    fijarSesion(null);
+  }
 };
 
 export const registrarUsuario = async (
@@ -455,13 +481,27 @@ export const describirError = (error: unknown): ErrorLegible => {
   } : null;
   const mensaje = estructurado?.mensaje ?? (typeof detalle === 'string' ? detalle : '');
   const base = { errores: estructurado?.errores ?? [], ayuda: estructurado?.ayuda };
-  if (estado === 401 || (estado === 503 && (detalle as { codigo?: string } | undefined)?.codigo === 'acceso_no_configurado')) {
+  const codigo = (detalle as { codigo?: string } | undefined)?.codigo;
+  if (estado === 401 || (estado === 503 && (codigo === 'acceso_no_configurado' || codigo === 'autenticacion_no_configurada'))) {
     return {
       ...base, tipo: 'acceso', titulo: 'Sesión requerida',
       mensaje: estado === 401
         ? (mensaje || 'Tu sesión expiró o no has iniciado sesión. Ingresa con tu cuenta para continuar.')
-        : 'El servidor no tiene configurado el acceso de operador; la acción está deshabilitada.',
+        : codigo === 'autenticacion_no_configurada'
+          ? 'El inicio de sesión no está configurado en el servidor todavía. Avisa al administrador.'
+          : 'El servidor no tiene configurado el acceso de operador; la acción está deshabilitada.',
     };
+  }
+  if (estado === 403) {
+    return {
+      ...base, tipo: 'acceso', titulo: codigo === 'csrf_invalido' ? 'Sesión desactualizada' : 'Sin permiso',
+      mensaje: codigo === 'csrf_invalido'
+        ? 'Recarga la página para renovar la sesión e inténtalo de nuevo.'
+        : (mensaje || 'Tu cuenta no tiene permiso para esta acción. Pide a un administrador el rol de operador.'),
+    };
+  }
+  if (estado === 429) {
+    return { ...base, tipo: 'acceso', titulo: 'Demasiados intentos', mensaje: mensaje || 'Espera unos minutos e inténtalo de nuevo.' };
   }
   if (estado === 413) {
     return { ...base, tipo: 'tamano', titulo: 'Archivo demasiado grande', mensaje: 'El máximo es 5 MiB por archivo. Divide el lote en archivos más pequeños.' };

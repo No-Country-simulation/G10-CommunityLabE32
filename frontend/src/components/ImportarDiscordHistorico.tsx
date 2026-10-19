@@ -6,6 +6,7 @@ import {
   previsualizarDiscordHistorico,
   crearImportacionDiscord,
   consultarImportacionDiscord,
+  listarImportacionesDiscord,
   cancelarImportacionDiscord,
   reanudarImportacionDiscord,
   obtenerMensajesImportacionDiscord,
@@ -28,9 +29,23 @@ import {
   Hash,
 } from 'lucide-react';
 
+// La importación solo trae mensajes a tablas protegidas; el análisis con IA es otro paso.
+const ETIQUETA_IA: Record<string, string> = {
+  sin_evidencia: 'Importado · sin analizar',
+  pendiente: 'Importado · análisis pendiente',
+  fallido: 'Importado · análisis fallido',
+  procesado: 'Analizado',
+};
+const ACTIVA = ['pendiente', 'ejecutando'];
+
+const nuevaClave = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 export default function ImportarDiscordHistorico() {
   const [abierto, setAbierto] = useState(false);
-  const [canalId, setCanalId] = useState('222222222222222222');
+  const [canalId, setCanalId] = useState('');
   const [desde, setDesde] = useState('2026-09-01');
   const [hasta, setHasta] = useState('2026-09-15');
   const [zona, setZona] = useState('America/Guatemala');
@@ -45,6 +60,28 @@ export default function ImportarDiscordHistorico() {
   const [importacion, setImportacion] = useState<ImportacionDiscord | null>(null);
   const [mensajes, setMensajes] = useState<MensajeHistoricoDiscord[]>([]);
   const [totalMensajes, setTotalMensajes] = useState<number>(0);
+  // Una clave por previsualización confirmada: reintentar el MISMO envío no duplica, y una
+  // importación nueva del mismo rango (días después) no reutiliza la anterior.
+  const [claveIntento, setClaveIntento] = useState<string>('');
+
+  // Al recargar: recuperar la importación activa (o la más reciente) de esta cuenta.
+  useEffect(() => {
+    let vigente = true;
+    listarImportacionesDiscord(10)
+      .then(({ items }) => {
+        if (!vigente || items.length === 0) return;
+        const elegida = items.find((i) => ACTIVA.includes(i.estado)) ?? null;
+        if (elegida) {
+          setImportacion(elegida);
+          setCanalId(elegida.canal_id);
+          setAbierto(true);
+        }
+      })
+      .catch(() => {
+        // Sin permiso o sin configuración: el panel sigue disponible y mostrará el error al usarlo.
+      });
+    return () => { vigente = false; };
+  }, []);
 
   // Polling automático mientras la importación esté pendiente o ejecutando
   useEffect(() => {
@@ -95,6 +132,7 @@ export default function ImportarDiscordHistorico() {
       });
       setPreview(res);
       setVerificacion(res);
+      setClaveIntento(nuevaClave());
     } catch (e) {
       const err = describirError(e);
       setError(`${err.titulo}: ${err.mensaje}`);
@@ -108,8 +146,8 @@ export default function ImportarDiscordHistorico() {
     setCargandoAccion('importar');
     setError(null);
     try {
-      // Usamos alcance_congelado como indica el contrato de Paulo para congelar el corte exacto
-      const claveIdempotencia = `imp-${canalId.trim()}-${ preview.alcance_congelado.desde }-${ preview.alcance_congelado.hasta }`;
+      // alcance_congelado congela el corte exacto; la clave identifica este intento (reintentos seguros).
+      const claveIdempotencia = `imp-${claveIntento || nuevaClave()}`;
       const res = await crearImportacionDiscord(
         {
           canal_id: canalId.trim(),
@@ -487,7 +525,9 @@ export default function ImportarDiscordHistorico() {
                           <p className="text-foreground mt-0.5">{m.texto || '(sin contenido de texto)'}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="badge-neutral">{m.estado_ia ?? 'sin_evidencia'}</span>
+                          <span className={m.estado_ia === 'procesado' ? 'badge-success' : 'badge-neutral'}>
+                            {ETIQUETA_IA[m.estado_ia ?? 'sin_evidencia'] ?? m.estado_ia}
+                          </span>
                           <p className="text-[11px] text-subtle-foreground mt-1">
                             {new Date(m.fecha).toLocaleString()}
                           </p>

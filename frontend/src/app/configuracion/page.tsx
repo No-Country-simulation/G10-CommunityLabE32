@@ -58,9 +58,15 @@ export default function ConfiguracionPage() {
     setGuardandoPerfil(true);
 
     try {
+      // Cambiar el correo exige la contraseña actual (se toma de la tarjeta de Seguridad).
+      const cambiaEmail = email.trim().toLowerCase() !== (usuario?.email ?? '');
+      if (cambiaEmail && !currentPassword) {
+        setMensajeError('Para cambiar el correo escribe tu contraseña actual en la tarjeta de contraseña.');
+        return;
+      }
       const actualizado = await actualizarPerfilUsuario({
         full_name: fullName,
-        email,
+        ...(cambiaEmail ? { email, current_password: currentPassword } : {}),
       });
       setUsuario(actualizado);
       setMensajeExito('Tus datos de perfil se actualizaron correctamente en la base de datos.');
@@ -90,7 +96,7 @@ export default function ConfiguracionPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setMensajeExito('Contraseña actualizada con éxito con cifrado Bcrypt.');
+      setMensajeExito('Contraseña actualizada. Se cerraron tus otras sesiones abiertas.');
     } catch (err) {
       setMensajeError(describirError(err).mensaje || 'Error al actualizar la contraseña.');
     } finally {
@@ -152,7 +158,7 @@ export default function ConfiguracionPage() {
                       <div>
                         <h2 className="text-base font-bold text-foreground">Perfil del Operador</h2>
                         <p className="text-xs text-muted-foreground">
-                          ID #{usuario?.id ?? '1'} · Sesión JWT Activa
+                          ID #{usuario?.id ?? '—'} · Rol: {usuario?.rol ?? '—'}
                         </p>
                       </div>
                     </div>
@@ -240,11 +246,11 @@ export default function ConfiguracionPage() {
                     <input
                       type="password"
                       required
-                      minLength={6}
+                      minLength={10}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="input"
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Mínimo 10 caracteres"
                     />
                   </div>
 
@@ -255,7 +261,7 @@ export default function ConfiguracionPage() {
                     <input
                       type="password"
                       required
-                      minLength={6}
+                      minLength={10}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="input"
@@ -274,21 +280,21 @@ export default function ConfiguracionPage() {
                 </button>
               </form>
 
-              {/* Tarjeta 3: Token de Operador (Compatibilidad Híbrida Backend) */}
+              {/* Tarjeta 3: Permisos de la cuenta */}
               <div className="card p-6 space-y-4">
                 <div className="flex items-center gap-3 border-b border-border pb-4">
                   <div className="w-10 h-10 rounded-xl bg-warning-soft text-warning flex items-center justify-center">
                     <KeyRound className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-base font-bold text-foreground">Credencial de Operador (Transición)</h2>
+                    <h2 className="text-base font-bold text-foreground">Permisos de la cuenta</h2>
                     <p className="text-xs text-muted-foreground">
-                      Cabecera X-Operador-Token para aprobar textos y generar banners
+                      Rol asignado por un administrador
                     </p>
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Mientras el servidor opera en modo híbrido (token + sesión de usuario), puedes definir aquí tu clave de operador para no tener que escribirla en cada módulo.
+                  Procesar pendientes, aprobar textos, generar banners e importar historial requieren el rol operador. El navegador no usa tokens de operador: los permisos dependen de tu sesión.
                 </p>
                 <TokenOperador />
               </div>

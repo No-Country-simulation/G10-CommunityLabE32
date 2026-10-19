@@ -46,9 +46,9 @@ export default function RegisterPage() {
           </span>
         </div>
 
-        <h1 className="text-xl font-bold text-center text-foreground mb-1.5">Crear Cuenta de Operador</h1>
+        <h1 className="text-xl font-bold text-center text-foreground mb-1.5">Crear Cuenta</h1>
         <p className="text-xs text-center text-muted-foreground mb-6">
-          Regístrate para obtener acceso seguro con token JWT a la plataforma.
+          Las cuentas nuevas no tienen permisos de operador: un administrador los asigna. Si el registro está cerrado, solicita una cuenta.
         </p>
 
         {exito && (
@@ -109,10 +109,10 @@ export default function RegisterPage() {
                 <input
                   type="password"
                   required
-                  minLength={6}
+                  minLength={10}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 10 caracteres"
                   className="input pl-10!"
                 />
               </div>

@@ -24,8 +24,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const manejarSalida = () => {
-    cerrarSesion();
+  const manejarSalida = async () => {
+    await cerrarSesion();   // revoca la sesión en el servidor
     router.push('/login');
   };
 

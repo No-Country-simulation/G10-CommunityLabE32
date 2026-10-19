@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 import Link from 'next/link';
 import {
   obtenerMensajes,
   obtenerKPIs,
   obtenerAmbitos,
-  leerTokenOperador,
+  obtenerSesion,
   Ambito,
   Mensaje,
   DashboardKPIs,
@@ -43,16 +44,18 @@ export default function CommunityDashboard() {
   const [conectado, setConectado] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const token = leerTokenOperador();
-    if (!token) {
-      router.replace('/login');
-    } else {
-      // Usamos un setTimeout para evitar el setState sincrónico dentro del effect que rechaza ESLint
-      const timer = setTimeout(() => {
-        setAutorizado(true);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
+    // Sesión verificada por el servidor (cookie HttpOnly); sin sesión, al login.
+    let vigente = true;
+    obtenerSesion()
+      .then((usuario) => {
+        if (!vigente) return;
+        if (usuario) setAutorizado(true);
+        else router.replace('/login');
+      })
+      .catch(() => {
+        if (vigente) router.replace('/login');
+      });
+    return () => { vigente = false; };
   }, [router]);
 
   useEffect(() => {
@@ -63,7 +66,12 @@ export default function CommunityDashboard() {
   useEffect(() => {
     if (!autorizado) return;
     let vigente = true;
-    Promise.all([obtenerKPIs(ambito), obtenerMensajes(0, 9, undefined, ambito)])
+    // Los textos y autores son solo para operadores: con otro rol (403) se muestran los KPIs sin mensajes.
+    const mensajesVisibles = obtenerMensajes(0, 9, undefined, ambito).catch((err) => {
+      if (axios.isAxiosError(err) && err.response?.status === 403) return { items: [], total: 0 };
+      throw err;
+    });
+    Promise.all([obtenerKPIs(ambito), mensajesVisibles])
       .then(([kpiData, msgsData]) => {
         if (!vigente) return;
         setKpis(kpiData);

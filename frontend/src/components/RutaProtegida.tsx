@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { leerTokenOperador } from '@/services/api';
+import { obtenerSesion } from '@/services/api';
 import { Loader2 } from 'lucide-react';
 
 export default function RutaProtegida({ children }: { children: React.ReactNode }) {
@@ -10,16 +10,19 @@ export default function RutaProtegida({ children }: { children: React.ReactNode 
   const [autorizado, setAutorizado] = useState(false);
 
   useEffect(() => {
-    const token = leerTokenOperador();
-    if (!token) {
-      router.replace('/login');
-    } else {
-      // Usamos un setTimeout para evitar el setState sincrónico dentro del effect que rechaza ESLint
-      const timer = setTimeout(() => {
-        setAutorizado(true);
-      }, 0);
-      return () => clearTimeout(timer);
-    }
+    // La sesión la decide el servidor (cookie HttpOnly): sin sesión vigente, al login.
+    // Es solo navegación: cada endpoint vuelve a exigir sesión y rol en el backend.
+    let vigente = true;
+    obtenerSesion()
+      .then((usuario) => {
+        if (!vigente) return;
+        if (usuario) setAutorizado(true);
+        else router.replace('/login');
+      })
+      .catch(() => {
+        if (vigente) router.replace('/login');
+      });
+    return () => { vigente = false; };
   }, [router]);
 
   if (!autorizado) {
