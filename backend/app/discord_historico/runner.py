@@ -5,7 +5,10 @@ la reserva vence y la importación se retoma desde su cursor. No envía nada a D
 
 Sin DISCORD_HISTORICO_TOKEN (o con configuración inválida) queda en espera sin reservar nada y sin
 reiniciarse en bucle: el resto de la aplicación no depende de él. Escribe un latido en
-DISCORD_HISTORICO_LATIDO para la comprobación de salud (`... runner salud`).
+DISCORD_HISTORICO_LATIDO para la comprobación de salud (`... runner salud`), que imprime el estado:
+«sin_configurar» o «configuracion_invalida» (proceso sano, función inactiva) u «operativo». El latido
+solo se renueva tras un ciclo correcto o cuando el importador usa la base (por página): si la base
+falla repetidamente, la salud deja de pasar.
 Una sola instancia efectiva: la reserva usa FOR UPDATE SKIP LOCKED y un plazo (lease).
 """
 import json
@@ -50,14 +53,34 @@ def _latido(ruta, estado):
             LOG.error("latido_no_escrito")
 
 
-def salud(ruta, intervalo, ahora=None):
-    """0 si el latido es reciente (también en espera por falta de configuración); 1 si no.
-    Margen amplio: durante una importación larga el latido se renueva solo entre importaciones."""
+class _StoreConLatido:
+    """Renueva el latido cada vez que el importador usa la base con éxito (p. ej. al guardar una página)."""
+
+    def __init__(self, store, latir):
+        self._store, self._latir = store, latir
+
+    def __getattr__(self, nombre):
+        metodo = getattr(self._store, nombre)
+        if not callable(metodo):
+            return metodo
+
+        def envoltura(*a, **k):
+            resultado = metodo(*a, **k)
+            self._latir()
+            return resultado
+        return envoltura
+
+
+def salud(ruta, intervalo, ahora=None, salida=print):
+    """0 si el latido es reciente; 1 si no. Imprime el estado («sin_configurar» es sano pero inactivo)."""
     try:
         datos = json.loads(Path(ruta).read_text(encoding="utf-8"))
     except (OSError, ValueError):
+        salida("sin_latido")
         return 1
-    return 0 if (ahora or time.time()) - float(datos.get("momento", 0)) <= max(600.0, 3 * intervalo + 30) else 1
+    reciente = (ahora or time.time()) - float(datos.get("momento", 0)) <= max(120.0, 3 * intervalo + 30)
+    salida(f"{datos.get('estado', 'desconocido')}{'' if reciente else ' latido_vencido'}")
+    return 0 if reciente else 1
 
 
 def main():
@@ -68,26 +91,27 @@ def main():
     detenido = {"v": False}
     for s in (signal.SIGINT, signal.SIGTERM):
         signal.signal(s, lambda *_: detenido.update(v=True))
+    estado_espera = None
     try:
         config = Configuracion.desde_entorno()
     except ConfiguracionInvalida as exc:
         LOG.error("configuracion_invalida: %s; runner en espera", exc)
-        config = None
+        config, estado_espera = None, "configuracion_invalida"
     if config is not None and not config.configurada:
         LOG.info("DISCORD_HISTORICO_TOKEN no configurado; runner en espera (la API responde 503)")
-        config = None
+        config, estado_espera = None, "sin_configurar"
     if config is None:
         while not detenido["v"]:
-            _latido(latido, "sin_configurar")
+            _latido(latido, estado_espera)
             time.sleep(intervalo)
         return
-    store = Store(os.environ["DATABASE_URL"])
+    store = _StoreConLatido(Store(os.environ["DATABASE_URL"]), lambda: _latido(latido, "operativo"))
     LOG.info("runner de importacion historica iniciado (canales autorizados=%d)",
              sum(len(c) for c in config.autorizados.values()))
     while not detenido["v"]:
-        _latido(latido, "en_espera")
         try:
             if un_ciclo(store, config, lambda cfg: ClienteDiscord(cfg.token, cfg.api_base)) is None:
+                _latido(latido, "operativo")       # ciclo correcto sin trabajo pendiente
                 time.sleep(intervalo)
         except Exception as exc:  # sin detalle: podría incluir datos
             LOG.error("ciclo_fallido tipo=%s", type(exc).__name__)

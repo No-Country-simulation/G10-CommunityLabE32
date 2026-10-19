@@ -353,11 +353,33 @@ def test_limite_de_intentos_temporal_y_sin_bloquear_a_otras_ips(entorno, c, monk
     assert not limite.bloqueado("10.0.0.1", "operadora@example.com")      # temporal, no permanente
 
 
-def test_ip_real_solo_desde_proxy_en_red_privada():
+def test_ip_real_solo_desde_el_proxy_declarado():
     from backend.app.services.limite_login import ip_cliente
-    assert ip_cliente(NS(client=NS(host="172.18.0.5"), headers={"x-real-ip": "203.0.113.7"})) == "203.0.113.7"
-    assert ip_cliente(NS(client=NS(host="8.8.8.8"), headers={"x-real-ip": "10.0.0.1"})) == "8.8.8.8"
-    assert ip_cliente(NS(client=NS(host="172.18.0.5"), headers={"x-real-ip": "no-es-ip"})) == "172.18.0.5"
+    proxy = lambda nombre: frozenset({"172.18.0.5"}) if nombre == "proxy" else frozenset()
+    pedir = lambda origen, real: NS(client=NS(host=origen), headers={"x-real-ip": real})
+    # nginx (resuelto por nombre) sí: su X-Real-IP es la del cliente.
+    assert ip_cliente(pedir("172.18.0.5", "203.0.113.7"), "proxy", proxy) == "203.0.113.7"
+    # Otro contenedor de la MISMA red privada (web, puente) que falsifica la cabecera: no se le cree.
+    assert ip_cliente(pedir("172.18.0.9", "203.0.113.7"), "proxy", proxy) == "172.18.0.9"
+    # Sin proxy declarado nunca se confía, aunque el origen sea privado o loopback.
+    assert ip_cliente(pedir("127.0.0.1", "203.0.113.7"), "", proxy) == "127.0.0.1"
+    assert ip_cliente(pedir("10.0.0.3", "203.0.113.7"), "", proxy) == "10.0.0.3"
+    # CIDR explícito y valores inválidos.
+    assert ip_cliente(pedir("10.1.2.3", "203.0.113.8"), "10.1.0.0/16", proxy) == "203.0.113.8"
+    assert ip_cliente(pedir("172.18.0.5", "no-es-ip"), "proxy", proxy) == "172.18.0.5"
+
+
+def test_cabecera_falsificada_no_elude_el_limite(entorno, c, monkeypatch):
+    """Sin proxy declarado (TestClient), cambiar X-Real-IP en cada intento no reinicia el contador."""
+    monkeypatch.setenv("LOGIN_MAX_INTENTOS", "3")
+    monkeypatch.setenv("LOGIN_PROXY_CONFIABLE", "")
+    crear_cuenta(entorno, "operadora@example.com")
+    for i in range(3):
+        c.post("/api/auth/login", data={"username": "operadora@example.com", "password": "mala-mala-mala"},
+               headers={"X-Real-IP": f"198.18.0.{i + 1}"})
+    r = c.post("/api/auth/login", data={"username": "operadora@example.com", "password": CONTRASENA},
+               headers={"X-Real-IP": "198.18.0.99"})
+    assert (r.status_code, r.json()["detail"]["codigo"]) == (429, "demasiados_intentos")
 
 
 # --- Puente y operador no intercambiables ----------------------------------------------------

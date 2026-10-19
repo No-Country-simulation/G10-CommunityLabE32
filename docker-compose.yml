@@ -84,6 +84,8 @@ services:
       LOGIN_MAX_INTENTOS: ${LOGIN_MAX_INTENTOS:-5}
       LOGIN_MAX_INTENTOS_IP: ${LOGIN_MAX_INTENTOS_IP:-30}
       LOGIN_VENTANA_SEGUNDOS: ${LOGIN_VENTANA_SEGUNDOS:-900}
+      # Único origen del que se acepta X-Real-IP (nginx la sobrescribe con la IP del cliente).
+      LOGIN_PROXY_CONFIABLE: ${LOGIN_PROXY_CONFIABLE:-proxy}
       # Importación histórica de Discord (docs/discord-historico.md). Vacías = rutas en 503 (seguro).
       DISCORD_HISTORICO_TOKEN: ${DISCORD_HISTORICO_TOKEN:-}
       DISCORD_HISTORICO_AUTORIZADOS: ${DISCORD_HISTORICO_AUTORIZADOS:-}

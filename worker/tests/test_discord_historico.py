@@ -792,12 +792,55 @@ def test_runner_sin_configurar_queda_en_espera_sano_y_sin_reservar(tmp_path, mon
     with pytest.raises(KeyboardInterrupt):
         runner.main()
     assert json.loads(latido.read_text())["estado"] == "sin_configurar"
-    assert runner.salud(str(latido), 5) == 0
-    assert runner.salud(str(latido), 5, ahora=time.time() + 3600) == 1
-    assert runner.salud(str(tmp_path / "no-existe.json"), 5) == 1
+    salidas = []
+    assert runner.salud(str(latido), 5, salida=salidas.append) == 0          # sano…
+    assert salidas == ["sin_configurar"]                                       # …pero distinguible de operativo
+    assert runner.salud(str(latido), 5, ahora=time.time() + 3600, salida=salidas.append) == 1
+    assert runner.salud(str(tmp_path / "no-existe.json"), 5, salida=salidas.append) == 1
     monkeypatch.setenv("DISCORD_HISTORICO_TOKEN", "x")
     monkeypatch.setenv("DISCORD_HISTORICO_AUTORIZADOS", "no-es-json")      # configuración inválida: también espera
     vueltas["n"] = 0
     with pytest.raises(KeyboardInterrupt):
         runner.main()
-    assert json.loads(latido.read_text())["estado"] == "sin_configurar"
+    assert json.loads(latido.read_text())["estado"] == "configuracion_invalida"
+
+
+def test_runner_operativo_solo_es_sano_si_sus_ciclos_funcionan(tmp_path, monkeypatch):
+    """Configurado: el latido «operativo» se renueva tras ciclos correctos y al usar la base; si la base
+    falla en cada ciclo, el latido no se renueva y la salud deja de pasar."""
+    from backend.app.discord_historico import runner
+    latido = tmp_path / "latido.json"
+    monkeypatch.setenv("DISCORD_HISTORICO_TOKEN", "token-de-prueba")
+    monkeypatch.setenv("DISCORD_HISTORICO_AUTORIZADOS", json.dumps({GUILD: [CANAL]}))
+    monkeypatch.setenv("DISCORD_HISTORICO_LATIDO", str(latido))
+    monkeypatch.setenv("DISCORD_HISTORICO_INTERVALO", "0")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x:y@127.0.0.1:1/z")
+
+    class StoreRoto:
+        def __init__(self, *a, **k):
+            pass
+
+        def reservar(self):
+            raise RuntimeError("base caída")
+    monkeypatch.setattr(runner, "Store", StoreRoto)
+    vueltas = {"n": 0}
+
+    def dormir(_):
+        vueltas["n"] += 1
+        if vueltas["n"] >= 3:
+            raise KeyboardInterrupt
+    monkeypatch.setattr(runner.time, "sleep", dormir)
+    with pytest.raises(KeyboardInterrupt):
+        runner.main()
+    assert not latido.exists()                                    # nunca hubo un ciclo correcto
+    assert runner.salud(str(latido), 0, salida=lambda _: None) == 1
+
+    class StoreVacio(StoreRoto):
+        def reservar(self):
+            return None
+    monkeypatch.setattr(runner, "Store", StoreVacio)
+    vueltas["n"] = 0
+    with pytest.raises(KeyboardInterrupt):
+        runner.main()
+    salidas = []
+    assert runner.salud(str(latido), 0, salida=salidas.append) == 0 and salidas == ["operativo"]

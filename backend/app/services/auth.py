@@ -123,6 +123,9 @@ async def crear_sesion(db, usuario_id: int) -> tuple[str, str, datetime]:
     ahora = datetime.now(timezone.utc)
     expira = ahora + timedelta(hours=horas_sesion())
     sesion_id = secrets.token_urlsafe(32)
+    # Limpieza acotada a la cuenta: sesiones vencidas o revocadas hace más de 7 días.
+    await db.execute(text("""DELETE FROM sesiones WHERE usuario_id = :u
+        AND (expira < now() - interval '7 days' OR revocada < now() - interval '7 days')"""), {"u": usuario_id})
     await db.execute(text("INSERT INTO sesiones (id, usuario_id, expira) VALUES (:id, :u, :e)"),
                      {"id": sesion_id, "u": usuario_id, "e": expira})
     await db.commit()
