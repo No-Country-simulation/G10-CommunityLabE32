@@ -1,0 +1,61 @@
+# SOLO desarrollo local con Discord SIMULADO. Nunca en la VM (la VM usa docker-compose.yml,
+# compose.https.yml y compose.discord.yml; ver docs/operacion-vm.md).
+#
+#   docker compose -f docker-compose.yml -f compose.local.yml up --build
+#
+# - API publicada solo en 127.0.0.1:8000 (para Swagger y pruebas); la interfaz entra por el proxy.
+# - Discord falso (tools/discord_falso_historico.py) y ejecutor del histórico apuntando a él.
+# - Cookie de sesión sin Secure por defecto porque el proxy local habla HTTP.
+# Sin secretos: JWT_SECRET_KEY, OPERADOR_TOKEN, PUENTE_TOKEN y POSTGRES_PASSWORD van en tu .env local
+# (generarlos con: python -c "import secrets; print(secrets.token_urlsafe(48))").
+# El token de Discord de abajo NO es una credencial: el simulador no valida tokens y la API solo
+# acepta DISCORD_API_BASE distinta de la oficial con DISCORD_HISTORICO_BASE_PRUEBA=1 y host discord-falso.
+x-discord-falso-env: &discord-falso-env
+  DISCORD_HISTORICO_TOKEN: simulador-local-sin-valor
+  DISCORD_HISTORICO_AUTORIZADOS: '{"111111111111111111":["222222222222222222"]}'
+  DISCORD_HISTORICO_BASE_PRUEBA: "1"
+  DISCORD_API_BASE: http://discord-falso:15442/api/v10
+
+services:
+  api:
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      <<: *discord-falso-env
+      SESION_COOKIE_SEGURA: ${SESION_COOKIE_SEGURA:-false}
+
+  discord-falso:
+    image: ${API_IMAGE:-communitylab-api:local}
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
+    volumes:
+      - ./tools:/app/tools:ro
+    command: ["python", "-m", "uvicorn", "--app-dir", "/app/tools", "discord_falso_historico:app",
+              "--host", "0.0.0.0", "--port", "15442"]
+    ports:
+      - "127.0.0.1:15442:15442"
+    networks: [outbound]
+
+  discord-historico:
+    image: ${API_IMAGE:-communitylab-api:local}
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
+    command: ["python", "-m", "backend.app.discord_historico.runner"]
+    restart: unless-stopped
+    environment:
+      <<: *discord-falso-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
+      DISCORD_HISTORICO_INTERVALO: "2"
+      DISCORD_HISTORICO_LATIDO: /tmp/historico-latido.json
+    networks: [database, outbound]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+      discord-falso:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-m", "backend.app.discord_historico.runner", "salud"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

@@ -6,6 +6,7 @@ petición. No hay red, ni Gemini, ni bot. La base exige 127.0.0.1:15441/discord_
 from datetime import datetime, timedelta, timezone
 import json
 import os
+import time
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -770,3 +771,33 @@ def test_migracion_desde_version_anterior_del_esquema(entorno):
     assert (r.status_code, r.json()["detail"]["codigo"]) == (409, "clave_idempotencia_reutilizada")
     entorno["cola"].inicializar()        # reaplicar es idempotente
     assert fila(entorno, "SELECT count(*) n FROM discord_mensajes_historicos")["n"] == 1
+
+
+def test_runner_sin_configurar_queda_en_espera_sano_y_sin_reservar(tmp_path, monkeypatch):
+    """Sin DISCORD_HISTORICO_TOKEN el servicio opcional no reserva nada, no termina ni se reinicia en
+    bucle y su comprobación de salud pasa; un latido viejo o ausente la hace fallar."""
+    from backend.app.discord_historico import runner
+    latido = tmp_path / "latido.json"
+    monkeypatch.delenv("DISCORD_HISTORICO_TOKEN", raising=False)
+    monkeypatch.setenv("DISCORD_HISTORICO_LATIDO", str(latido))
+    monkeypatch.setenv("DISCORD_HISTORICO_INTERVALO", "0")
+    monkeypatch.setattr(runner, "Store", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no debe usar la base")))
+    vueltas = {"n": 0}
+
+    def dormir(_):
+        vueltas["n"] += 1
+        if vueltas["n"] >= 2:
+            raise KeyboardInterrupt
+    monkeypatch.setattr(runner.time, "sleep", dormir)
+    with pytest.raises(KeyboardInterrupt):
+        runner.main()
+    assert json.loads(latido.read_text())["estado"] == "sin_configurar"
+    assert runner.salud(str(latido), 5) == 0
+    assert runner.salud(str(latido), 5, ahora=time.time() + 3600) == 1
+    assert runner.salud(str(tmp_path / "no-existe.json"), 5) == 1
+    monkeypatch.setenv("DISCORD_HISTORICO_TOKEN", "x")
+    monkeypatch.setenv("DISCORD_HISTORICO_AUTORIZADOS", "no-es-json")      # configuración inválida: también espera
+    vueltas["n"] = 0
+    with pytest.raises(KeyboardInterrupt):
+        runner.main()
+    assert json.loads(latido.read_text())["estado"] == "sin_configurar"

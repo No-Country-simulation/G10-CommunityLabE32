@@ -45,7 +45,7 @@ git_root() {
 
 repo_de_servicio() {
   case "$1" in
-    api) echo api ;; worker|db-init) echo worker ;; web) echo web ;;
+    api|discord-historico) echo api ;; worker|db-init) echo worker ;; web) echo web ;;
     discord-reader|discord-bridge|discord-bot) echo discord ;; *) echo "" ;;
   esac
 }

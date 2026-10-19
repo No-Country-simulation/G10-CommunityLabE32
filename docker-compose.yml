@@ -1,3 +1,4 @@
+# Integración local propuesta: worker ejecutable; revisar contrato con Fredy.
 x-runtime: &runtime
   restart: unless-stopped
   logging:
@@ -5,14 +6,14 @@ x-runtime: &runtime
     options:
       max-size: "10m"
       max-file: "3"
- 
+
 x-database: &database
   PGHOST: postgres
   PGPORT: "5432"
   PGDATABASE: ${POSTGRES_DB:-communitylab}
   PGUSER: ${POSTGRES_USER:-communitylab}
   PGPASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD en un archivo .env privado}
- 
+
 services:
   proxy:
     <<: *runtime
@@ -34,7 +35,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
- 
+
   web:
     <<: *runtime
     image: ${WEB_IMAGE:-communitylab-web:local}
@@ -42,6 +43,7 @@ services:
       context: ./frontend
       args:
         API_PROXY_TARGET: http://api:8000
+      # Procedencia: desplegar.sh exporta GIT_REVISION con el commit construido.
       labels:
         org.opencontainers.image.revision: ${GIT_REVISION:-desconocido}
     platform: ${DOCKER_PLATFORM:-linux/arm64}
@@ -57,7 +59,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
- 
+
   api:
     <<: *runtime
     image: ${API_IMAGE:-communitylab-api:local}
@@ -67,21 +69,28 @@ services:
       labels:
         org.opencontainers.image.revision: ${GIT_REVISION:-desconocido}
     platform: ${DOCKER_PLATFORM:-linux/arm64}
-    ports:
-      - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
+      # Vacíos = acciones protegidas deshabilitadas (503). Ver docs/flujo-hibrido-banners.md.
       OPERADOR_TOKEN: ${OPERADOR_TOKEN:-}
       PUENTE_TOKEN: ${PUENTE_TOKEN:-}
       PUENTE_ORIGEN: ${PUENTE_ORIGEN:-discord}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-communitylab-key-32-segura}
-      # Importación histórica de Discord (PR #36) - SOLO PRUEBA LOCAL.
-      # Valores fijos a propósito: así el .env no puede pisarlos con 127.0.0.1.
-      # Dentro del contenedor, 127.0.0.1 es el propio api, no discord-falso.
-      DISCORD_HISTORICO_TOKEN: "token-falso-prueba"
-      DISCORD_HISTORICO_AUTORIZADOS: '{"111111111111111111":["222222222222222222"]}'
-      DISCORD_HISTORICO_BASE_PRUEBA: "1"
-      DISCORD_API_BASE: "http://discord-falso:15442/api/v10"
+      # Cuentas y sesiones (docs/politica-acceso.md). Sin JWT_SECRET_KEY (>= 32 bytes aleatorios) el
+      # login responde 503: no hay clave por defecto. Las demás tienen valores seguros por defecto.
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      SESION_HORAS: ${SESION_HORAS:-8}
+      SESION_COOKIE_SEGURA: ${SESION_COOKIE_SEGURA:-true}
+      REGISTRO_PUBLICO: ${REGISTRO_PUBLICO:-false}
+      LOGIN_MAX_INTENTOS: ${LOGIN_MAX_INTENTOS:-5}
+      LOGIN_MAX_INTENTOS_IP: ${LOGIN_MAX_INTENTOS_IP:-30}
+      LOGIN_VENTANA_SEGUNDOS: ${LOGIN_VENTANA_SEGUNDOS:-900}
+      # Importación histórica de Discord (docs/discord-historico.md). Vacías = rutas en 503 (seguro).
+      DISCORD_HISTORICO_TOKEN: ${DISCORD_HISTORICO_TOKEN:-}
+      DISCORD_HISTORICO_AUTORIZADOS: ${DISCORD_HISTORICO_AUTORIZADOS:-}
+      DISCORD_HISTORICO_MAX_MENSAJES: ${DISCORD_HISTORICO_MAX_MENSAJES:-5000}
+      DISCORD_HISTORICO_MAX_DIAS: ${DISCORD_HISTORICO_MAX_DIAS:-400}
+      DISCORD_HISTORICO_CONFIRMAR_DIAS: ${DISCORD_HISTORICO_CONFIRMAR_DIAS:-31}
+      DISCORD_HISTORICO_CONFIRMAR_MENSAJES: ${DISCORD_HISTORICO_CONFIRMAR_MENSAJES:-1000}
     networks: [frontend, database, outbound]
     depends_on:
       postgres:
@@ -94,40 +103,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
- 
-  discord-falso:
-    <<: *runtime
-    image: ${API_IMAGE:-communitylab-api:local}
-    platform: ${DOCKER_PLATFORM:-linux/arm64}
-    volumes:
-      - ./tools:/app/tools:ro
-    command: ["uvicorn", "--app-dir", "/app/tools", "discord_falso_historico:app", "--host", "0.0.0.0", "--port", "15442"]
-    ports:
-      - "15442:15442"
-    networks: [outbound, frontend]
- 
-  discord-runner:
-    <<: *runtime
-    image: ${API_IMAGE:-communitylab-api:local}
-    platform: ${DOCKER_PLATFORM:-linux/arm64}
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
-      # Mismos valores fijos que en api (SOLO PRUEBA LOCAL).
-      DISCORD_HISTORICO_TOKEN: "token-falso-prueba"
-      DISCORD_HISTORICO_AUTORIZADOS: '{"111111111111111111":["222222222222222222"]}'
-      DISCORD_HISTORICO_BASE_PRUEBA: "1"
-      DISCORD_API_BASE: "http://discord-falso:15442/api/v10"
-      DISCORD_HISTORICO_INTERVALO: "2"
-    command: ["python", "-m", "backend.app.discord_historico.runner"]
-    networks: [database, outbound]
-    depends_on:
-      postgres:
-        condition: service_healthy
-      db-init:
-        condition: service_completed_successfully
-      discord-falso:
-        condition: service_started
- 
+
   worker:
     <<: *runtime
     image: ${WORKER_IMAGE:-communitylab-worker:local}
@@ -142,6 +118,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
       WORKER_MODE: ${WORKER_MODE:?Definir simulado o gemini explícitamente}
       WORKER_TIMEOUT: ${WORKER_TIMEOUT:-120}
+      # Solo en modo gemini. La clave y los modelos se definen en .env privado, nunca en Git.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODELOS: ${GEMINI_MODELOS:-}
       GEMINI_TIMEOUT_PETICION: ${GEMINI_TIMEOUT_PETICION:-30}
@@ -166,7 +143,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
- 
+
   db-init:
     image: ${WORKER_IMAGE:-communitylab-worker:local}
     build:
@@ -182,7 +159,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
- 
+
   postgres:
     <<: *runtime
     image: ${POSTGRES_IMAGE:-postgres:16-alpine}
@@ -200,7 +177,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
- 
+
 networks:
   frontend:
     driver: bridge
@@ -210,7 +187,6 @@ networks:
     internal: true
   outbound:
     driver: bridge
- 
+
 volumes:
   postgres_data:
- 
