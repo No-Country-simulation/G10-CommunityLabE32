@@ -46,8 +46,9 @@ class RepositoryTests(unittest.IsolatedAsyncioTestCase):
         # Las funciones reales del repositorio se ejecutan; solo el transporte de Gemini es un doble.
         event = source()
         lote = {"interacciones": [interaction(event)]}
+        # Gemini recibe alias por bloque (m01…) y responde con ellos; analizar restaura el ID original "600".
         llm = GeminiFalso([
-            ok({"resultados": [{"id": "600", "es_logro": False, "es_duda": True,
+            ok({"resultados": [{"id": "m01", "es_logro": False, "es_duda": True,
                                 "es_bloqueo": False, "tema": "python"}]}),
             ok({"copy": "Respuesta técnica simulada"}),
         ])
