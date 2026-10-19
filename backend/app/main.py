@@ -32,6 +32,8 @@ from backend.app.api.routes.solicitudes import router as solicitudes_router
 from backend.app.api.routes.banners import router as banners_router
 app.include_router(solicitudes_router)
 app.include_router(banners_router)
+from backend.app.api.routes.discord_historico import router as discord_historico_router
+app.include_router(discord_historico_router)
 
 # Registrar el router de autenticación y seguridad JWT
 app.include_router(auth.router)

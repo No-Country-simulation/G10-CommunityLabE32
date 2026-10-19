@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import ImportarDiscordHistorico from '@/components/ImportarDiscordHistorico';
 import {
   UploadCloud, FileJson, CheckCircle2, AlertCircle, Loader2, Clock, XCircle, RefreshCw,
   ArrowRight, Info, AlertTriangle,
@@ -453,6 +454,8 @@ export default function IngestaPage() {
               )}
 
               <ProcesarPendientes />
+
+              <ImportarDiscordHistorico />
 
               <aside className="card p-5 sm:p-6 text-sm min-w-0">
                 <h2 className="text-[15px] font-semibold text-foreground mb-3 flex items-center gap-2">

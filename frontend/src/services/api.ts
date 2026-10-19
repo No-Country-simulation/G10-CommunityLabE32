@@ -480,5 +480,156 @@ export const describirError = (error: unknown): ErrorLegible => {
   }
   return { ...base, tipo: 'desconocido', titulo: `Error ${estado}`, mensaje: mensaje || 'La API rechazó la solicitud.' };
 };
+// --- Importación histórica de Discord por canal y fechas (PR #36) ---
+export interface VerificacionCanalDiscord {
+  canal: { id: string; nombre: string; tipo: number; tipo_nombre: string };
+  servidor: { id: string; nombre: string };
+  autorizado_en_herramienta: boolean;
+  bot_en_servidor: boolean;
+  permisos: { ver_canal: boolean; leer_historial: boolean };
+  tipo_soportado: boolean;
+}
+
+export interface PrevisualizacionDiscord extends VerificacionCanalDiscord {
+  rango: {
+    inicio_utc: string;
+    fin_utc_exclusivo: string;
+    zona: string;
+    inicio_local: string;
+    fin_local_exclusivo: string;
+    dias: number;
+  };
+  alcance_congelado: { desde: string; hasta: string; zona: string };
+  limites: {
+    max_mensajes: number;
+    max_mensajes_configurado: number;
+    max_dias: number;
+    requiere_confirmacion: boolean;
+    umbral_confirmacion: { dias: number; mensajes: number };
+  };
+  conteo:
+    | { tipo: 'exacto'; mensajes_en_rango: number; importables: number }
+    | { tipo: 'desconocido'; minimo: number; estimacion_aproximada: number | null; nota: string };
+  alcance: string;
+  advertencias: string[];
+  llamadas_discord: number;
+  muestra?: { id_mensaje: string; fecha: string; autor_id: string; texto: string }[];
+}
+
+export type EstadoImportacionDiscord =
+  | 'pendiente'
+  | 'ejecutando'
+  | 'completada'
+  | 'completada_con_limite'
+  | 'cancelada'
+  | 'error';
+
+export interface ImportacionDiscord {
+  id: string;
+  guild_id?: string;
+  canal_id: string;
+  canal_nombre?: string | null;
+  canal_tipo?: number | null;
+  desde_utc?: string;
+  hasta_utc?: string;
+  zona: string;
+  desde_local: string;
+  hasta_local: string;
+  max_mensajes: number;
+  solicitante?: string;
+  estado: EstadoImportacionDiscord;
+  cancelacion_solicitada?: boolean;
+  paginas: number;
+  examinados: number;
+  en_rango: number;
+  insertados: number;
+  existentes: number;
+  existentes_en_vivo: number;
+  editados: number;
+  descartados?: Record<string, number>;
+  hilos_detectados: number;
+  limite_alcanzado: boolean;
+  motivos_parcial?: string[];
+  error?: { codigo: string; reanudable?: boolean; detalle?: string } | null;
+  creado: string;
+  iniciado?: string | null;
+  finalizado?: string | null;
+}
+
+export interface MensajeHistoricoDiscord {
+  id_mensaje: string;
+  message_id: string;
+  autor_id: string;
+  fecha: string;
+  texto: string;
+  contenido_disponible: boolean;
+  resultado?: string;
+  estado_ia?: 'sin_evidencia' | 'pendiente' | 'fallido' | 'procesado';
+}
+
+export const verificarCanalDiscord = async (canal_id: string): Promise<VerificacionCanalDiscord> => {
+  const response = await apiClient.post('/v1/discord/historico/verificar', { canal_id: canal_id.trim() });
+  return response.data;
+};
+
+export const previsualizarDiscordHistorico = async (payload: {
+  canal_id: string;
+  desde: string;
+  hasta: string;
+  zona: string;
+  max_mensajes?: number;
+  incluir_muestra?: boolean;
+}): Promise<PrevisualizacionDiscord> => {
+  const response = await apiClient.post('/v1/discord/historico/previsualizar', payload);
+  return response.data;
+};
+
+export const crearImportacionDiscord = async (
+  payload: {
+    canal_id: string;
+    desde: string;
+    hasta: string;
+    zona: string;
+    max_mensajes?: number;
+    confirmar_alcance?: boolean;
+  },
+  idempotencyKey?: string
+): Promise<{ importacion: ImportacionDiscord; reutilizada: boolean; advertencias: string[] }> => {
+  const headers = idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined;
+  const response = await apiClient.post('/v1/discord/historico/importaciones', payload, { headers });
+  return response.data;
+};
+
+export const listarImportacionesDiscord = async (limite: number = 10): Promise<{ items: ImportacionDiscord[] }> => {
+  const response = await apiClient.get('/v1/discord/historico/importaciones', { params: { limite } });
+  return response.data;
+};
+
+export const consultarImportacionDiscord = async (id: string): Promise<ImportacionDiscord> => {
+  const response = await apiClient.get(`/v1/discord/historico/importaciones/${encodeURIComponent(id)}`);
+  return response.data;
+};
+
+export const cancelarImportacionDiscord = async (id: string): Promise<ImportacionDiscord> => {
+  const response = await apiClient.post(`/v1/discord/historico/importaciones/${encodeURIComponent(id)}/cancelar`);
+  return response.data;
+};
+
+export const reanudarImportacionDiscord = async (id: string): Promise<ImportacionDiscord> => {
+  const response = await apiClient.post(`/v1/discord/historico/importaciones/${encodeURIComponent(id)}/reanudar`);
+  return response.data;
+};
+
+export const obtenerMensajesImportacionDiscord = async (
+  id: string,
+  limite: number = 50,
+  desplazamiento: number = 0
+): Promise<{ total: number; items: MensajeHistoricoDiscord[] }> => {
+  const response = await apiClient.get(
+    `/v1/discord/historico/importaciones/${encodeURIComponent(id)}/mensajes`,
+    { params: { limite, desplazamiento } }
+  );
+  return response.data;
+};
 
 export default apiClient;
