@@ -9,7 +9,7 @@ permanente, no responde en Discord, no envía alertas, no cierra períodos, no p
 | Fase | Qué hace | Dónde |
 |---|---|---|
 | 1. Verificar y previsualizar | Comprueba lista autorizada, canal, servidor, membresía del bot, permisos y tipo; normaliza el rango; lee **una** página para estimar. No guarda nada. | API (`POST /verificar`, `POST /previsualizar`) |
-| 2. Importar | Crea un trabajo persistente (202). Un runner aparte lo ejecuta página a página y guarda en tablas protegidas. | API (`POST /importaciones`) + `python -m backend.app.discord_historico.runner` |
+| 2. Importar | Crea un trabajo persistente (202). Un runner aparte lo ejecuta página a página y guarda en tablas protegidas. | API (`POST /importaciones`) + servicio `discord-historico` de `compose.discord.yml` (`python -m backend.app.discord_historico.runner`) |
 | 3. Procesar con IA | **No implementado.** Paso explícito futuro (ver abajo). | — |
 
 Módulos (`backend/app/discord_historico/`): `fechas` (rango e instantes), `permisos` (algoritmo oficial de
@@ -27,6 +27,11 @@ Rutas: `backend/app/api/routes/discord_historico.py`. Esquema: final de `worker/
 | `DISCORD_HISTORICO_MAX_DIAS` | Rango máximo (1–4000). | 400 |
 | `DISCORD_HISTORICO_CONFIRMAR_DIAS` / `_CONFIRMAR_MENSAJES` | Por encima, `confirmar_alcance=true` es obligatorio. | 31 / 1000 |
 | `DISCORD_HISTORICO_INTERVALO` | Espera del runner sin trabajo (s). | 5 |
+| `DISCORD_HISTORICO_LATIDO` | Archivo de latido del runner para `… runner salud` (Compose: `/tmp/historico-latido.json`). | — |
+
+El runner es opcional: sin `DISCORD_HISTORICO_TOKEN` (o con configuración inválida) queda **en espera y sano**,
+sin reservar nada; nadie depende de él para arrancar. Una sola instancia (sin réplicas). En local, con Discord
+simulado: `docker compose -f docker-compose.yml -f compose.local.yml up --build`.
 | `DISCORD_API_BASE` | Solo pruebas: exige `DISCORD_HISTORICO_BASE_PRUEBA=1` y host `127.0.0.1`, `localhost` o `discord-falso`. | `https://discord.com/api/v10` |
 
 Los IDs se validan como snowflakes (17–20 dígitos) y solo se insertan en rutas fijas; nunca se construyen

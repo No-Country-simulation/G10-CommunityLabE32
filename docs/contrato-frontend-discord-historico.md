@@ -17,23 +17,20 @@ Detalle técnico (arquitectura, llamadas a Discord, almacenamiento, reversión):
 
 ## 1. Autenticación
 
-Todas las rutas exigen la cabecera `X-Operador-Token: <token de operador>`.
-- Es el **mismo token de operador** que usan hoy las demás acciones del panel (procesar pendientes, curaduría…).
-  En la VM se obtiene con `sudo cl-token-operador`.
-- El backend lo resuelve con la dependencia `solicitante_operador()` de `backend/app/core/acceso.py`. Hoy registra
-  al solicitante como `operador:token-compartido`, porque el token no identifica a la persona.
+Todas las rutas exigen **rol operador** (política completa: [`politica-acceso.md`](politica-acceso.md)).
+- Navegador: sesión por cookie HttpOnly `cl_sesion` + cabecera `X-CSRF-Token` en los POST. El frontend no
+  envía tokens propios; el CSRF se obtiene al iniciar sesión o con `GET /api/auth/sesion`.
+- Terminal: `X-Operador-Token: <token de operador>` (compatibilidad; en la VM, `sudo cl-token-operador`).
+- Cada importación pertenece a quien la pidió (`usuario:<id>` o `operador:token-compartido`): un operador solo
+  ve, consulta, cancela y reanuda las suyas (una ajena da 404); un administrador ve todas. La `Idempotency-Key`
+  de una persona se acota a su cuenta; el frontend usa una clave nueva por cada previsualización confirmada.
 
 | Caso | HTTP | `detail.codigo` |
 |---|---|---|
-| Falta o es incorrecto | 401 | `token_invalido` |
-| El servidor no tiene `OPERADOR_TOKEN` | 503 | `acceso_no_configurado` |
-
-**Puntos a coordinar con el login individual.** Todavía no está desplegado.
-- Sustituir `solicitante_operador()` para que devuelva el usuario autenticado. Las rutas no cambian.
-- Decidir quién puede importar.
-- Filtrar por solicitante en `GET /importaciones`, `…/mensajes`, `…/cancelar` y `…/reanudar`. Cambiar la dependencia
-  **no basta** para restringir por persona.
-- Tratar `muestra` (en la previsualización) y `texto` (en los mensajes) como datos sensibles según el rol.
+| Sin sesión ni token, sesión vencida o revocada | 401 | `sesion_requerida` / `sesion_invalida` |
+| Token de operador incorrecto | 401 | `token_invalido` |
+| Cuenta sin rol operador / falta CSRF | 403 | `permiso_insuficiente` / `csrf_invalido` |
+| El servidor no tiene `OPERADOR_TOKEN` (con cabecera de token) o `JWT_SECRET_KEY` (con sesión) | 503 | `acceso_no_configurado` / `autenticacion_no_configurada` |
 
 El **token de Discord nunca llega al navegador**: vive solo en el backend.
 
