@@ -1,4 +1,4 @@
 #!/bin/bash
 set -eu
-APP=/home/tareck/G10-CommunityLabE32
+APP=/srv/communitylab
 cd "$APP" && docker compose ps --format 'table {{.Service}}\t{{.State}}\t{{.Health}}'

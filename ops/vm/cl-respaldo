@@ -2,5 +2,5 @@
 # Respaldo consistente y comprobación de su restauración.
 set -eu
 logger -t cl-operador "respaldo por ${SUDO_USER:-?}"
-destino=$(/home/tareck/G10-CommunityLabE32/ops/vm/respaldo.sh | tail -1)
-exec /home/tareck/G10-CommunityLabE32/ops/vm/probar-restauracion.sh "$destino"
+destino=$(/srv/communitylab/ops/vm/respaldo.sh | tail -1)
+exec /srv/communitylab/ops/vm/probar-restauracion.sh "$destino"

@@ -35,9 +35,9 @@ if grep -q '^COMPOSE_FILE=.*compose.discord.yml' "$ENV_NUEVO"; then
 fi
 # Las URLs de verificación de la VM las define cl-actualizar (VERIFICAR_URLS); sin valor por
 # defecto aquí: el script también corre en pruebas y CI, donde el dominio público no aplica.
-[ -z "$(cd "$APP" && git status --porcelain --untracked-files=no)" ] || fallar "cambios locales en $APP"
-(cd "$APP" && git fetch --quiet origin) || log "aviso: git fetch falló; se usa el sha local"
-SHA=$(cd "$APP" && git rev-parse --verify "$SHA_PEDIDO^{commit}") || fallar "sha inexistente: $SHA_PEDIDO"
+[ -z "$(git_app status --porcelain --untracked-files=no)" ] || fallar "cambios locales en $APP"
+git_app fetch --quiet origin || log "aviso: git fetch falló; se usa el sha local"
+SHA=$(git_app rev-parse --verify "$SHA_PEDIDO^{commit}") || fallar "sha inexistente: $SHA_PEDIDO"
 CORTO=${SHA:0:12}
 ID=$(date -u +%Y%m%dT%H%M%SZ)
 ESTADO="$DESPLIEGUES/$ID"
@@ -47,7 +47,7 @@ log "despliegue $ID: $CORTO (estado en $ESTADO)"
 
 # --- 1. Conservar el estado realmente desplegado ---
 cp "$APP/.env" "$ESTADO/env.anterior"
-(cd "$APP" && git rev-parse HEAD) > "$ESTADO/commit.anterior"
+git_app rev-parse HEAD > "$ESTADO/commit.anterior"
 : > "$ESTADO/imagenes.anteriores"
 for c in $(dc ps -q); do
   servicio=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$c")
@@ -63,8 +63,8 @@ log "1/6 conservado: $(wc -l < "$ESTADO/imagenes.anteriores") servicios con imag
 # --- 2. Construir y probar sin tocar producción ---
 ARBOL="$ESTADO/arbol"
 # umask 022 solo para el árbol de build: sus permisos pasan a la imagen (usuarios no root deben leerlos).
-(cd "$APP" && umask 022 && git worktree add --detach --quiet "$ARBOL" "$SHA") || fallar "no se pudo preparar el árbol de build"
-limpiar_arbol() { (cd "$APP" && git worktree remove --force "$ARBOL" >/dev/null 2>&1) || true; }
+(umask 022 && git_root worktree add --detach --quiet "$ARBOL" "$SHA") || fallar "no se pudo preparar el árbol de build"
+limpiar_arbol() { git_root worktree remove --force "$ARBOL" >/dev/null 2>&1 || true; }
 trap limpiar_arbol EXIT
 export API_IMAGE="$IMAGEN_PREFIJO-api:$CORTO" WORKER_IMAGE="$IMAGEN_PREFIJO-worker:$CORTO"
 export WEB_IMAGE="$IMAGEN_PREFIJO-web:$CORTO" DISCORD_IMAGE="$IMAGEN_PREFIJO-discord:$CORTO"
@@ -103,7 +103,7 @@ revertir() {
 }
 echo "$SHA" > "$ESTADO/commit.nuevo"
 cp "$ENV_NUEVO" "$APP/.env" && chmod 600 "$APP/.env"
-(cd "$APP" && git checkout --quiet --detach "$SHA") || revertir "5/6 checkout"
+git_app checkout --quiet --detach "$SHA" || revertir "5/6 checkout"
 for repo in $REPOS_IMAGEN; do
   docker image inspect "$IMAGEN_PREFIJO-$repo:$CORTO" >/dev/null 2>&1 \
     && docker tag "$IMAGEN_PREFIJO-$repo:$CORTO" "$IMAGEN_PREFIJO-$repo:local"
