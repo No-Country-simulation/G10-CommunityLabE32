@@ -65,6 +65,22 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Sesión vencida o revocada a mitad de uso: limpiar el estado y volver al login (sin bucles en /login).
+apiClient.interceptors.response.use(
+  (respuesta) => respuesta,
+  (error) => {
+    const url = String(error?.config?.url ?? '');
+    if (
+      axios.isAxiosError(error) && error.response?.status === 401 && typeof window !== 'undefined'
+      && !url.startsWith('/auth/') && !['/login', '/register'].includes(window.location.pathname)
+    ) {
+      fijarSesion(null);
+      window.location.assign('/login');
+    }
+    return Promise.reject(error);
+  },
+);
+
 // --- Funciones de Autenticación (Login, Sesión, Registro y Cierre) ---
 export const iniciarSesion = async (email: string, password: string): Promise<UsuarioAuth> => {
   const formData = new URLSearchParams();

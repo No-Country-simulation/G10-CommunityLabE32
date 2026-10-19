@@ -54,6 +54,7 @@ export default function ImportarDiscordHistorico() {
 
   const [cargandoAccion, setCargandoAccion] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   const [verificacion, setVerificacion] = useState<VerificacionCanalDiscord | null>(null);
   const [preview, setPreview] = useState<PrevisualizacionDiscord | null>(null);
@@ -145,6 +146,7 @@ export default function ImportarDiscordHistorico() {
     if (!preview) return;
     setCargandoAccion('importar');
     setError(null);
+    setAviso(null);
     try {
       // alcance_congelado congela el corte exacto; la clave identifica este intento (reintentos seguros).
       const claveIdempotencia = `imp-${claveIntento || nuevaClave()}`;
@@ -160,6 +162,11 @@ export default function ImportarDiscordHistorico() {
       );
       setImportacion(res.importacion);
       setMensajes([]);
+      // Misma solicitud repetida (doble clic o respuesta perdida): el servidor devuelve la original.
+      // Para una importación NUEVA del mismo rango hay que volver a previsualizar.
+      if (res.reutilizada) {
+        setAviso('Esta solicitud ya se había registrado: se muestra la importación original. Para importar de nuevo, vuelve a previsualizar.');
+      }
     } catch (e) {
       const err = describirError(e);
       setError(`${err.titulo}: ${err.mensaje}`);
@@ -343,6 +350,12 @@ export default function ImportarDiscordHistorico() {
             </div>
           </div>
 
+          {aviso && (
+            <div role="status" className="p-3.5 rounded-xl bg-info-soft text-info text-xs font-medium flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>{aviso}</span>
+            </div>
+          )}
           {error && (
             <div role="alert" className="p-3.5 rounded-xl bg-danger-soft text-danger text-xs font-medium flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
