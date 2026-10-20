@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { obtenerSesion } from '@/services/api';
+import { esVistaLocal } from '@/services/vistaLocal';
 import { Loader2 } from 'lucide-react';
 
 export default function RutaProtegida({ children }: { children: React.ReactNode }) {
@@ -13,6 +14,11 @@ export default function RutaProtegida({ children }: { children: React.ReactNode 
     // La sesión la decide el servidor (cookie HttpOnly): sin sesión vigente, al login.
     // Es solo navegación: cada endpoint vuelve a exigir sesión y rol en el backend.
     let vigente = true;
+    // Vista sin sesión: solo `npm run dev` en loopback con NEXT_PUBLIC_VISTA_LOCAL=true (ver vistaLocal.ts).
+    if (esVistaLocal()) {
+      const timer = setTimeout(() => { if (vigente) setAutorizado(true); }, 0);
+      return () => { vigente = false; clearTimeout(timer); };
+    }
     obtenerSesion()
       .then((usuario) => {
         if (!vigente) return;

@@ -13,7 +13,8 @@ import {
   ErrorLegible, EstadoTrabajo, RespuestaSubida, Trabajo,
 } from '@/services/api';
 import Sidebar from '@/components/Sidebar';
-import ProcesarPendientes from '@/components/ProcesarPendientes';
+import ConectarDiscord from '@/components/ConectarDiscord';
+import PendientesDiscord from '@/components/PendientesDiscord';
 import RutaProtegida from '@/components/RutaProtegida';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -33,7 +34,7 @@ const ETIQUETA_ESTADO: Record<EstadoTrabajo, string> = {
 const MENSAJE_ERROR_TRABAJO: Record<string, string> = {
   ia_configuracion: 'El proveedor de IA rechazó la solicitud (configuración o petición inválida).',
   ia_cuota: 'Se alcanzó el límite de uso del proveedor de IA. Inténtalo más tarde.',
-  ia_transitorio: 'El proveedor de IA não respondió a tiempo. Puedes reintentar más tarde.',
+  ia_transitorio: 'El proveedor de IA no respondió a tiempo. Puedes reintentar más tarde.',
   ia_respuesta_invalida: 'La IA devolvió respuestas que no cumplen el formato esperado.',
   ia_bloqueado: 'El proveedor de IA bloqueó el contenido por sus filtros de seguridad.',
   ia_presupuesto: 'El lote superó el presupuesto de tiempo, llamadas o tokens del trabajo.',
@@ -191,7 +192,7 @@ export default function IngestaPage() {
       <div className="flex min-h-screen w-full">
         <Sidebar />
 
-        <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-10">
+        <main className="dashboard-content flex-1 min-w-0 p-4 sm:p-6 md:p-10">
           <header className="mb-8">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
               Ingesta de lotes
@@ -201,8 +202,11 @@ export default function IngestaPage() {
             </p>
           </header>
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,42rem)_minmax(0,24rem)] items-start">
-            <div className="card p-5 sm:p-7 min-w-0">
+          <div className="ingestion-panels grid gap-6 items-stretch">
+            <div id="conectar-discord" className="ingestion-discord min-w-0 scroll-mt-20">
+              <ConectarDiscord />
+            </div>
+            <div className="ingestion-source card p-5 sm:p-7 min-w-0">
               <div className="mb-6">
                 <h2 className="text-[15px] font-semibold text-foreground">Fuente de datos</h2>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -328,7 +332,7 @@ export default function IngestaPage() {
                   )}
                   {!enviando && !subida && !file && (
                     <span className="flex items-center gap-2 text-subtle-foreground">
-                      <AlertCircle className="w-4 h-4" /> Esperando dataset
+                      <AlertCircle className="w-4 h-4" /> Esperando archivo
                     </span>
                   )}
                   {!enviando && !subida && file && !errorEnvio && (
@@ -355,7 +359,7 @@ export default function IngestaPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-6 min-w-0">
+            <div className="ingestion-support grid gap-6 min-w-0 items-stretch">
               {subida && estado && (
                 <section aria-live="polite" className="card p-5 sm:p-6 min-w-0">
                   <h2 className="text-[15px] font-semibold text-foreground mb-1">Seguimiento del trabajo</h2>
@@ -453,11 +457,13 @@ export default function IngestaPage() {
                 </section>
               )}
 
-              <ProcesarPendientes />
+
+
+              <PendientesDiscord />
 
               <ImportarDiscordHistorico />
 
-              <aside className="card p-5 sm:p-6 text-sm min-w-0">
+              <aside className="ingestion-file-guide card p-5 sm:p-6 text-sm min-w-0">
                 <h2 className="text-[15px] font-semibold text-foreground mb-3 flex items-center gap-2">
                   <Info className="w-4 h-4 text-info" /> Formato del archivo
                 </h2>

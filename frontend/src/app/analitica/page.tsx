@@ -93,38 +93,37 @@ export default function AnaliticaPage() {
   // Embudo de Curaduría
   const estadosActivos = [
     {
-      etiqueta: 'Generados por IA',
+      etiqueta: 'Indeterminados',
       cantidad: kpis?.activos_por_estado?.generado ?? 0,
-      color: 'from-amber-500 to-orange-500',
-      bgBar: 'bg-amber-500',
-      texto: 'text-amber-400',
+      color: '#f1f333',
     },
     {
-      etiqueta: 'En revisión humana',
+      etiqueta: 'Neutrales',
       cantidad: kpis?.activos_por_estado?.revisado ?? 0,
-      color: 'from-blue-500 to-cyan-500',
-      bgBar: 'bg-blue-500',
-      texto: 'text-blue-400',
+      color: '#90a8ed',
     },
     {
-      etiqueta: 'Aprobados definitivos',
+      etiqueta: 'Positivos',
       cantidad: kpis?.activos_por_estado?.aprobado ?? 0,
-      color: 'from-emerald-500 to-teal-500',
-      bgBar: 'bg-emerald-500',
-      texto: 'text-emerald-400',
+      color: '#b9e9c5',
     },
     {
-      etiqueta: 'Rechazados / Descartados',
+      etiqueta: 'Negativos',
       cantidad: kpis?.activos_por_estado?.rechazado ?? 0,
-      color: 'from-rose-500 to-red-600',
-      bgBar: 'bg-rose-500',
-      texto: 'text-rose-400',
+      color: '#ff90e8',
     },
   ];
   const totalActivos = Math.max(1, kpis?.activos_generados ?? 1);
 
   // Tipos de mensajes
   const tiposEntries = Object.entries(kpis?.mensajes_por_tipo ?? {}).sort((a, b) => b[1] - a[1]);
+  const etiquetasTipo: Record<string, string> = {
+    PREGUNTA_TECNICA: 'Pregunta técnica',
+    CONSULTA_NEGOCIO: 'Consulta de negocio',
+    SIN_CLASIFICAR: 'Sin clasificar',
+    LOGRO: 'Logro',
+  };
+  const coloresCategoria = ['#ff90e8', '#f1f333', '#90a8ed', '#b9e9c5'];
   const maxTipo = Math.max(1, ...tiposEntries.map(([, v]) => v));
 
   // Tasas operativas
@@ -137,10 +136,10 @@ export default function AnaliticaPage() {
 
   // Segmentos de la Dona con colores y metadatos
   const segmentos = [
-    { id: 'positivo', nombre: 'Positivos', valor: pctPos, cantidad: pos, stroke: '#10b981', bgHex: '#10b981' },
-    { id: 'neutral', nombre: 'Neutrales', valor: pctNeu, cantidad: neu, stroke: '#0ea5e9', bgHex: '#0ea5e9' },
-    { id: 'negativo', nombre: 'Negativos', valor: pctNeg, cantidad: neg, stroke: '#ef4444', bgHex: '#ef4444' },
-    { id: 'indeterminado', nombre: 'Indeterminados', valor: pctInd, cantidad: ind, stroke: '#f59e0b', bgHex: '#f59e0b' },
+    { id: 'positivo', nombre: 'Positivos', valor: pctPos, cantidad: pos, stroke: '#b9e9c5', bgHex: '#b9e9c5' },
+    { id: 'neutral', nombre: 'Neutrales', valor: pctNeu, cantidad: neu, stroke: '#90a8ed', bgHex: '#90a8ed' },
+    { id: 'negativo', nombre: 'Negativos', valor: pctNeg, cantidad: neg, stroke: '#ff90e8', bgHex: '#ff90e8' },
+    { id: 'indeterminado', nombre: 'Indeterminados', valor: pctInd, cantidad: ind, stroke: '#f1f333', bgHex: '#f1f333' },
   ];
 
   const radio = 62;
@@ -155,17 +154,17 @@ export default function AnaliticaPage() {
       <div className="flex min-h-screen w-full">
         <Sidebar />
 
-        <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
+        <main className="dashboard-content analytics-page flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
           <header className="mb-8 flex flex-wrap justify-between items-end gap-4">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-soft text-primary text-xs font-bold mb-2 shadow-sm">
-                <Sparkles className="w-3.5 h-3.5" /> Inteligencia Comunitaria Avanzada
+                <Sparkles className="w-3.5 h-3.5" /> Equipo 32
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                Analítica y Gráficas del Pipeline
+                Analítica y gráficas
               </h1>
               <p className="text-muted-foreground text-sm mt-1">
-                Visualización interactiva de sentimiento, embudo editorial y clasificación del grafo de IA
+                Visualización interactiva de sentimiento, embudo editorial y clasificación de mensajes con IA
                 {ambito ? ` · ${ambito.origen} (${ambito.periodo})` : ' · histórico global'}.
               </p>
             </div>
@@ -192,7 +191,7 @@ export default function AnaliticaPage() {
                 ))}
               </select>
 
-              <button onClick={cargarDatos} className="btn-secondary" title="Actualizar datos">
+              <button onClick={cargarDatos} className="analytics-refresh btn-secondary" title="Actualizar datos" disabled={cargando} aria-busy={cargando}>
                 <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin' : ''}`} />
                 Actualizar
               </button>
@@ -203,7 +202,7 @@ export default function AnaliticaPage() {
             <div className="card flex items-center justify-center h-80">
               <div className="flex items-center gap-3 text-muted-foreground text-sm">
                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                Renderizando paneles analíticos…
+                Cargando datos de analítica…
               </div>
             </div>
           ) : (
@@ -213,7 +212,7 @@ export default function AnaliticaPage() {
                 <div className="card p-5 relative overflow-hidden group hover:border-primary/50 transition-all">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Cobertura de Análisis IA
+                      Cobertura del análisis con IA
                     </span>
                     <TrendingUp className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
                   </div>
@@ -230,7 +229,7 @@ export default function AnaliticaPage() {
                       initial={{ width: 0 }}
                       animate={{ width: `${tasaCoberturaIA}%` }}
                       transition={{ duration: 0.9, ease: 'easeOut' }}
-                      className="h-full bg-gradient-to-r from-cyan-400 to-blue-600 rounded-full shadow-[0_0_12px_rgba(0,180,216,0.5)]"
+                      className="h-full bg-[#90a8ed] rounded-full"
                     />
                   </div>
                 </div>
@@ -238,9 +237,9 @@ export default function AnaliticaPage() {
                 <div className="card p-5 relative overflow-hidden group hover:border-success/50 transition-all">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Tasa de Aprobación Editorial
+                      Tasa de aprobación editorial
                     </span>
-                    <Layers className="w-4 h-4 text-success group-hover:scale-110 transition-transform" />
+                    <Layers className="w-4 h-4 text-[#b9e9c5] group-hover:scale-110 transition-transform" />
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-extrabold text-foreground tabular-nums">
@@ -255,7 +254,7 @@ export default function AnaliticaPage() {
                       initial={{ width: 0 }}
                       animate={{ width: `${tasaAprobacion}%` }}
                       transition={{ duration: 0.9, ease: 'easeOut' }}
-                      className="h-full bg-gradient-to-r from-emerald-400 to-teal-600 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.5)]"
+                      className="h-full bg-[#b9e9c5] rounded-full"
                     />
                   </div>
                 </div>
@@ -263,20 +262,20 @@ export default function AnaliticaPage() {
                 <div className="card p-5 relative overflow-hidden group hover:border-danger/50 transition-all">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Bloqueos y Alertas Internas
+                      Bloqueos y alertas internas
                     </span>
-                    <ShieldAlert className="w-4 h-4 text-danger group-hover:scale-110 transition-transform" />
+                    <ShieldAlert className="w-4 h-4 text-[#ff90e8] group-hover:scale-110 transition-transform" />
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-extrabold text-foreground tabular-nums">
                       {kpis?.alertas_internas ?? 0}
                     </span>
                     <span className="text-xs text-subtle-foreground">
-                      retenidos por filtros de seguridad
+                      alertas registradas
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-3">
-                    El router garantiza que ningún bloqueo sea publicado externamente.
+                    Revisa las alertas internas antes de continuar con la publicación.
                   </p>
                 </div>
               </div>
@@ -291,10 +290,10 @@ export default function AnaliticaPage() {
                 >
                   <div>
                     <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-                      <PieChart className="w-5 h-5 text-primary" /> Distribución de Sentimiento Comunitario
+                      <PieChart className="w-5 h-5 text-primary" /> Distribución del sentimiento comunitario
                     </h2>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Pasa el cursor sobre los segmentos o leyendas para explorar el desglose detallado.
+                      Pasa el cursor sobre los segmentos o las leyendas para explorar el desglose detallado.
                     </p>
                   </div>
 
@@ -425,10 +424,10 @@ export default function AnaliticaPage() {
                 >
                   <div>
                     <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5 text-primary" /> Embudo de Curaduría de Contenidos
+                      <BarChart3 className="w-5 h-5 text-primary" /> Embudo de curaduría de contenidos
                     </h2>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Progreso editorial de los {kpis?.activos_generados ?? 0} borradores generados (LinkedIn, FAQ y Newsletter).
+                      Progreso editorial de los {kpis?.activos_generados ?? 0} borradores generados (LinkedIn, preguntas frecuentes y boletines).
                     </p>
                   </div>
 
@@ -441,7 +440,7 @@ export default function AnaliticaPage() {
                             <span className="text-foreground group-hover:text-primary transition-colors">
                               {item.etiqueta}
                             </span>
-                            <span className={`${item.texto} tabular-nums font-bold`}>
+                            <span className="text-foreground tabular-nums font-bold">
                               {item.cantidad} ({porcentajeBarra}%)
                             </span>
                           </div>
@@ -450,7 +449,8 @@ export default function AnaliticaPage() {
                               initial={{ width: 0 }}
                               animate={{ width: `${Math.max(item.cantidad > 0 ? 5 : 0, porcentajeBarra)}%` }}
                               transition={{ duration: 0.8, ease: 'easeOut' }}
-                              className={`h-full rounded-full bg-gradient-to-r ${item.color} shadow-sm group-hover:brightness-110 transition-all`}
+                              className="h-full rounded-full group-hover:brightness-110 transition-all"
+                              style={{ backgroundColor: item.color }}
                             />
                           </div>
                         </div>
@@ -473,10 +473,10 @@ export default function AnaliticaPage() {
                 className="card p-6"
               >
                 <h2 className="text-base font-bold text-foreground mb-1">
-                  Volumen de Interacciones por Categoría / Tipo
+                  Volumen de interacciones por categoría o tipo
                 </h2>
                 <p className="text-xs text-muted-foreground mb-5">
-                  Desglose volumétrico de mensajes ingeridos según su tipología comunitaria.
+                  Cantidad de mensajes importados según su categoría.
                 </p>
 
                 {tiposEntries.length === 0 ? (
@@ -485,15 +485,15 @@ export default function AnaliticaPage() {
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {tiposEntries.map(([tipo, cantidad]) => {
+                    {tiposEntries.map(([tipo, cantidad], indice) => {
                       const pct = Math.round((cantidad / maxTipo) * 100);
                       return (
                         <div
-                          key={tipo}
+                          key={etiquetasTipo[tipo.toUpperCase()] ?? tipo.replaceAll('_', ' ')}
                           className="p-4 rounded-2xl border border-border bg-surface-muted/30 hover:bg-surface-hover/80 hover:border-border-strong transition-all duration-200 group"
                         >
                           <div className="flex justify-between items-center mb-2.5">
-                            <span className="badge-neutral uppercase tracking-wider font-bold">
+                            <span className="badge-neutral font-bold">
                               {tipo}
                             </span>
                             <span className="text-sm font-extrabold text-foreground tabular-nums">
@@ -505,7 +505,8 @@ export default function AnaliticaPage() {
                               initial={{ width: 0 }}
                               animate={{ width: `${Math.max(pct > 0 ? 6 : 0, pct)}%` }}
                               transition={{ duration: 0.8, ease: 'easeOut' }}
-                              className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 rounded-full shadow-[0_0_10px_rgba(0,119,230,0.3)] group-hover:brightness-110 transition-all"
+                              className="h-full rounded-full group-hover:brightness-110 transition-all"
+                              style={{ backgroundColor: coloresCategoria[indice % coloresCategoria.length] }}
                             />
                           </div>
                         </div>
