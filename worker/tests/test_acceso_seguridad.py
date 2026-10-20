@@ -483,3 +483,53 @@ def test_crear_primer_administrador_sin_credenciales_predeterminadas(entorno, c,
     assert contar(entorno, "usuarios") == 1
     entrar(c, "primera@example.com")
     assert c.get("/api/auth/usuarios").status_code == 200
+
+
+def test_restablecer_administrador_revoca_sesiones_y_reactiva(entorno, c, monkeypatch, capsys):
+    """Recuperación si se pierde la contraseña del administrador o queda deshabilitado."""
+    import io
+    from backend.scripts import crear_usuario
+    uid = crear_cuenta(entorno, "admin@example.com", rol="administrador")
+    _, vieja = entrar(c, "admin@example.com")
+    with entorno.conectar() as cx:
+        cx.execute("UPDATE usuarios SET is_active=false WHERE id=%s", (uid,))
+    nueva = "restablecida-" + secrets.token_hex(6)
+    monkeypatch.setattr("sys.stdin", io.StringIO(nueva + "\n"))
+    crear_usuario.main(["--email", "admin@example.com", "--rol", "administrador", "--contrasena-stdin", "--restablecer"])
+    salida = capsys.readouterr()
+    assert "sesiones revocadas" in salida.out and nueva not in salida.out + salida.err
+    como(c, vieja)
+    assert c.get("/api/auth/sesion").status_code == 401                     # la sesión anterior ya no vale
+    entrar(c, "admin@example.com", nueva)
+    assert c.get("/api/auth/usuarios").status_code == 200
+    with pytest.raises(SystemExit):                                           # no crea cuentas nuevas
+        crear_usuario.restablecer(entorno.url, "nadie@example.com", "operador", nueva)
+
+
+def test_verificar_acceso_recorre_login_real_sin_mostrar_secretos(entorno, monkeypatch):
+    import socket
+    import threading
+    import time as _t
+    import uvicorn
+    from backend.app.main import app
+    from backend.scripts.verificar_acceso import verificar
+    crear_cuenta(entorno, "admin@example.com", rol="administrador")
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        puerto = s.getsockname()[1]
+    servidor = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=puerto, log_level="warning"))
+    hilo = threading.Thread(target=servidor.run, daemon=True)
+    hilo.start()
+    while not servidor.started:
+        _t.sleep(0.05)
+    try:
+        lineas = []
+        assert verificar(f"http://127.0.0.1:{puerto}", "admin@example.com", CONTRASENA, lineas.append) == 0
+        assert lineas == ["login=200", "sesion=200 rol=administrador lectura_administrador=200"]
+        malas = []
+        assert verificar(f"http://127.0.0.1:{puerto}", "admin@example.com", "otra-" + CONTRASENA, malas.append) == 1
+        assert malas == ["login=401"]
+        assert not any(CONTRASENA in l for l in lineas + malas)
+    finally:
+        servidor.should_exit = True
+        hilo.join(10)
