@@ -332,7 +332,9 @@ def test_despliegue_fallido_revierte_imagenes_y_configuracion(anterior):
     e.esperar()
     assert int(e.psql("SELECT count(*) FROM trabajos_worker")) >= trabajos
     # La migración aditiva quedó aplicada y la versión anterior sigue funcionando sobre ella.
-    assert e.psql("SELECT count(*) FROM information_schema.columns WHERE column_name='clave_idempotencia'") == "1"
+    # (Acotado a trabajos_worker: discord_importaciones tiene otra columna con el mismo nombre desde #36.)
+    assert e.psql("SELECT count(*) FROM information_schema.columns WHERE table_name='trabajos_worker' "
+                  "AND column_name='clave_idempotencia'") == "1"
 
 
 def test_despliegue_exitoso_y_reversion_manual(anterior):
