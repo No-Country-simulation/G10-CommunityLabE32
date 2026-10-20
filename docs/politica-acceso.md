@@ -57,6 +57,13 @@ de datos enviados por el cliente.
   ```
   Después, el administrador crea cuentas con `POST /api/auth/usuarios` y las gestiona con
   `PATCH /api/auth/usuarios/{id}` (rol y habilitación).
+  - **Verificación.** Antes de dar por terminado un despliegue, ejecutar
+    `python -m backend.scripts.verificar_acceso --email <correo>`. Hace login, consulta la sesión y una
+    lectura del rol, e imprime solo los códigos.
+  - **Recuperación.** Si se pierde la contraseña del administrador o queda deshabilitado, ejecutar
+    `crear_usuario ... --restablecer`. Cambia contraseña, rol y habilitación de una cuenta existente y revoca
+    sus sesiones.
+  - **Procedimiento completo en la VM:** `docs/operacion-vm.md`, sección «Primer administrador».
 - **Contraseñas.** De 10 caracteres a 72 bytes (límite de bcrypt).
 
 ## Intentos de login
@@ -68,7 +75,10 @@ de datos enviados por el cliente.
 
   Al superarlo, la respuesta es 429. El bloqueo es temporal y nunca se cuenta por correo solo, para que un
   tercero no pueda bloquear una cuenta ajena desde otra IP.
-- **IP real.** Se toma de `X-Real-IP`, que pone nginx, y solo si la conexión llega desde una red privada.
+- **IP real.** nginx sobrescribe `X-Real-IP` con `$remote_addr`. La API solo acepta esa cabecera si la
+  conexión llega desde un proxy declarado en `LOGIN_PROXY_CONFIABLE`: nombres DNS o IP/CIDR. En Compose es
+  `proxy`, resuelto con caché de 30 s. Sin esa variable, o desde otro origen (`web`, el puente o un cliente
+  directo), se usa la IP real de la conexión, así que falsificar la cabecera no reinicia el contador.
   La API no publica puertos en producción.
 - **Topología.** Un único proceso uvicorn. Con varias réplicas, el contador debería compartirse.
 - **Respuesta uniforme.** La misma (401 `credenciales_invalidas`) si la cuenta no existe, está
