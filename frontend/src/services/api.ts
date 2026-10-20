@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Configuración base apuntando a tu FastAPI
+// Configuración base apuntando a tu FastAPI a través del proxy (/api)
 export const apiClient = axios.create({
   baseURL: '/api',
   headers: {
@@ -8,30 +8,156 @@ export const apiClient = axios.create({
   },
 });
 
-// --- Token de operador ---
-// Solo en sessionStorage de esta pestaña (se borra al cerrarla); se envía en X-Operador-Token
-// para acciones protegidas: procesar pendientes, aprobar textos, generar y revisar banners.
-const CLAVE_OPERADOR = 'communitylab-operador';
-export const EVENTO_OPERADOR = 'communitylab-operador';
-export const leerTokenOperador = (): string => {
+// --- Sesión: cookie HttpOnly + CSRF (ver docs/politica-acceso.md) ---
+// El JWT viaja solo en la cookie HttpOnly `cl_sesion` (mismo origen, el navegador la envía sola):
+// JavaScript no puede leerla. El token CSRF se guarda SOLO en memoria y se recupera con
+// GET /auth/sesion tras recargar. No se guarda ningún token en localStorage ni sessionStorage.
+export const EVENTO_SESION = 'communitylab-sesion';
+const METODOS_SEGUROS = ['get', 'head', 'options'];
+// Claves que versiones anteriores usaban para guardar tokens: se eliminan del navegador.
+const CLAVES_ANTIGUAS = ['access_token', 'communitylab_token', 'token', 'token_jwt', 'communitylab-usuario'];
+
+export type RolUsuario = 'usuario' | 'operador' | 'administrador';
+
+export interface UsuarioAuth {
+  id: number;
+  email: string;
+  full_name?: string | null;
+  rol: RolUsuario;
+  is_active: boolean;
+}
+
+interface RespuestaSesion {
+  usuario: UsuarioAuth;
+  csrf_token: string;
+  expira: string;
+}
+
+let csrfToken = '';
+let usuarioActual: UsuarioAuth | null = null;
+let sesionEnCurso: Promise<UsuarioAuth | null> | null = null;
+
+const limpiarAlmacenamientoAntiguo = () => {
+  if (typeof window === 'undefined') return;
   try {
-    return sessionStorage.getItem(CLAVE_OPERADOR) ?? '';
-  } catch {
-    return '';
-  }
-};
-export const guardarTokenOperador = (token: string) => {
-  try {
-    if (token) sessionStorage.setItem(CLAVE_OPERADOR, token);
-    else sessionStorage.removeItem(CLAVE_OPERADOR);
+    CLAVES_ANTIGUAS.forEach((clave) => localStorage.removeItem(clave));
+    ['access_token', 'communitylab-operador'].forEach((clave) => sessionStorage.removeItem(clave));
   } catch {}
-  window.dispatchEvent(new Event(EVENTO_OPERADOR));
 };
+limpiarAlmacenamientoAntiguo();
+
+const fijarSesion = (datos: RespuestaSesion | null) => {
+  csrfToken = datos?.csrf_token ?? '';
+  usuarioActual = datos?.usuario ?? null;
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO_SESION));
+};
+
+export const usuarioEnMemoria = (): UsuarioAuth | null => usuarioActual;
+
+export const esOperador = (usuario: UsuarioAuth | null): boolean =>
+  usuario?.rol === 'operador' || usuario?.rol === 'administrador';
+
+// Única cabecera añadida: X-CSRF-Token en peticiones que modifican estado.
 apiClient.interceptors.request.use((config) => {
-  const token = typeof window === 'undefined' ? '' : leerTokenOperador();
-  if (token) config.headers.set('X-Operador-Token', token);
+  if (csrfToken && !METODOS_SEGUROS.includes((config.method || 'get').toLowerCase())) {
+    config.headers.set('X-CSRF-Token', csrfToken);
+  }
   return config;
 });
+
+// Sesión vencida o revocada a mitad de uso: limpiar el estado y volver al login (sin bucles en /login).
+apiClient.interceptors.response.use(
+  (respuesta) => respuesta,
+  (error) => {
+    const url = String(error?.config?.url ?? '');
+    if (
+      axios.isAxiosError(error) && error.response?.status === 401 && typeof window !== 'undefined'
+      && !url.startsWith('/auth/') && !['/login', '/register'].includes(window.location.pathname)
+    ) {
+      fijarSesion(null);
+      window.location.assign('/login');
+    }
+    return Promise.reject(error);
+  },
+);
+
+// --- Funciones de Autenticación (Login, Sesión, Registro y Cierre) ---
+export const iniciarSesion = async (email: string, password: string): Promise<UsuarioAuth> => {
+  const formData = new URLSearchParams();
+  formData.append('username', email);
+  formData.append('password', password);
+
+  const response = await apiClient.post<RespuestaSesion>('/auth/login', formData, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  fijarSesion(response.data);
+  return response.data.usuario;
+};
+
+/** Sesión vigente según el servidor (null si no hay o expiró). Una sola petición a la vez. */
+export const obtenerSesion = async (): Promise<UsuarioAuth | null> => {
+  if (!sesionEnCurso) {
+    sesionEnCurso = apiClient
+      .get<RespuestaSesion>('/auth/sesion')
+      .then((r) => {
+        fijarSesion(r.data);
+        return r.data.usuario;
+      })
+      .catch((error) => {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          fijarSesion(null);
+          return null;
+        }
+        throw error;
+      })
+      .finally(() => {
+        sesionEnCurso = null;
+      });
+  }
+  return sesionEnCurso;
+};
+
+/** Revoca la sesión en el servidor y borra el estado local aunque la petición falle. */
+export const cerrarSesion = async (): Promise<void> => {
+  try {
+    await apiClient.post('/auth/logout');
+  } catch {
+    // Sin conexión o sesión ya vencida: igual se limpia el estado local.
+  } finally {
+    fijarSesion(null);
+  }
+};
+
+export const registrarUsuario = async (
+  full_name: string,
+  email: string,
+  password: string
+): Promise<UsuarioAuth> => {
+  const response = await apiClient.post<UsuarioAuth>('/auth/register', {
+    full_name,
+    email,
+    password,
+  });
+  return response.data;
+};
+
+export const obtenerPerfilActual = async (): Promise<UsuarioAuth> => {
+  const response = await apiClient.get<UsuarioAuth>('/auth/me');
+  return response.data;
+};
+export interface ActualizarPerfilPayload {
+  full_name?: string;
+  email?: string;
+  current_password?: string;
+  new_password?: string;
+}
+
+export const actualizarPerfilUsuario = async (
+  payload: ActualizarPerfilPayload
+): Promise<UsuarioAuth> => {
+  const response = await apiClient.patch<UsuarioAuth>('/auth/me', payload);
+  return response.data;
+};
 
 // Tipado estricto basado en tu Pydantic del Backend
 export interface Mensaje {
@@ -68,22 +194,20 @@ export const obtenerResumenSentimiento = async (canal?: string, ambito?: Ambito 
   return response.data;
 };
 
-// Reemplaza tu función obtenerMensajes por esta:
-
 export interface PaginatedMensajes {
   items: Mensaje[];
   total: number;
 }
 
 export const obtenerMensajes = async (
-  skip: number = 0, 
-  limit: number = 10, 
+  skip: number = 0,
+  limit: number = 10,
   canal?: string,
   ambito?: Ambito | null,
   sentimiento?: FiltroSentimiento,
 ): Promise<PaginatedMensajes> => {
-  const response = await apiClient.get('/mensajes', { 
-    params: { skip, limit, canal, origen: ambito?.origen, periodo: ambito?.periodo, sentimiento }
+  const response = await apiClient.get('/mensajes', {
+    params: { skip, limit, canal, origen: ambito?.origen, periodo: ambito?.periodo, sentimiento },
   });
   return response.data;
 };
@@ -138,7 +262,7 @@ export interface Activo {
   comentario_curador?: string;
   advertencias_fidelidad?: AdvertenciaFidelidad[] | null;
   fecha_actualizacion: string;
-  fuentes_detalle?: FuenteMensajeDetalle[]; // Solo viene al pedir el detalle
+  fuentes_detalle?: FuenteMensajeDetalle[];
 }
 
 export interface PaginatedActivosResponse {
@@ -159,7 +283,7 @@ export const listarActivos = async (
   const params: Record<string, string | number> = { page, limit };
   if (estado) params.estado = estado;
   if (trabajo) params.trabajo = trabajo;
-  
+
   const response = await apiClient.get('/curaduria/activos', { params });
   return response.data;
 };
@@ -176,8 +300,6 @@ export const actualizarActivo = async (
   const response = await apiClient.patch(`/curaduria/activos/${id_activo}`, payload);
   return response.data;
 };
-
-// Al final del archivo añade:
 
 // Semántica documentada en docs/metricas-panel.md.
 export interface DashboardKPIs {
@@ -223,7 +345,6 @@ export interface AdvertenciaFidelidad {
   detalle: string;
 }
 
-// Solo valores de catálogo generados por el backend; nunca texto del proveedor.
 export interface DiagnosticoIA {
   http?: number | null;
   categoria?: string;
@@ -376,13 +497,27 @@ export const describirError = (error: unknown): ErrorLegible => {
   } : null;
   const mensaje = estructurado?.mensaje ?? (typeof detalle === 'string' ? detalle : '');
   const base = { errores: estructurado?.errores ?? [], ayuda: estructurado?.ayuda };
-  if (estado === 401 || (estado === 503 && (detalle as { codigo?: string } | undefined)?.codigo === 'acceso_no_configurado')) {
+  const codigo = (detalle as { codigo?: string } | undefined)?.codigo;
+  if (estado === 401 || (estado === 503 && (codigo === 'acceso_no_configurado' || codigo === 'autenticacion_no_configurada'))) {
     return {
-      ...base, tipo: 'acceso', titulo: 'Acción protegida',
+      ...base, tipo: 'acceso', titulo: 'Sesión requerida',
       mensaje: estado === 401
-        ? 'Ingresa un token de operador válido para esta acción.'
-        : 'El servidor no tiene configurado el acceso de operador; la acción está deshabilitada.',
+        ? (mensaje || 'Tu sesión expiró o no has iniciado sesión. Ingresa con tu cuenta para continuar.')
+        : codigo === 'autenticacion_no_configurada'
+          ? 'El inicio de sesión no está configurado en el servidor todavía. Avisa al administrador.'
+          : 'El servidor no tiene configurado el acceso de operador; la acción está deshabilitada.',
     };
+  }
+  if (estado === 403) {
+    return {
+      ...base, tipo: 'acceso', titulo: codigo === 'csrf_invalido' ? 'Sesión desactualizada' : 'Sin permiso',
+      mensaje: codigo === 'csrf_invalido'
+        ? 'Recarga la página para renovar la sesión e inténtalo de nuevo.'
+        : (mensaje || 'Tu cuenta no tiene permiso para esta acción. Pide a un administrador el rol de operador.'),
+    };
+  }
+  if (estado === 429) {
+    return { ...base, tipo: 'acceso', titulo: 'Demasiados intentos', mensaje: mensaje || 'Espera unos minutos e inténtalo de nuevo.' };
   }
   if (estado === 413) {
     return { ...base, tipo: 'tamano', titulo: 'Archivo demasiado grande', mensaje: 'El máximo es 5 MiB por archivo. Divide el lote en archivos más pequeños.' };
@@ -391,7 +526,7 @@ export const describirError = (error: unknown): ErrorLegible => {
     return { ...base, tipo: 'conflicto', titulo: 'Conflicto con datos existentes', mensaje: mensaje || 'El lote entra en conflicto con datos ya registrados.' };
   }
   if (estado === 400) {
-    return { ...base, tipo: 'formato', titulo: 'Formato no soportado', mensaje: mensaje || 'Usa JSON, JSONL o CSV.' };
+    return { ...base, tipo: 'formato', titulo: 'Solicitud no válida', mensaje: mensaje || 'Revisa los datos enviados.' };
   }
   if (estado === 422) {
     return { ...base, tipo: 'validacion', titulo: 'El archivo no pasó la validación', mensaje: mensaje || 'Revisa los campos del archivo.' };
@@ -401,3 +536,156 @@ export const describirError = (error: unknown): ErrorLegible => {
   }
   return { ...base, tipo: 'desconocido', titulo: `Error ${estado}`, mensaje: mensaje || 'La API rechazó la solicitud.' };
 };
+// --- Importación histórica de Discord por canal y fechas (PR #36) ---
+export interface VerificacionCanalDiscord {
+  canal: { id: string; nombre: string; tipo: number; tipo_nombre: string };
+  servidor: { id: string; nombre: string };
+  autorizado_en_herramienta: boolean;
+  bot_en_servidor: boolean;
+  permisos: { ver_canal: boolean; leer_historial: boolean };
+  tipo_soportado: boolean;
+}
+
+export interface PrevisualizacionDiscord extends VerificacionCanalDiscord {
+  rango: {
+    inicio_utc: string;
+    fin_utc_exclusivo: string;
+    zona: string;
+    inicio_local: string;
+    fin_local_exclusivo: string;
+    dias: number;
+  };
+  alcance_congelado: { desde: string; hasta: string; zona: string };
+  limites: {
+    max_mensajes: number;
+    max_mensajes_configurado: number;
+    max_dias: number;
+    requiere_confirmacion: boolean;
+    umbral_confirmacion: { dias: number; mensajes: number };
+  };
+  conteo:
+    | { tipo: 'exacto'; mensajes_en_rango: number; importables: number }
+    | { tipo: 'desconocido'; minimo: number; estimacion_aproximada: number | null; nota: string };
+  alcance: string;
+  advertencias: string[];
+  llamadas_discord: number;
+  muestra?: { id_mensaje: string; fecha: string; autor_id: string; texto: string }[];
+}
+
+export type EstadoImportacionDiscord =
+  | 'pendiente'
+  | 'ejecutando'
+  | 'completada'
+  | 'completada_con_limite'
+  | 'cancelada'
+  | 'error';
+
+export interface ImportacionDiscord {
+  id: string;
+  guild_id?: string;
+  canal_id: string;
+  canal_nombre?: string | null;
+  canal_tipo?: number | null;
+  desde_utc?: string;
+  hasta_utc?: string;
+  zona: string;
+  desde_local: string;
+  hasta_local: string;
+  max_mensajes: number;
+  solicitante?: string;
+  estado: EstadoImportacionDiscord;
+  cancelacion_solicitada?: boolean;
+  paginas: number;
+  examinados: number;
+  en_rango: number;
+  insertados: number;
+  existentes: number;
+  existentes_en_vivo: number;
+  editados: number;
+  descartados?: Record<string, number>;
+  hilos_detectados: number;
+  limite_alcanzado: boolean;
+  motivos_parcial?: string[];
+  error?: { codigo: string; reanudable?: boolean; detalle?: string } | null;
+  creado: string;
+  iniciado?: string | null;
+  finalizado?: string | null;
+}
+
+export interface MensajeHistoricoDiscord {
+  id_mensaje: string;
+  message_id: string;
+  autor_id: string;
+  fecha: string;
+  texto: string;
+  contenido_disponible: boolean;
+  resultado?: string;
+  estado_ia?: 'sin_evidencia' | 'pendiente' | 'fallido' | 'procesado';
+}
+
+export const verificarCanalDiscord = async (canal_id: string): Promise<VerificacionCanalDiscord> => {
+  const response = await apiClient.post('/v1/discord/historico/verificar', { canal_id: canal_id.trim() });
+  return response.data;
+};
+
+export const previsualizarDiscordHistorico = async (payload: {
+  canal_id: string;
+  desde: string;
+  hasta: string;
+  zona: string;
+  max_mensajes?: number;
+  incluir_muestra?: boolean;
+}): Promise<PrevisualizacionDiscord> => {
+  const response = await apiClient.post('/v1/discord/historico/previsualizar', payload);
+  return response.data;
+};
+
+export const crearImportacionDiscord = async (
+  payload: {
+    canal_id: string;
+    desde: string;
+    hasta: string;
+    zona: string;
+    max_mensajes?: number;
+    confirmar_alcance?: boolean;
+  },
+  idempotencyKey?: string
+): Promise<{ importacion: ImportacionDiscord; reutilizada: boolean; advertencias: string[] }> => {
+  const headers = idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined;
+  const response = await apiClient.post('/v1/discord/historico/importaciones', payload, { headers });
+  return response.data;
+};
+
+export const listarImportacionesDiscord = async (limite: number = 10): Promise<{ items: ImportacionDiscord[] }> => {
+  const response = await apiClient.get('/v1/discord/historico/importaciones', { params: { limite } });
+  return response.data;
+};
+
+export const consultarImportacionDiscord = async (id: string): Promise<ImportacionDiscord> => {
+  const response = await apiClient.get(`/v1/discord/historico/importaciones/${encodeURIComponent(id)}`);
+  return response.data;
+};
+
+export const cancelarImportacionDiscord = async (id: string): Promise<ImportacionDiscord> => {
+  const response = await apiClient.post(`/v1/discord/historico/importaciones/${encodeURIComponent(id)}/cancelar`);
+  return response.data;
+};
+
+export const reanudarImportacionDiscord = async (id: string): Promise<ImportacionDiscord> => {
+  const response = await apiClient.post(`/v1/discord/historico/importaciones/${encodeURIComponent(id)}/reanudar`);
+  return response.data;
+};
+
+export const obtenerMensajesImportacionDiscord = async (
+  id: string,
+  limite: number = 50,
+  desplazamiento: number = 0
+): Promise<{ total: number; items: MensajeHistoricoDiscord[] }> => {
+  const response = await apiClient.get(
+    `/v1/discord/historico/importaciones/${encodeURIComponent(id)}/mensajes`,
+    { params: { limite, desplazamiento } }
+  );
+  return response.data;
+};
+
+export default apiClient;

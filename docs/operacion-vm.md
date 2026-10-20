@@ -106,7 +106,10 @@ contenedor debe coincidir con `proxy/nginx.https.conf`.
 | `DISCORD_CONFIG_DIR` (carpeta privada con `lector.json` y `bot.json`) | discord-reader, discord-bot |
 | `PUENTE_PERIODO` (`semana`/`dia`), `PUENTE_GRACIA_SEGUNDOS`, `PUENTE_INTERVALO`, `PUENTE_MAX_PREVIOS` | discord-bridge |
 | `PUENTE_TOKEN` (mismo valor en api y discord-bridge; vacío = sin «Procesar pendientes») | api, discord-bridge |
-| `OPERADOR_TOKEN` (acciones protegidas; vacío = deshabilitadas con 503) | api |
+| `OPERADOR_TOKEN` (acciones por terminal con `X-Operador-Token`; vacío = 503; el navegador usa sesiones) | api |
+| `JWT_SECRET_KEY` (**obligatoria para el login**: 32 bytes aleatorios o más; vacía = login en 503) | api |
+| `SESION_HORAS`, `SESION_COOKIE_SEGURA` (true), `REGISTRO_PUBLICO` (false), `LOGIN_*`, `LOGIN_PROXY_CONFIABLE` (proxy) | api |
+| `DISCORD_HISTORICO_TOKEN`, `DISCORD_HISTORICO_AUTORIZADOS` (vacías = histórico en 503 y ejecutor en espera) | api, discord-historico |
 | `DOCKER_PLATFORM=linux/arm64`, `HTTP_*`, `HTTPS_*`, `LETSENCRYPT_DIR` | proxy y construcción |
 
 Ejemplos de `lector.json`/`bot.json`: `integrations/discord/config-servicios.example/`.
@@ -153,6 +156,44 @@ script lo instala recién en el corte. Cada etapa es una puerta: si falla, las s
 Interrupción: solo la etapa 5 (recreación de contenedores). Si la reversión automática también falla,
 el script lo informa y se sigue el procedimiento manual de Reversión con la carpeta de estado.
 
+## Primer administrador (tras desplegar la versión con cuentas)
+
+El navegador solo entra con cuentas: hasta que exista un administrador, el panel muestra el login y
+nada más. La operación no se detiene: el puente, el worker y `X-Operador-Token` por terminal siguen
+funcionando. No hay credenciales predeterminadas, y ninguna contraseña va en argumentos, en logs ni
+en la documentación.
+
+1. **Antes del despliegue.**
+   - Generar `JWT_SECRET_KEY` en la VM y añadirla al `.env` nuevo (600) sin mostrarla:
+     ```
+     python3 -c 'import secrets; print("JWT_SECRET_KEY=" + secrets.token_urlsafe(48))' >> <env-nuevo>
+     ```
+   - `desplegar.sh` aplica en la etapa 4 la migración de `usuarios` y `sesiones` (aditiva).
+2. **Justo después del corte, desde `/srv/communitylab` como root.**
+   - Crear la cuenta. La contraseña se escribe sin eco (dos veces):
+     ```
+     docker compose exec api python -m backend.scripts.crear_usuario --email <correo> --rol administrador
+     ```
+   - Verificar el acceso:
+     ```
+     docker compose exec api python -m backend.scripts.verificar_acceso --email <correo>
+     ```
+     Debe imprimir `login=200` y `sesion=200 rol=administrador lectura_administrador=200`.
+   - Alternativa sin TTY: un archivo temporal 600 fuera del repositorio, con `--contrasena-stdin` y
+     `-T ... < archivo`; borrarlo al terminar.
+3. **Desde el navegador.** Entrar en `https://communitylab.alyntai.com/login`, crear las cuentas de
+   operador (`POST /api/auth/usuarios`) y comprobar «Procesar pendientes» con una de ellas.
+4. **Si algo falla.**
+   - **El login da 503 (`autenticacion_no_configurada`):** falta la clave o es inválida. Corregir el `.env`
+     y recrear `api` (`docker compose up -d api`).
+   - **La cuenta ya existe y no se conoce la contraseña, o quedó deshabilitada:**
+     ```
+     crear_usuario ... --restablecer
+     ```
+     Revoca sus sesiones.
+   - **Si no se logra acceso en la ventana acordada:** `sudo cl-revertir <estado>`. La versión anterior
+     funciona sobre el esquema nuevo, y las tablas `usuarios` y `sesiones` quedan sin uso.
+
 ## Respaldo y restauración
 
 - `ops/vm/respaldo.sh` (o `sudo cl-respaldo`, que además comprueba la restauración):
@@ -173,7 +214,7 @@ el script lo informa y se sigue el procedimiento manual de Reversión con la car
 
 - **Aplicación**, automática en las etapas 5–6 o manual: `sudo cl-revertir /var/lib/communitylab/despliegues/<id>`
   (`ops/vm/revertir.sh`):
-  1. detiene los consumidores nuevos (bot, lector, puente y worker);
+  1. detiene los consumidores nuevos (histórico, bot, lector, puente y worker);
   2. restaura el `.env` y el commit anteriores; mantiene el override HTTPS si la versión anterior lo
      tiene disponible (`REVERTIR_CONSERVAR_HTTPS=1`), para no perder TLS al recrear el proxy;
   3. devuelve a `:local` las imágenes `:prev-<id>` (las que estaban en ejecución);

@@ -4,6 +4,7 @@ import os
 from backend.app.core.database import Base, engine
 from backend.app.models.activo import Activo
 from backend.app.models.mensaje import Mensaje
+from backend.app.models.usuario import Usuario  # noqa: F401 (tabla usuarios; rol y sesiones en schema.sql)
 from worker.store_postgres import ColaPostgres
 
 

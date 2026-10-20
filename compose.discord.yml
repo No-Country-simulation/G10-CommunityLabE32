@@ -52,8 +52,8 @@ services:
       PUENTE_GRACIA_SEGUNDOS: ${PUENTE_GRACIA_SEGUNDOS:-3600}
       PUENTE_INTERVALO: ${PUENTE_INTERVALO:-30}
       PUENTE_LATIDO: /tmp/puente-latido.json
-      # Sin token, el puente no atiende «Procesar pendientes» (solo el cierre semanal).
-      PUENTE_TOKEN: ${PUENTE_TOKEN:-}
+      # Obligatorio: la API exige este Bearer para entregar lotes y para «Procesar pendientes».
+      PUENTE_TOKEN: ${PUENTE_TOKEN:?Definir PUENTE_TOKEN en .env privado}
       PUENTE_MAX_PREVIOS: ${PUENTE_MAX_PREVIOS:-100}
     volumes:
       # La bandeja se abre con mode=ro desde el código; el volumen no se monta :ro porque
@@ -92,6 +92,45 @@ services:
       timeout: 5s
       retries: 3
       start_period: 60s
+
+  # Ejecutor de la importación histórica (backend/app/discord_historico/runner.py). Opcional: sin
+  # DISCORD_HISTORICO_TOKEN queda en espera (sano) y la API responde 503; nadie depende de él.
+  # Una sola instancia (sin réplicas); la reserva en PostgreSQL usa FOR UPDATE SKIP LOCKED.
+  discord-historico:
+    image: ${API_IMAGE:-communitylab-api:local}
+    platform: ${DOCKER_PLATFORM:-linux/arm64}
+    command: ["python", "-m", "backend.app.discord_historico.runner"]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
+      DISCORD_HISTORICO_TOKEN: ${DISCORD_HISTORICO_TOKEN:-}
+      DISCORD_HISTORICO_AUTORIZADOS: ${DISCORD_HISTORICO_AUTORIZADOS:-}
+      DISCORD_HISTORICO_MAX_MENSAJES: ${DISCORD_HISTORICO_MAX_MENSAJES:-5000}
+      DISCORD_HISTORICO_MAX_DIAS: ${DISCORD_HISTORICO_MAX_DIAS:-400}
+      DISCORD_HISTORICO_INTERVALO: ${DISCORD_HISTORICO_INTERVALO:-5}
+      DISCORD_HISTORICO_LATIDO: /tmp/historico-latido.json
+    networks: [database, outbound]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-m", "backend.app.discord_historico.runner", "salud"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 volumes:
   discord_bandeja:

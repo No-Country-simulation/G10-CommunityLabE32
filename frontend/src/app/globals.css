@@ -5,89 +5,104 @@
 
   --topbar-h: 4.5rem;
 
-  --background: #f3f5f8;
-  --foreground: #12151c;
+  /* Modo Claro: Panel central blanco limpio estilo Sprout Social / Azure */
+  --background: #f8fafc;
+  --foreground: #0f172a;
   --surface: #ffffff;
-  --surface-muted: #eceff4;
-  --surface-hover: #f7f8fb;
+  --surface-muted: #f1f5f9;
+  --surface-hover: #e0f2fe;
 
-  --border: #dde1e9;
-  --border-strong: #c5ccd8;
-  --muted-foreground: #4f5968;
-  --subtle-foreground: #7a8494;
+  --border: #e2e8f0;
+  --border-strong: #94a3b8;
+  --muted-foreground: #475569;
+  --subtle-foreground: #64748b;
 
-  --primary: #d43008;
-  --primary-hover: #b32d00;
+  /* Colores primarios azules vibrantes */
+  --primary: #0284c7;
+  --primary-hover: #0369a1;
   --primary-foreground: #ffffff;
-  --primary-soft: #fdece6;
-  --primary-bright: #ff5a1f;
-  --ring: #f96743;
+  --primary-soft: #e0f2fe;
+  --primary-bright: #00b4d8;
+  --ring: #38bdf8;
 
-  --success: #0b7a4b;
-  --success-soft: #e2f5ec;
+  --success: #059669;
+  --success-soft: #d1fae5;
   --success-foreground: #ffffff;
-  --warning: #915400;
-  --warning-soft: #fff1d6;
-  --danger: #bf2a14;
-  --danger-soft: #fde7e3;
-  --info: #1b5cbd;
-  --info-soft: #e5eefb;
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+  --danger: #dc2626;
+  --danger-soft: #fee2e2;
+  --info: #2563eb;
+  --info-soft: #dbeafe;
 
-  --sidebar: #0f1a2e;
-  --sidebar-foreground: #c3cde0;
-  --sidebar-active: #1a2742;
-  --sidebar-border: #1f2d4a;
+  /* Variables para Topbar y Sidebar (unificados en azul profundo) */
+  --sidebar: #091931;
+  --sidebar-top: #091931;
+  --sidebar-mid: #0c2547;
+  --sidebar-bottom: #06396b;
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-active: #12315c;
+  --sidebar-border: #193257;
+  --sidebar-active-pill: linear-gradient(90deg, #0077e6 0%, #00b4d8 100%);
 
-  --violet: #6d4fd6;
-  --violet-soft: #efeafd;
+  --violet: #5b21b6;
+  --violet-soft: #ede9fe;
 
-  --shadow-sm: 0 1px 2px rgb(18 21 28 / 0.05);
-  --shadow-md: 0 4px 14px -2px rgb(18 21 28 / 0.08), 0 2px 4px rgb(18 21 28 / 0.04);
-  --shadow-lg: 0 18px 40px -12px rgb(18 21 28 / 0.18);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+  --shadow-md: 0 6px 16px -2px rgb(2 132 199 / 0.15), 0 2px 6px -1px rgb(0 0 0 / 0.06);
+  --shadow-lg: 0 15px 30px -5px rgb(2 132 199 / 0.2);
+  --shadow-azure-glow: 0 4px 18px 0 rgba(0, 180, 216, 0.5);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --background: #121a2b;
-  --foreground: #e8ecf4;
-  --surface: #1a2338;
-  --surface-muted: #222d45;
-  --surface-hover: #202a42;
+  /* Modo Oscuro: Panel central TOTALMENTE NEGRO estilo Gumroad */
+  --background: #000000;
+  --foreground: #ffffff;
+  --surface: #0a0a0c;
+  --surface-muted: #141418;
+  --surface-hover: #0c2547;
 
-  --border: #2a3550;
-  --border-strong: #3a4868;
-  --muted-foreground: #aab4c6;
-  --subtle-foreground: #7f8ba1;
+  --border: #26262e;
+  --border-strong: #38bdf8;
+  --muted-foreground: #a1a1aa;
+  --subtle-foreground: #71717a;
 
-  --primary: #f5532a;
-  --primary-hover: #ff6a3d;
+  --primary: #0096ff;
+  --primary-hover: #00b4d8;
   --primary-foreground: #ffffff;
-  --primary-soft: #3a2220;
-  --primary-bright: #ff7a45;
-  --ring: #ff7a45;
+  --primary-soft: #082f49;
+  --primary-bright: #38bdf8;
+  --ring: #38bdf8;
 
   --success: #34d399;
-  --success-soft: #12332a;
-  --success-foreground: #052e1f;
+  --success-soft: #064e3b;
+  --success-foreground: #ffffff;
   --warning: #fbbf24;
-  --warning-soft: #3a2c0f;
-  --danger: #ff7b6b;
-  --danger-soft: #3d1a1a;
-  --info: #6aa8ff;
-  --info-soft: #17294a;
+  --warning-soft: #451a03;
+  --danger: #f87171;
+  --danger-soft: #450a0a;
+  --info: #60a5fa;
+  --info-soft: #172554;
 
-  --sidebar: #0b1322;
-  --sidebar-foreground: #c3cde0;
-  --sidebar-active: #18233b;
-  --sidebar-border: #1c2740;
+  /* Topbar y Sidebar en modo oscuro */
+  --sidebar: #050d1a;
+  --sidebar-top: #050d1a;
+  --sidebar-mid: #081931;
+  --sidebar-bottom: #06284d;
+  --sidebar-foreground: #94a3b8;
+  --sidebar-active: #0d274c;
+  --sidebar-border: #152642;
+  --sidebar-active-pill: linear-gradient(90deg, #0077e6 0%, #00b4d8 100%);
 
-  --violet: #a592ff;
-  --violet-soft: #271f4a;
+  --violet: #a78bfa;
+  --violet-soft: #2e1065;
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
-  --shadow-md: 0 4px 14px -2px rgb(0 0 0 / 0.4), 0 2px 4px rgb(0 0 0 / 0.25);
-  --shadow-lg: 0 18px 40px -12px rgb(0 0 0 / 0.55);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.6);
+  --shadow-md: 0 6px 18px -2px rgb(0 180 216 / 0.25);
+  --shadow-lg: 0 18px 40px -10px rgb(0 180 216 / 0.35);
+  --shadow-azure-glow: 0 4px 20px 0 rgba(0, 180, 216, 0.6);
 }
 
 @theme inline {
@@ -144,41 +159,30 @@
 
 body {
   background-color: var(--background);
-  background-image: radial-gradient(
-    900px 420px at 100% -10%,
-    color-mix(in srgb, var(--primary) 6%, transparent),
-    transparent 70%
-  );
-  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-::selection {
-  background: color-mix(in srgb, var(--primary) 22%, transparent);
+/* Tarjeta interactiva universal: se eleva, ilumina y cambia a un fondo azul tenue al pasar el mouse */
+.card, 
+div[class*="rounded-xl"], 
+div[class*="rounded-2"], 
+div[class*="border"] {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+.card:hover,
+div[class*="rounded-xl"]:hover,
+div[class*="border"]:hover {
+  background-color: rgba(0, 180, 216, 0.08) !important; /* Azul tenue visible en todo el interior */
+  border-color: #00b4d8 !important; /* Borde brillante estilo Azure */
+  box-shadow: 0 10px 30px -5px rgba(0, 180, 216, 0.25), var(--shadow-md) !important;
+  transform: translateY(-3px);
 }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
-}
-
-/* Tarjeta */
-@utility card {
-  background-color: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-sm);
-}
-
-/* Input */
+/* Input con borde azul al pasar el mouse */
 @utility input {
   width: 100%;
   background-color: var(--surface);
@@ -188,21 +192,21 @@ body {
   padding: 0.625rem 0.875rem;
   font-size: 0.875rem;
   box-shadow: var(--shadow-sm);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: all 0.18s ease-in-out;
   &::placeholder {
     color: var(--subtle-foreground);
   }
   &:hover {
-    border-color: var(--border-strong);
+    border-color: #00b4d8;
   }
   &:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 15%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
   }
 }
 
-/* Botones */
+/* Botón primario azul brillante */
 @utility btn-primary {
   display: inline-flex;
   align-items: center;
@@ -211,16 +215,19 @@ body {
   border-radius: var(--radius-control);
   padding: 0.625rem 1rem;
   font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--primary-foreground);
-  background-image: linear-gradient(135deg, var(--primary-bright), var(--primary));
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.15s, transform 0.15s;
+  font-weight: 600;
+  color: #ffffff;
+  background-image: linear-gradient(90deg, #0077e6 0%, #00b4d8 100%);
+  box-shadow: 0 2px 10px rgba(0, 180, 216, 0.35);
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
   &:hover {
-    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-azure-glow);
+    filter: brightness(1.08);
   }
   &:active {
-    transform: scale(0.98);
+    transform: translateY(0);
   }
   &:disabled {
     opacity: 0.5;
@@ -228,6 +235,7 @@ body {
   }
 }
 
+/* Botón secundario: SE PONE AZUL al pasar el mouse por encima */
 @utility btn-secondary {
   display: inline-flex;
   align-items: center;
@@ -241,17 +249,20 @@ body {
   background-color: var(--surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
-  transition: background-color 0.15s, border-color 0.15s;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
   &:hover {
-    background-color: var(--surface-hover);
-    border-color: var(--border-strong);
+    background-image: linear-gradient(90deg, #0077e6 0%, #00b4d8 100%);
+    color: #ffffff;
+    border-color: transparent;
+    box-shadow: var(--shadow-azure-glow);
+    transform: translateY(-1.5px);
   }
-  &:disabled {
-    opacity: 0.5;
-    pointer-events: none;
-  }
+  &:active { transform: translateY(0); }
+  &:disabled { opacity: 0.5; pointer-events: none; }
 }
 
+/* Botón ghost: se vuelve azul suave al pasar el mouse */
 @utility btn-ghost {
   display: inline-flex;
   align-items: center;
@@ -262,10 +273,13 @@ body {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--muted-foreground);
-  transition: background-color 0.15s, color 0.15s;
+  transition: all 0.18s ease-in-out;
+  cursor: pointer;
   &:hover {
-    background-color: var(--surface-muted);
-    color: var(--foreground);
+    background-image: linear-gradient(90deg, #0077e6 0%, #00b4d8 100%);
+    color: #ffffff;
+    box-shadow: var(--shadow-azure-glow);
+    transform: translateY(-1px);
   }
 }
 
@@ -278,12 +292,17 @@ body {
   padding: 0.625rem 1rem;
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--success-foreground);
+  color: #ffffff;
   background-color: var(--success);
-  box-shadow: var(--shadow-sm);
-  transition: filter 0.15s, transform 0.15s;
-  &:hover { filter: brightness(1.1); }
-  &:active { transform: scale(0.98); }
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
+  transition: all 0.18s ease-in-out;
+  cursor: pointer;
+  &:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.45);
+  }
+  &:active { transform: translateY(0); }
   &:disabled { opacity: 0.4; pointer-events: none; }
 }
 
@@ -299,8 +318,13 @@ body {
   color: var(--danger);
   background-color: var(--danger-soft);
   border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
-  transition: filter 0.15s;
-  &:hover { filter: brightness(0.96); }
+  transition: all 0.18s ease-in-out;
+  cursor: pointer;
+  &:hover {
+    background-color: var(--danger);
+    color: #ffffff;
+    transform: translateY(-1.5px);
+  }
   &:disabled { opacity: 0.4; pointer-events: none; }
 }
 
@@ -316,98 +340,103 @@ body {
   color: var(--info);
   background-color: var(--info-soft);
   border: 1px solid color-mix(in srgb, var(--info) 25%, transparent);
-  transition: filter 0.15s;
-  &:hover { filter: brightness(0.96); }
+  transition: all 0.18s ease-in-out;
+  cursor: pointer;
+  &:hover {
+    background-image: linear-gradient(90deg, #0077e6 0%, #00b4d8 100%);
+    color: #ffffff;
+    transform: translateY(-1.5px);
+    box-shadow: var(--shadow-azure-glow);
+  }
   &:disabled { opacity: 0.4; pointer-events: none; }
 }
 
-/* Badges */
+/* Badges con microinteracción al pasar el mouse */
 @utility badge-neutral {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   border-radius: 9999px;
-  padding: 0.125rem 0.625rem;
+  padding: 0.15rem 0.625rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   background-color: var(--surface-muted);
   color: var(--muted-foreground);
   border: 1px solid var(--border);
+  transition: all 0.15s ease;
+  &:hover {
+    border-color: #00b4d8;
+    color: var(--primary);
+  }
 }
 @utility badge-primary {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   border-radius: 9999px;
-  padding: 0.125rem 0.625rem;
+  padding: 0.15rem 0.625rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   background-color: var(--primary-soft);
   color: var(--primary);
-  border: 1px solid transparent;
 }
 @utility badge-success {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   border-radius: 9999px;
-  padding: 0.125rem 0.625rem;
+  padding: 0.15rem 0.625rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   background-color: var(--success-soft);
   color: var(--success);
-  border: 1px solid transparent;
 }
 @utility badge-warning {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   border-radius: 9999px;
-  padding: 0.125rem 0.625rem;
+  padding: 0.15rem 0.625rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   background-color: var(--warning-soft);
   color: var(--warning);
-  border: 1px solid transparent;
 }
 @utility badge-danger {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   border-radius: 9999px;
-  padding: 0.125rem 0.625rem;
+  padding: 0.15rem 0.625rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   background-color: var(--danger-soft);
   color: var(--danger);
-  border: 1px solid transparent;
 }
 @utility badge-info {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   border-radius: 9999px;
-  padding: 0.125rem 0.625rem;
+  padding: 0.15rem 0.625rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   background-color: var(--info-soft);
   color: var(--info);
-  border: 1px solid transparent;
 }
 @utility badge-violet {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
   border-radius: 9999px;
-  padding: 0.125rem 0.625rem;
+  padding: 0.15rem 0.625rem;
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   background-color: var(--violet-soft);
   color: var(--violet);
-  border: 1px solid transparent;
 }
 
-/* Tabla */
+/* Tablas con resaltado azul suave al pasar el mouse */
 @utility table-th {
   padding: 0.75rem 1.25rem;
   text-align: left;
@@ -416,7 +445,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--subtle-foreground);
-  background-color: color-mix(in srgb, var(--surface-muted) 60%, transparent);
+  background-color: var(--surface-muted);
 }
 @utility table-td {
   padding: 0.875rem 1.25rem;
@@ -425,58 +454,182 @@ body {
   border-top: 1px solid var(--border);
 }
 @utility table-row {
-  transition: background-color 0.15s;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
   &:hover {
     background-color: var(--surface-hover);
   }
 }
 
-/* Sidebar */
+/* Sidebar con degradado vertical */
+.sidebar-container {
+  background: linear-gradient(180deg, var(--sidebar-top) 0%, var(--sidebar-mid) 45%, var(--sidebar-bottom) 100%);
+  border-right: 1px solid var(--sidebar-border);
+}
+
+/* Opciones del Sidebar: SE PONEN AZULES CON BRILLO APENAS PASAS EL MOUSE */
 @utility nav-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  border-radius: var(--radius-control);
-  padding: 0.5rem 0.75rem;
+  gap: 0.875rem;
+  border-radius: 9999px;
+  padding: 0.65rem 1rem;
   font-size: 0.875rem;
-  color: color-mix(in srgb, var(--sidebar-foreground) 80%, transparent);
-  transition: background-color 0.15s, color 0.15s;
+  font-weight: 500;
+  color: var(--sidebar-foreground);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
   &:hover {
-    background-color: var(--sidebar-active);
+    background: var(--sidebar-active-pill);
     color: #ffffff;
+    box-shadow: var(--shadow-azure-glow);
+    transform: translateX(4px);
   }
 }
+
 @utility nav-item-active {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  border-radius: var(--radius-control);
-  padding: 0.5rem 0.75rem;
+  gap: 0.875rem;
+  border-radius: 9999px;
+  padding: 0.65rem 1rem;
   font-size: 0.875rem;
-  background-color: var(--sidebar-active);
+  font-weight: 600;
   color: #ffffff;
-  box-shadow: inset 2px 0 0 var(--primary-bright);
+  background: var(--sidebar-active-pill);
+  box-shadow: var(--shadow-azure-glow);
+  transform: translateX(2px);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* ===== Header superior ===== */
-
-/* Las páginas usan h-screen / min-h-screen: descuentan la altura del header */
+/* Alturas descontando el Topbar */
 .h-screen {
   height: calc(100dvh - var(--topbar-h));
 }
 .min-h-screen {
   min-height: calc(100dvh - var(--topbar-h));
 }
+/* ===== Cursor personalizado Azul Azure ===== */
+html,
+body {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24'%3E%3Cpath fill='%230088ff' stroke='%23ffffff' stroke-width='1.8' stroke-linejoin='round' d='M4 3l15 7.5-7 2-3.5 6.5L4 3z'/%3E%3C/svg%3E") 3 3, auto;
+}
 
-/* Tarjetas levemente translúcidas: dejan ver la marca de agua del fondo */
+a,
+button,
+[role="button"],
+select,
+summary,
+.nav-item,
+.nav-item-active,
+.table-row,
+.btn-primary,
+.btn-secondary,
+.btn-ghost,
+.btn-success,
+.btn-danger-soft,
+.btn-info-soft {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24'%3E%3Cpath fill='%2300b4d8' stroke='%23ffffff' stroke-width='2' stroke-linejoin='round' d='M4 3l15 7.5-7 2-3.5 6.5L4 3z'/%3E%3Ccircle cx='17' cy='6' r='2.5' fill='%2338bdf8'/%3E%3C/svg%3E") 3 3, pointer !important;
+}
+
+/* ===== Marca de agua del nuevo logo en el fondo ===== */
+.watermark-logo {
+  opacity: 0.08;
+  filter: saturate(1.2) blur(0.5px);
+  mix-blend-mode: multiply;
+}
+
+:root[data-theme="dark"] .watermark-logo {
+  opacity: 0.07;
+  filter: invert(1) hue-rotate(180deg) saturate(1.3) blur(0.5px);
+  mix-blend-mode: screen;
+}
+
+/* Tarjetas levemente translúcidas para dejar ver la marca de agua del fondo */
 .card {
-  background-color: color-mix(in srgb, var(--surface) 82%, transparent);
-  backdrop-filter: blur(8px);
+  background-color: color-mix(in srgb, var(--surface) 86%, transparent);
+  backdrop-filter: blur(6px);
+}
+/* ===== Marca de agua con el PNG de fondo ===== */
+.watermark-logo {
+  opacity: 0.15; /* Se nota de forma sutil y elegante en modo claro */
+  filter: grayscale(10%);
+}
+
+:root[data-theme="dark"] .watermark-logo {
+  opacity: 0.10;
+  filter: invert(1) brightness(2.5); /* Se aclara y resalta automáticamente en el fondo negro */
+}
+
+/* Tarjetas con ligera translucidez para ver el fondo */
+.card {
+  background-color: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(4px);
+}
+/* ===== Ocultar cualquier desbordamiento horizontal global ===== */
+body {
+  overflow-x: hidden;
+}
+
+/* ===== Efecto de destello de luz optimizado sin desbordamiento ===== */
+@keyframes azureLightSweep {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Sidebar con bloqueo estricto de desbordamiento */
+.sidebar-container {
+  position: sticky;
+  top: var(--topbar-h);
+  height: calc(100vh - var(--topbar-h));
+  background: linear-gradient(180deg, var(--sidebar-top) 0%, var(--sidebar-mid) 45%, var(--sidebar-bottom) 100%);
+  border-right: 1px solid var(--sidebar-border);
+  isolation: isolate;
+  overflow: hidden; /* Evita que el destello cause scroll */
+}
+
+.sidebar-container::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg, 
+    transparent 0%, 
+    rgba(0, 180, 216, 0.18) 50%, 
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+  animation: azureLightSweep 6s ease-in-out infinite;
+}
+
+/* Topbar con bloqueo estricto de desbordamiento */
+header.sticky {
+  position: sticky;
+  top: 0;
+  isolation: isolate;
+  overflow: hidden; /* Evita que el destello cause scroll */
+}
+
+header.sticky::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg, 
+    transparent 0%, 
+    rgba(0, 180, 216, 0.22) 50%, 
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+  animation: azureLightSweep 6s ease-in-out infinite;
 }

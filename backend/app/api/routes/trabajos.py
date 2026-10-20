@@ -4,13 +4,17 @@ import csv
 import io
 import json
 import os
-from fastapi import APIRouter, HTTPException, UploadFile, Header
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, Header
+
+from backend.app.core.acceso import requiere_puente_u_operador
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from worker.store_postgres import ColaPostgres, ConflictoIdempotencia, ConflictoMensaje
 from pipelines.communitylab.diagnostico import normalizar_diagnostico
 from pipelines.communitylab.fechas import fecha_utc
 
-router = APIRouter(prefix="/api/v1/trabajos", tags=["Trabajos asíncronos"])
+# Entrega y consulta de lotes: el puente (Bearer PUENTE_TOKEN) o una persona operadora.
+router = APIRouter(prefix="/api/v1/trabajos", tags=["Trabajos asíncronos"],
+                   dependencies=[Depends(requiere_puente_u_operador)])
 
 
 class InteraccionTrabajo(BaseModel):

@@ -62,7 +62,7 @@ COLUMNAS = ("id, id_activo, version_texto, huella_texto, estado, revision, prove
             "error_codigo, intentos, comentario, creado, actualizado")
 
 
-@router.get("/api/curaduria/activos/{id_activo}/banners")
+@router.get("/api/curaduria/activos/{id_activo}/banners", dependencies=[Depends(requiere_operador)])
 async def listar_banners(id_activo: str, db: AsyncSession = Depends(get_db)):
     activo = await _activo(db, id_activo)
     filas = (await db.execute(text(f"SELECT {COLUMNAS} FROM banners WHERE id_activo=:a "
@@ -116,7 +116,8 @@ async def generar_banner(id_activo: str, response: Response, db: AsyncSession = 
     return {**_vista(fila, activo), "reutilizado": False}
 
 
-@router.get("/api/banners/{identificador}.svg")
+# Borradores sin publicar: solo operadores (la cookie de sesión viaja con <img> del mismo sitio).
+@router.get("/api/banners/{identificador}.svg", dependencies=[Depends(requiere_operador)])
 async def ver_banner(identificador: str, db: AsyncSession = Depends(get_db)):
     svg = (await db.execute(text("SELECT svg FROM banners WHERE id=:id AND estado='generado'"),
                             {"id": identificador})).scalar()

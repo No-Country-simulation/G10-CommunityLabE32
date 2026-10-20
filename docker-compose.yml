@@ -75,6 +75,24 @@ services:
       OPERADOR_TOKEN: ${OPERADOR_TOKEN:-}
       PUENTE_TOKEN: ${PUENTE_TOKEN:-}
       PUENTE_ORIGEN: ${PUENTE_ORIGEN:-discord}
+      # Cuentas y sesiones (docs/politica-acceso.md). Sin JWT_SECRET_KEY (>= 32 bytes aleatorios) el
+      # login responde 503: no hay clave por defecto. Las demás tienen valores seguros por defecto.
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      SESION_HORAS: ${SESION_HORAS:-8}
+      SESION_COOKIE_SEGURA: ${SESION_COOKIE_SEGURA:-true}
+      REGISTRO_PUBLICO: ${REGISTRO_PUBLICO:-false}
+      LOGIN_MAX_INTENTOS: ${LOGIN_MAX_INTENTOS:-5}
+      LOGIN_MAX_INTENTOS_IP: ${LOGIN_MAX_INTENTOS_IP:-30}
+      LOGIN_VENTANA_SEGUNDOS: ${LOGIN_VENTANA_SEGUNDOS:-900}
+      # Único origen del que se acepta X-Real-IP (nginx la sobrescribe con la IP del cliente).
+      LOGIN_PROXY_CONFIABLE: ${LOGIN_PROXY_CONFIABLE:-proxy}
+      # Importación histórica de Discord (docs/discord-historico.md). Vacías = rutas en 503 (seguro).
+      DISCORD_HISTORICO_TOKEN: ${DISCORD_HISTORICO_TOKEN:-}
+      DISCORD_HISTORICO_AUTORIZADOS: ${DISCORD_HISTORICO_AUTORIZADOS:-}
+      DISCORD_HISTORICO_MAX_MENSAJES: ${DISCORD_HISTORICO_MAX_MENSAJES:-5000}
+      DISCORD_HISTORICO_MAX_DIAS: ${DISCORD_HISTORICO_MAX_DIAS:-400}
+      DISCORD_HISTORICO_CONFIRMAR_DIAS: ${DISCORD_HISTORICO_CONFIRMAR_DIAS:-31}
+      DISCORD_HISTORICO_CONFIRMAR_MENSAJES: ${DISCORD_HISTORICO_CONFIRMAR_MENSAJES:-1000}
     networks: [frontend, database, outbound]
     depends_on:
       postgres:

@@ -131,17 +131,17 @@ def test_filtro_y_resumen_de_sentimiento_en_servidor(cliente, cola):
     procesar_gemini_falso(cola, {"f-0": "positivo", "f-1": "positivo", "f-2": "negativo", "f-3": "indeterminado"})
     with cola.conectar() as c:
         c.execute("UPDATE mensajes SET canal='otro' WHERE id_mensaje='f-0'")
-    r = cliente.get("/api/mensajes/sentimiento/resumen").json()
+    r = cliente.get("/api/mensajes/sentimiento/resumen", headers=H_OP).json()
     assert (r["total"], r["analizados"], r["sin_analizar"], r["denominador"]) == (6, 4, 2, "analizados")
     assert r["por_valor"] == {"positivo": 2, "negativo": 1, "neutral": 0, "indeterminado": 1}
     assert r["porcentaje_sobre_analizados"]["positivo"] == 50.0 and r["estado"] == "parcial"
-    canal = cliente.get("/api/mensajes/sentimiento/resumen", params={"canal": "general"}).json()
+    canal = cliente.get("/api/mensajes/sentimiento/resumen", params={"canal": "general"}, headers=H_OP).json()
     assert (canal["total"], canal["por_valor"]["positivo"]) == (5, 1)
-    sin = cliente.get("/api/mensajes", params={"sentimiento": "sin_analizar", "limit": 1}).json()
+    sin = cliente.get("/api/mensajes", params={"sentimiento": "sin_analizar", "limit": 1}, headers=H_OP).json()
     assert sin["total"] == 2 and len(sin["items"]) == 1
-    assert cliente.get("/api/mensajes", params={"sentimiento": "indeterminado"}).json()["total"] == 1
-    assert cliente.get("/api/mensajes", params={"sentimiento": "feliz"}).status_code == 422
-    kpis = cliente.get("/api/dashboard/kpis").json()
+    assert cliente.get("/api/mensajes", params={"sentimiento": "indeterminado"}, headers=H_OP).json()["total"] == 1
+    assert cliente.get("/api/mensajes", params={"sentimiento": "feliz"}, headers=H_OP).status_code == 422
+    kpis = cliente.get("/api/dashboard/kpis", headers=H_OP).json()
     assert kpis["sentimiento"]["clasificados"] == 4  # indeterminado cuenta como analizado
 
 
@@ -218,7 +218,7 @@ def test_toma_reserva_vencimiento_e_informe(cliente, cola):
     lotes = [{"periodo": "2026-W42", "nuevos": 2, "contexto": 0, "trabajo": trabajo, "estado": "aceptado"}]
     cliente.post(f"/api/v1/puente/solicitudes/{sid}/informe", headers=bearer,
                  json={"origen": "discord", "estado": "en_curso", "lotes": lotes, "pendientes": {}})
-    actual = cliente.get("/api/v1/procesamiento-pendientes/actual").json()
+    actual = cliente.get("/api/v1/procesamiento-pendientes/actual", headers=H_OP).json()
     assert actual["solicitud"]["estado"] == "en_curso"
     assert actual["solicitud"]["lotes"][0]["trabajo_estado"] == "recibido"
     assert actual["puente"]["activo"] is True
@@ -227,7 +227,7 @@ def test_toma_reserva_vencimiento_e_informe(cliente, cola):
     fin = cliente.post(f"/api/v1/puente/solicitudes/{sid}/informe", headers=bearer,
                        json={"origen": "discord", "estado": "finalizada", "lotes": lotes, "pendientes": {}})
     assert fin.json()["estado"] == "completada"
-    detalle = cliente.get(f"/api/v1/procesamiento-pendientes/{sid}").json()
+    detalle = cliente.get(f"/api/v1/procesamiento-pendientes/{sid}", headers=H_OP).json()
     assert (detalle["trabajos_terminados"], detalle["mensajes_nuevos"]) == (1, 2)
     assert detalle["historial"] == ["pendiente", "tomada", "tomada", "en_curso", "completada"]
     # Cerrada: un informe tardío no la reabre y una nueva solicitud obtiene otro id.
@@ -282,7 +282,7 @@ def test_extremo_a_extremo_parcial_sin_pendientes_y_cierre(cliente, cola, tmp_pa
     worker = Worker(cola, lambda e, r: ejecutar_grafo(e, "simulado"))
     agregar(101, 102)
     puente.ciclo()                                   # informa 2 pendientes, sin solicitud
-    assert cliente.get("/api/v1/procesamiento-pendientes/actual").json()["puente"]["pendientes"] == 2
+    assert cliente.get("/api/v1/procesamiento-pendientes/actual", headers=H_OP).json()["puente"]["pendientes"] == 2
     sid = cliente.post("/api/v1/procesamiento-pendientes", headers=H_OP).json()["id"]
     puente.ciclo()                                   # toma, planifica y envía el parcial
     assert fila(cola, "SELECT count(*) n FROM trabajos_worker")["n"] == 1
@@ -291,13 +291,13 @@ def test_extremo_a_extremo_parcial_sin_pendientes_y_cierre(cliente, cola, tmp_pa
     while worker.ejecutar_uno():
         pass
     puente.ciclo()                                   # ve terminado e informa
-    actual = cliente.get("/api/v1/procesamiento-pendientes/actual").json()
+    actual = cliente.get("/api/v1/procesamiento-pendientes/actual", headers=H_OP).json()
     assert (actual["solicitud"]["id"], actual["solicitud"]["estado"]) == (sid, "completada")
     assert actual["puente"]["pendientes"] == 0
     # Sin pendientes: la siguiente solicitud termina sin trabajos (cero llamadas a Gemini).
     sid2 = cliente.post("/api/v1/procesamiento-pendientes", headers=H_OP).json()["id"]
     puente.ciclo()
-    assert cliente.get(f"/api/v1/procesamiento-pendientes/{sid2}").json()["estado"] == "sin_pendientes"
+    assert cliente.get(f"/api/v1/procesamiento-pendientes/{sid2}", headers=H_OP).json()["estado"] == "sin_pendientes"
     assert fila(cola, "SELECT count(*) n FROM trabajos_worker")["n"] == 1
     # Llega uno nuevo: el siguiente parcial lleva 1 nuevo + 2 de contexto previo.
     agregar(103)
@@ -349,7 +349,7 @@ def test_banner_generado_versionado_invalidado_y_revisado(cliente, cola):
     b = g.json()
     assert (b["estado"], b["revision"], b["version_texto"], b["desactualizado"], b["reutilizado"]) == \
         ("generado", "pendiente", 1, False, False)
-    svg = cliente.get(b["url"])
+    svg = cliente.get(b["url"], headers=H_OP)
     assert svg.headers["content-type"].startswith("image/svg+xml")
     assert svg.headers["x-content-type-options"] == "nosniff" and "default-src 'none'" in \
         svg.headers["content-security-policy"]
@@ -358,9 +358,9 @@ def test_banner_generado_versionado_invalidado_y_revisado(cliente, cola):
     assert (otra.status_code, otra.json()["id"], otra.json()["reutilizado"]) == (200, b["id"], True)
     assert fila(cola, "SELECT count(*) n FROM banners")["n"] == 1
     # Editar el texto aprobado invalida la aprobación y deja el banner desactualizado.
-    e = cliente.patch(f"/api/curaduria/activos/{a}", json={"copy": "Ana López terminó su despliegue.\n#Cloud"})
+    e = cliente.patch(f"/api/curaduria/activos/{a}", json={"copy": "Ana López terminó su despliegue.\n#Cloud"}, headers=H_OP)
     assert (e.json()["estado"], e.json()["version"]) == ("revisado", 2)
-    lista = cliente.get(f"/api/curaduria/activos/{a}/banners").json()
+    lista = cliente.get(f"/api/curaduria/activos/{a}/banners", headers=H_OP).json()
     assert lista["banners"][0]["desactualizado"] is True and lista["vigente"] is None
     assert lista["puede_generar"] is False and lista["generacion_ia"] is False
     r = cliente.post(f"/api/banners/{b['id']}/revision", json={"decision": "aprobado"}, headers=H_OP)
@@ -377,12 +377,12 @@ def test_banner_escapa_contenido_error_y_recuperacion(cliente, cola):
     hostil = crear_activo(cola, "act-hostil", "aprobado",
                           '<script>alert(1)</script> "Logro" & <img src=x onerror=1>\n#Seguridad')
     b = cliente.post(f"/api/curaduria/activos/{hostil}/banners", headers=H_OP).json()
-    svg = cliente.get(b["url"]).text
+    svg = cliente.get(b["url"], headers=H_OP).text
     assert "<script" not in svg and "<img" not in svg and "&lt;script&gt;" in svg
     vacio = crear_activo(cola, "act-vacio", "aprobado", "#SoloHashtags #Nada")
     e = cliente.post(f"/api/curaduria/activos/{vacio}/banners", headers=H_OP).json()
     assert (e["estado"], e["error_codigo"], e["url"]) == ("error", "texto_insuficiente", None)
-    assert cliente.get(f"/api/banners/{e['id']}.svg").status_code == 404
+    assert cliente.get(f"/api/banners/{e['id']}.svg", headers=H_OP).status_code == 404
     # Un banner que quedó en «generando» por un reinicio se recupera pasado el umbral.
     a = crear_activo(cola, "act-colgado", "aprobado")
     from backend.app.api.routes.banners import id_banner

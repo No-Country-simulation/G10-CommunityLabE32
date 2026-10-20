@@ -123,9 +123,13 @@ class Puente:
         # Ámbito distinto del cierre: los parciales nunca cuentan como cierre del período.
         return serializar([self.url, self.origen, periodo, "parcial"])
 
+    def _auth(self):
+        # La API exige el Bearer del puente también para entregar y consultar lotes en /api/v1/trabajos.
+        return {"Authorization": f"Bearer {self.token}"} if self.token else {}
+
     def _pedir_control(self, ruta, datos=None):
         return _pedir(f"{self.control}/{ruta}", datos if datos is not None else None,
-                      timeout=self.espera_http, cabeceras={"Authorization": f"Bearer {self.token}"})
+                      timeout=self.espera_http, cabeceras=self._auth())
 
     def solicitar_cierre(self, periodo):
         with self.entregas.conexion() as c:
@@ -312,8 +316,12 @@ class Puente:
             if not trabajo:
                 try:
                     # Misma clave y mismo payload: un reenvío devuelve el mismo trabajo (idempotencia #27).
-                    trabajo = enviar_lote(self.url, json.loads(entrega["payload"]), entrega["clave"])
+                    trabajo = enviar_lote(self.url, json.loads(entrega["payload"]), entrega["clave"], self._auth())
                 except ErrorBackend as error:
+                    if error.estado_http in (401, 403):
+                        # Credencial ausente o rechazada: problema de configuración, no del lote. Se reintenta.
+                        LOG.error("puente credencial_rechazada http=%s revisar PUENTE_TOKEN", error.estado_http)
+                        return
                     if error.estado_http and 400 <= error.estado_http < 500 and error.estado_http != 429:
                         self.entregas.confirmar(entrega["clave"], None, "rechazado")
                         self._liberar(entrega["clave"])
@@ -324,7 +332,7 @@ class Puente:
                 self.entregas.confirmar(entrega["clave"], trabajo, "aceptado")
                 resumen["enviados"] += 1
             try:
-                estado = _pedir(f"{self.url}/{trabajo}", timeout=self.espera_http).get("estado")
+                estado = _pedir(f"{self.url}/{trabajo}", timeout=self.espera_http, cabeceras=self._auth()).get("estado")
             except ErrorBackend as error:
                 LOG.warning("puente consulta_fallida http=%s", error.estado_http)
                 continue
@@ -344,7 +352,7 @@ class Puente:
             filas = [dict(r) for r in c.execute("SELECT clave, trabajo FROM entregas WHERE trabajo IS NOT NULL")]
         for fila in filas:
             try:
-                _pedir(f"{self.url}/{fila['trabajo']}", timeout=self.espera_http)
+                _pedir(f"{self.url}/{fila['trabajo']}", timeout=self.espera_http, cabeceras=self._auth())
                 cambios["verificadas"] += 1
             except ErrorBackend as error:
                 if error.estado_http != 404:

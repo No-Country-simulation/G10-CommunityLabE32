@@ -4,6 +4,7 @@ from sqlalchemy import select, func
 from typing import List, Literal, Optional
 
 # Importamos tu inyector de dependencias
+from backend.app.core.acceso import requiere_operador, requiere_usuario
 from backend.app.core.dependencias import get_db
 from backend.app.models.mensaje import Mensaje
 from backend.app.services.ambito import calcular_ambito
@@ -34,7 +35,8 @@ def _por_sentimiento(query, sentimiento):
     return query
 
 
-@router.get("/sentimiento/resumen")
+# Agregado sin textos ni autores: cualquier cuenta con sesión.
+@router.get("/sentimiento/resumen", dependencies=[Depends(requiere_usuario)])
 async def resumen_sentimiento(
     canal: str = Query(None, description="Filtrar por canal"),
     origen: str = Query(None, max_length=200),
@@ -62,7 +64,8 @@ async def resumen_sentimiento(
             "estado": "sin_datos" if analizados == 0 else ("parcial" if analizados < total else "completo")}
 
 # AÑADIMOS EL RESPONSE_MODEL CORRECTO AQUÍ
-@router.get("", response_model=PaginatedMensajesResponse)
+# Textos y autores: datos comunitarios privados, solo operadores.
+@router.get("", response_model=PaginatedMensajesResponse, dependencies=[Depends(requiere_operador)])
 async def obtener_mensajes(
     canal: str = Query(None, description="Filtrar por canal"),
     origen: str = Query(None, max_length=200, description="origen_comunidad de los lotes"),
@@ -98,7 +101,7 @@ async def obtener_mensajes(
 
 
     
-@router.post("/procesamientos", status_code=202)
+@router.post("/procesamientos", status_code=202, dependencies=[Depends(requiere_operador)])
 async def procesar_lote_nuevo(
     file: UploadFile = File(...),
     origen_comunidad: str = Form(...),

@@ -37,12 +37,16 @@ def cola():
 @pytest.fixture
 def cliente(cola, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", cola.url.replace("postgresql://", "postgresql+asyncpg://"))
+    # Pruebas funcionales de la interfaz: actúan como operador (el rechazo sin credencial se prueba
+    # en test_acceso_seguridad.py). El token es ficticio y propio de cada ejecución.
+    token = "operador-prueba-" + os.urandom(6).hex()
+    monkeypatch.setenv("OPERADOR_TOKEN", token)
     from fastapi.testclient import TestClient
     from backend.app.core.database import engine
     from backend.app.main import app
     # Cada TestClient usa su propio event loop: no reutilizar conexiones asyncpg de otra prueba.
     engine.sync_engine.dispose(close=False)
-    with TestClient(app) as c:
+    with TestClient(app, headers={"X-Operador-Token": token}) as c:
         yield c
 
 
