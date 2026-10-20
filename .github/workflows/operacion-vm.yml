@@ -37,6 +37,9 @@ jobs:
       DISCORD_BOT_TOKEN: token-ficticio
       GEMINI_API_KEY: clave-ficticia
       GEMINI_MODELOS: gemini-ficticio
+      # compose.discord.yml exige PUENTE_TOKEN (el puente se autentica ante la API). Valor ficticio de CI;
+      # las pruebas escriben además su propio .env por entorno desechable.
+      PUENTE_TOKEN: puente-ficticio-ci
     steps:
       - uses: actions/checkout@v4
         with:

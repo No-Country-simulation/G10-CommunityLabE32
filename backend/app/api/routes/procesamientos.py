@@ -1,4 +1,6 @@
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+
+from backend.app.core.acceso import requiere_operador
 
 from backend.app.services.ingestion import procesar_lote
 from backend.app.services.relevancia import evaluar_interaccion
@@ -11,9 +13,12 @@ from backend.app.schemas.procesamientos import (
     AlmacenamientoOCI,
 )
 
+# Obsoleto (no encola, no guarda, no llama a la IA). Sin consumidores en la interfaz; lo usa
+# infrastructure/docker/validacion/probar_integracion.py. Protegido mientras dure la transición.
 router = APIRouter(
     prefix="/api/v1/procesamientos",
     tags=["Procesamientos"],
+    dependencies=[Depends(requiere_operador)],
 )
 
 
@@ -83,7 +88,7 @@ def crear_procesamiento(lote: IngestaRequest):
     )
 
 
-@router.post("/upload", response_model=IngestaResponse)
+@router.post("/upload", response_model=IngestaResponse, deprecated=True)
 async def procesar_lote_archivo(
     file: UploadFile = File(...),
     origen_comunidad: str = Form(...),

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Reversión de APLICACIÓN al estado conservado por desplegar.sh. Uso (root): revertir.sh <carpeta-estado>
 # No restaura datos: la migración es aditiva y la versión anterior funciona sobre el esquema nuevo.
-#   1. Detiene los consumidores nuevos (bot, lector, puente y worker) antes de cambiar nada.
+#   1. Detiene los consumidores nuevos (histórico, bot, lector, puente y worker) antes de cambiar nada.
 #   2. Restaura el .env y el commit anteriores. Si REVERTIR_CONSERVAR_HTTPS=1 (por defecto) y la
 #      versión anterior tiene compose.https.yml, mantiene el override HTTPS en COMPOSE_FILE.
 #   3. Devuelve a :local las imágenes que estaban en ejecución (:prev-<id>).
@@ -15,7 +15,7 @@ VERIFICAR=${VERIFICAR:-$OPS/verificar.sh}
 for f in env.anterior commit.anterior imagenes.anteriores; do [ -f "$ESTADO/$f" ] || fallar "falta $ESTADO/$f"; done
 
 log "revertir 1/5: deteniendo consumidores nuevos"
-for s in discord-bot discord-reader discord-bridge worker; do
+for s in discord-historico discord-bot discord-reader discord-bridge worker; do
   dc ps -q "$s" >/dev/null 2>&1 && dc stop "$s" >/dev/null 2>&1 || true
 done
 

@@ -226,18 +226,28 @@ def test_fallo_y_siguiente_en_postgres(cola):
     assert cola.obtener(bueno)["estado"] == "terminado"
 
 
+def puente(monkeypatch):
+    """/api/v1/trabajos es la entrada del puente: estas pruebas usan su credencial (ficticia)."""
+    token = "puente-prueba-" + os.urandom(6).hex()
+    monkeypatch.setenv("PUENTE_TOKEN", token)
+    return {"Authorization": f"Bearer {token}"}
+
+
 def test_api_registra_consulta_y_rechaza_archivo_invalido(cola, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", cola.url.replace("postgresql://", "postgresql+asyncpg://"))
     from fastapi.testclient import TestClient
     from backend.app.main import app
-    with TestClient(app) as cliente:
+    with TestClient(app, headers=puente(monkeypatch)) as cliente:
         respuesta = cliente.post("/api/v1/trabajos", json=lote())
         assert respuesta.status_code == 202, respuesta.text
         assert cliente.get(respuesta.json()["consulta"]).json()["estado"] == "recibido"
         assert cliente.get("/api/v1/trabajos/inexistente").status_code == 404
+        # Subir archivos es una acción de operador (el puente no puede): credencial de operador ficticia.
+        monkeypatch.setenv("OPERADOR_TOKEN", "operador-prueba-subida")
         for contenido in (b"{mal", b"42", b"[{}]"):
             r = cliente.post("/api/mensajes/procesamientos", files={"file": ("datos.json", contenido)},
-                             data={"origen_comunidad": "prueba", "periodo_referencia": "S2"})
+                             data={"origen_comunidad": "prueba", "periodo_referencia": "S2"},
+                             headers={"X-Operador-Token": "operador-prueba-subida"})
             assert r.status_code == 422, r.text
 
 
@@ -281,7 +291,7 @@ def test_api_rechaza_campos_largos_antes_de_guardar(cola, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", cola.url.replace("postgresql://", "postgresql+asyncpg://"))
     from fastapi.testclient import TestClient
     from backend.app.main import app
-    with TestClient(app) as cliente:
+    with TestClient(app, headers=puente(monkeypatch)) as cliente:
         for campo, maximo in (("autor", 150), ("canal", 50), ("tipo", 50)):
             entrada = lote()
             entrada["interacciones"][0][campo] = "x" * (maximo + 1)
@@ -352,7 +362,7 @@ def test_api_idempotencia_conflicto_y_fecha(cola, monkeypatch):
     monkeypatch.setenv('DATABASE_URL', cola.url.replace('postgresql://', 'postgresql+asyncpg://'))
     from fastapi.testclient import TestClient
     from backend.app.main import app
-    with TestClient(app) as cliente:
+    with TestClient(app, headers=puente(monkeypatch)) as cliente:
         entrada = lote()
         cabecera = {'Idempotency-Key': 'api-prueba-1'}
         a = cliente.post('/api/v1/trabajos', json=entrada, headers=cabecera)

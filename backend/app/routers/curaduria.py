@@ -30,7 +30,7 @@ TRANSICIONES_VALIDAS = {
     "rechazado": {"revisado"}
 }
 
-@router.get("/activos", response_model=PaginatedActivosResponse)
+@router.get("/activos", response_model=PaginatedActivosResponse, dependencies=[Depends(requiere_operador)])
 async def listar_activos(
     page: int = Query(1, ge=1, description="Número de página"),
     limit: int = Query(15, ge=1, le=100, description="Cantidad de registros por página"),
@@ -77,7 +77,7 @@ async def listar_activos(
         total_pages=total_pages
     )
 
-@router.get("/activos/{id_activo}", response_model=ActivoDetalleResponse)
+@router.get("/activos/{id_activo}", response_model=ActivoDetalleResponse, dependencies=[Depends(requiere_operador)])
 async def obtener_detalle_activo(id_activo: str, db: AsyncSession = Depends(get_db)):
     """
     Obtiene el activo y recupera los mensajes fuente reales (Ground Truth) de la tabla mensajes.
@@ -129,15 +129,13 @@ async def actualizar_activo(
     id_activo: str,
     dto: ActivoUpdateDTO,
     db: AsyncSession = Depends(get_db),
-    x_operador_token: Optional[str] = Header(default=None, max_length=256),
+    operador=Depends(requiere_operador),
 ):
     """
     Permite editar el copy, versionar los cambios y transicionar estados de curaduría.
-    Aprobar requiere X-Operador-Token. Editar el texto de un activo aprobado invalida la
+    Toda modificación (editar, revisar, aprobar) requiere rol operador. Editar el texto de un activo aprobado invalida la
     aprobación (vuelve a «revisado») y deja desactualizado cualquier banner anterior.
     """
-    if dto.estado and dto.estado.value == "aprobado":
-        requiere_operador(x_operador_token)
     query = select(Activo).where(Activo.id_activo == id_activo)
     result = await db.execute(query)
     activo = result.scalar_one_or_none()

@@ -64,7 +64,8 @@ class Entorno:
             f"WORKER_MODE=simulado\nAPI_IMAGE={self.prefijo}-api:local\nWORKER_IMAGE={self.prefijo}-worker:local\n"
             f"WEB_IMAGE={self.prefijo}-web:local\nDISCORD_IMAGE={self.prefijo}-discord:local\n"
             f"DISCORD_CONFIG_DIR={self.config}\nDISCORD_BOT_TOKEN=token-ficticio-no-valido\n"
-            f"GEMINI_API_KEY=clave-ficticia\nGEMINI_MODELOS=gemini-ficticio\nPUENTE_PERIODO=dia\n" + extra)
+            f"GEMINI_API_KEY=clave-ficticia\nGEMINI_MODELOS=gemini-ficticio\nPUENTE_PERIODO=dia\n"
+            f"PUENTE_TOKEN=puente_prueba_{self.id}\n" + extra)
 
     def dc(self, *args, check=True):
         return sh("docker", "compose", *args, cwd=self.app, check=check, env={**os.environ, **self.env})
@@ -128,14 +129,17 @@ while True:  # escrituras concurrentes sin checkpoint: el WAL sigue creciendo
 '''
 
 CARGA_API = r'''
-import json, time, urllib.request, uuid
+import json, os, time, urllib.request, uuid
+# Versión actual: /api/v1/trabajos exige el Bearer del puente (el contenedor api lo tiene en su entorno).
+# Versiones anteriores (fixture «anterior») no lo exigen ni lo reciben: entonces no se envía.
+AUTH = {"Authorization": "Bearer " + os.environ["PUENTE_TOKEN"]} if os.environ.get("PUENTE_TOKEN") else {}
 while True:
     p = uuid.uuid4().hex[:8]
     lote = {"origen_comunidad": "carga", "periodo_referencia": "S", "cierre_periodo": False, "interacciones": [
         {"id": f"{p}-{i}", "autor": "a", "canal": "c", "fecha": "2026-10-15T10:00:00Z", "texto": f"m {i}"} for i in range(3)]}
     try:
         urllib.request.urlopen(urllib.request.Request("http://127.0.0.1:8000/api/v1/trabajos",
-            data=json.dumps(lote).encode(), headers={"Content-Type": "application/json"}, method="POST"), timeout=5)
+            data=json.dumps(lote).encode(), headers={"Content-Type": "application/json", **AUTH}, method="POST"), timeout=5)
     except Exception:
         pass
     time.sleep(0.05)
@@ -328,7 +332,9 @@ def test_despliegue_fallido_revierte_imagenes_y_configuracion(anterior):
     e.esperar()
     assert int(e.psql("SELECT count(*) FROM trabajos_worker")) >= trabajos
     # La migración aditiva quedó aplicada y la versión anterior sigue funcionando sobre ella.
-    assert e.psql("SELECT count(*) FROM information_schema.columns WHERE column_name='clave_idempotencia'") == "1"
+    # (Acotado a trabajos_worker: discord_importaciones tiene otra columna con el mismo nombre desde #36.)
+    assert e.psql("SELECT count(*) FROM information_schema.columns WHERE table_name='trabajos_worker' "
+                  "AND column_name='clave_idempotencia'") == "1"
 
 
 def test_despliegue_exitoso_y_reversion_manual(anterior):

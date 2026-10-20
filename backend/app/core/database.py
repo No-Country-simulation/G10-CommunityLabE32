@@ -1,4 +1,5 @@
 import os
+from typing import AsyncGenerator
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -27,3 +28,8 @@ AsyncSessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
+
+# Dependencia para inyectar la sesión asíncrona en los endpoints
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        yield session
