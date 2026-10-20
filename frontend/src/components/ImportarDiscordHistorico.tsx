@@ -176,7 +176,7 @@ export default function ImportarDiscordHistorico() {
   };
 
   return (
-    <div className="card p-6 mt-6 border border-border">
+    <div className="discord-history-card card p-5 sm:p-6 min-w-0 border border-border">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <span className="badge-violet mb-2 inline-flex items-center gap-1.5">
@@ -196,17 +196,17 @@ export default function ImportarDiscordHistorico() {
           className="btn-primary flex items-center gap-2"
         >
           <MessageSquare className="w-4 h-4" />
-          {abierto ? 'Ocultar panel Discord' : 'Abrir importador de Discord'}
+          {abierto ? 'Ocultar panel de Discord' : 'Abrir importador de Discord'}
         </button>
       </div>
 
       {abierto && (
         <div className="mt-6 pt-6 border-t border-border space-y-6">
           {/* Formulario de Canal y Fechas */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-subtle-foreground mb-1.5">
-                ID del Canal (Snowflake)
+                ID del canal (Snowflake)
               </label>
               <div className="relative">
                 <Hash className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
@@ -222,7 +222,7 @@ export default function ImportarDiscordHistorico() {
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-subtle-foreground mb-1.5">
-                Desde (Fecha local)
+                Desde (fecha local)
               </label>
               <div className="relative">
                 <Calendar className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
@@ -237,7 +237,7 @@ export default function ImportarDiscordHistorico() {
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-subtle-foreground mb-1.5">
-                Hasta (Día completo)
+                Hasta (día completo)
               </label>
               <div className="relative">
                 <Calendar className="w-4 h-4 text-muted-foreground absolute left-3 top-2.5" />
@@ -252,7 +252,7 @@ export default function ImportarDiscordHistorico() {
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-subtle-foreground mb-1.5">
-                Zona Horaria (IANA)
+                Zona horaria (IANA)
               </label>
               <input
                 type="text"
@@ -319,7 +319,7 @@ export default function ImportarDiscordHistorico() {
                 <span className="font-bold text-foreground">
                   Servidor: {verificacion.servidor.nombre} · Canal: #{verificacion.canal.nombre} ({verificacion.canal.tipo_nombre})
                 </span>
-                <span className="badge-success">Canal Autorizado y Accesible</span>
+                <span className="badge-success">Canal autorizado y accesible</span>
               </div>
               <p className="text-muted-foreground">
                 Permisos del bot: Ver canal ({verificacion.permisos.ver_canal ? 'Sí' : 'No'}) · Leer historial ({verificacion.permisos.leer_historial ? 'Sí' : 'No'})
@@ -459,11 +459,11 @@ export default function ImportarDiscordHistorico() {
                   <span className="text-base font-bold text-foreground tabular-nums">{importacion.paginas}</span>
                 </div>
                 <div className="p-3 rounded-lg bg-surface border border-border">
-                  <span className="text-subtle-foreground block">Nuevos insertados</span>
+                  <span className="text-subtle-foreground block">Mensajes nuevos</span>
                   <span className="text-base font-bold text-success tabular-nums">{importacion.insertados}</span>
                 </div>
                 <div className="p-3 rounded-lg bg-surface border border-border">
-                  <span className="text-subtle-foreground block">Ya existentes</span>
+                  <span className="text-subtle-foreground block">Mensajes existentes</span>
                   <span className="text-base font-bold text-foreground tabular-nums">
                     {importacion.existentes + importacion.existentes_en_vivo}
                   </span>

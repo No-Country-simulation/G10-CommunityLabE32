@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { borradoresReferencia } from './borradoresReferencia';
+import { esReferenciaPublicada, kpisReferencia, resumenReferencia, mensajesReferencia } from './referenciaPublicada';
 
 // Configuración base apuntando a tu FastAPI a través del proxy (/api)
 export const apiClient = axios.create({
@@ -146,6 +148,7 @@ export interface ResumenSentimiento {
 }
 
 export const obtenerResumenSentimiento = async (canal?: string, ambito?: Ambito | null): Promise<ResumenSentimiento> => {
+  if (esReferenciaPublicada() && !canal && !ambito) return structuredClone(resumenReferencia);
   const response = await apiClient.get('/mensajes/sentimiento/resumen', {
     params: { canal, origen: ambito?.origen, periodo: ambito?.periodo },
   });
@@ -164,6 +167,10 @@ export const obtenerMensajes = async (
   ambito?: Ambito | null,
   sentimiento?: FiltroSentimiento,
 ): Promise<PaginatedMensajes> => {
+  if (esReferenciaPublicada() && !ambito) {
+    const muestra = mensajesReferencia.filter(m => (!canal || m.canal === canal) && (!sentimiento || (sentimiento === 'sin_analizar' ? !m.sentimiento_ref : m.sentimiento_ref === sentimiento)));
+    return { items: structuredClone(muestra.slice(skip, skip + limit)), total: muestra.length };
+  }
   const response = await apiClient.get('/mensajes', {
     params: { skip, limit, canal, origen: ambito?.origen, periodo: ambito?.periodo, sentimiento },
   });
@@ -238,6 +245,10 @@ export const listarActivos = async (
   estado?: string,
   trabajo?: string | null
 ): Promise<PaginatedActivosResponse> => {
+  if (esReferenciaPublicada() && !trabajo) {
+    const muestra = borradoresReferencia.filter(a => !estado || a.estado === estado);
+    return { items: structuredClone(muestra.slice((page - 1) * limit, page * limit)), total: muestra.length, page, limit, total_pages: Math.max(1, Math.ceil(muestra.length / limit)) };
+  }
   const params: Record<string, string | number> = { page, limit };
   if (estado) params.estado = estado;
   if (trabajo) params.trabajo = trabajo;
@@ -247,6 +258,11 @@ export const listarActivos = async (
 };
 
 export const obtenerDetalleActivo = async (id_activo: string): Promise<Activo> => {
+  if (esReferenciaPublicada() && id_activo.startsWith('referencia-')) {
+    const muestra = borradoresReferencia.find(a => a.id_activo === id_activo);
+    if (!muestra) throw new Error('Borrador de referencia no disponible.');
+    return structuredClone(muestra);
+  }
   const response = await apiClient.get(`/curaduria/activos/${id_activo}`);
   return response.data;
 };
@@ -255,12 +271,15 @@ export const actualizarActivo = async (
   id_activo: string,
   payload: { copy?: string; estado?: string; comentario_curador?: string }
 ): Promise<Activo> => {
+  if (id_activo.startsWith('referencia-')) throw new Error('Esta muestra es de solo lectura; no modifica el sitio publicado.');
   const response = await apiClient.patch(`/curaduria/activos/${id_activo}`, payload);
   return response.data;
 };
 
 // Semántica documentada en docs/metricas-panel.md.
 export interface DashboardKPIs {
+  /** Número de mensajes sin responder; lo proporciona el backend cuando esté disponible. */
+  mensajes_sin_responder?: number;
   total_mensajes: number;
   mensajes_por_tipo: Record<string, number>;
   distribucion_sentimiento: Record<Sentimiento, number>;
@@ -283,7 +302,14 @@ export interface Ambito {
   ultimo?: string | null;
 }
 
+// El contador consulta el backend local incluso cuando las métricas usan una captura.
+export const obtenerMensajesSinResponder = async (): Promise<number | undefined> => {
+  const response = await apiClient.get<DashboardKPIs>('/dashboard/kpis', { timeout: 10000 });
+  return response.data.mensajes_sin_responder;
+};
+
 export const obtenerKPIs = async (ambito?: Ambito | null): Promise<DashboardKPIs> => {
+  if (esReferenciaPublicada() && !ambito) return structuredClone(kpisReferencia);
   const response = await apiClient.get('/dashboard/kpis', {
     params: { origen: ambito?.origen, periodo: ambito?.periodo },
   });
@@ -291,6 +317,7 @@ export const obtenerKPIs = async (ambito?: Ambito | null): Promise<DashboardKPIs
 };
 
 export const obtenerAmbitos = async (): Promise<Ambito[]> => {
+  if (esReferenciaPublicada()) return [];
   const response = await apiClient.get('/dashboard/ambitos');
   return response.data.items;
 };

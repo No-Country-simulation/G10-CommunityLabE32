@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { leerTokenOperador } from '@/services/api';
+import { esVistaLocal } from '@/services/vistaLocal';
 import { Loader2 } from 'lucide-react';
 
 export default function RutaProtegida({ children }: { children: React.ReactNode }) {
@@ -11,7 +12,7 @@ export default function RutaProtegida({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const token = leerTokenOperador();
-    if (!token) {
+    if (!token && !esVistaLocal()) {
       router.replace('/login');
     } else {
       // Usamos un setTimeout para evitar el setState sincrónico dentro del effect que rechaza ESLint
