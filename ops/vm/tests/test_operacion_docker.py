@@ -130,8 +130,9 @@ while True:  # escrituras concurrentes sin checkpoint: el WAL sigue creciendo
 
 CARGA_API = r'''
 import json, os, time, urllib.request, uuid
-# /api/v1/trabajos exige el Bearer del puente (se ejecuta dentro del contenedor api, que lo tiene).
-AUTH = {"Authorization": "Bearer " + os.environ["PUENTE_TOKEN"]}
+# Versión actual: /api/v1/trabajos exige el Bearer del puente (el contenedor api lo tiene en su entorno).
+# Versiones anteriores (fixture «anterior») no lo exigen ni lo reciben: entonces no se envía.
+AUTH = {"Authorization": "Bearer " + os.environ["PUENTE_TOKEN"]} if os.environ.get("PUENTE_TOKEN") else {}
 while True:
     p = uuid.uuid4().hex[:8]
     lote = {"origen_comunidad": "carga", "periodo_referencia": "S", "cierre_periodo": False, "interacciones": [
