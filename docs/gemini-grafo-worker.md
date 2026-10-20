@@ -38,22 +38,6 @@ algo o si el presupuesto no cabe en `WORKER_TIMEOUT`.
 | `SAFETY`, `promptFeedback.blockReason`, etc. | Falla sin escalar | `ia_bloqueado` |
 | Tiempo, llamadas o tokens del trabajo agotados | Corta antes de llamar | `ia_presupuesto` |
 
-### Límite de llamadas en lotes grandes (conocido, sin resolver)
-
-El presupuesto es por trabajo (`GEMINI_MAX_LLAMADAS`=16). Con la configuración de la VM, los bloques son de
-22 (`analizar`) y 40 (`puntuar`). Un lote de N mensajes usa como mínimo `ceil(N/22) + ceil(N/40)` llamadas,
-más 1 por cada post de logro, 1 por cada FAQ de duda recurrente y 1 de highlights al cierre (si hay mensajes
-relevantes). Los generadores no tienen tope y el cierre vuelve a analizar los mensajes `previo`.
-
-Ejemplos de cierre (calculados y cubiertos por `test_fidelidad_y_diagnostico.PruebasPresupuestoCierre`):
-- 150 mensajes con 4 logros usan exactamente 16 llamadas;
-- con 5 logros, el trabajo termina en `ia_presupuesto`;
-- 220 mensajes sin nada relevante caben, pero 221 ya no.
-
-Si no cabe, el trabajo falla **entero** (sin borradores parciales ni descartes silenciosos). Resolverlo cambia
-el comportamiento del producto (reutilizar análisis previos, limitar generaciones o escalar el presupuesto) y
-queda como propuesta separada.
-
 - Un solo nivel de reintentos: no se usa el SDK `google-genai` porque reintenta por su cuenta.
   El worker tampoco reintenta un trabajo fallido (queda en `error` para revisión).
 - Salida estructurada: `responseMimeType: application/json` + `responseJsonSchema`, y

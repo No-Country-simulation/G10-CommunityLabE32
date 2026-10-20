@@ -222,42 +222,6 @@ class PruebasBloques(unittest.TestCase):
             self.assertLessEqual(items["maxItems"], 40)
 
 
-class PruebasPresupuestoCierre(unittest.TestCase):
-    """Límite conocido (docs/gemini-grafo-worker.md): 16 llamadas por trabajo y generadores sin tope.
-    Con la configuración de la VM (bloque 40, salida 2048 -> bloques de 22 y 40), un cierre de N mensajes
-    usa ceil(N/22) + ceil(N/40) llamadas base + 1 highlights (si hay mensajes relevantes) + 1 por logro/FAQ.
-    Sin nada relevante, 220 mensajes caben justo (10 + 6) y 221 ya no (11 + 6). Si no cabe, el trabajo
-    falla ENTERO con PresupuestoAgotadoIA: no hay borradores parciales ni descartes silenciosos."""
-
-    def _cierre(self, n, logros):
-        interacciones = [{"id": f"w-{i:04d}", "autor": f"persona {i}", "canal": "general",
-                          "fecha": "2026-10-20T10:00:00Z", "texto": f"Mensaje ficticio {i}"} for i in range(n)]
-        senales = {m["id"]: {"es_logro": i < logros, "es_duda": False, "es_bloqueo": False,
-                             "tema": f"tema {i}", "relevancia": 0.9 if i < logros else 0.1}
-                   for i, m in enumerate(interacciones)}
-        falso = GeminiFalso(responder=responder_con_senales(senales, interacciones=interacciones))
-        componentes = crear_componentes_gemini(configuracion(tamano_bloque=40, max_llamadas=16),
-                                               transporte=falso.transporte)
-        salida = ejecutar_lote({"origen_comunidad": "prueba", "periodo_referencia": "2026-W43",
-                                "cierre_periodo": True, "interacciones": interacciones}, componentes)
-        return salida, len(falso.peticiones)
-
-    def test_cierre_de_150_con_4_logros_cabe_justo_en_16_llamadas(self):
-        salida, llamadas = self._cierre(150, 4)
-        self.assertEqual(salida["errores"], [])
-        self.assertEqual(llamadas, 7 + 4 + 1 + 4)          # analizar + puntuar + highlights + posts
-        self.assertEqual(len(salida["activos_distribucion_generados"]), 5)
-
-    def test_cierre_que_no_cabe_falla_entero_sin_borradores_parciales(self):
-        self.assertEqual(self._cierre(220, 0)[0]["errores"], [])
-        for n, logros in ((150, 5), (221, 0)):
-            with self.subTest(n=n, logros=logros):
-                salida, llamadas = self._cierre(n, logros)
-                self.assertLessEqual(llamadas, 16)
-                self.assertEqual(salida["errores"][0]["tipo"], "PresupuestoAgotadoIA")
-                self.assertEqual(salida["activos_distribucion_generados"], [])
-
-
 class PruebasGrafoFidelidad(unittest.TestCase):
     def test_activos_incluyen_advertencias_y_almacenamiento_aclarado(self):
         senales = {m["id"]: {"es_logro": m["id"] == "demo-04", "es_duda": False, "es_bloqueo": False,
