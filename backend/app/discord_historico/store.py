@@ -163,6 +163,29 @@ class Store:
                 cancelacion_solicitada=false, intentos=0 WHERE id=%s RETURNING *""", (identificador,)).fetchone()
             return self._publico(fila)
 
+    def para_analisis(self, identificador):
+        """Mensajes de la importación que aún no están en `mensajes` (ni en vivo ni enviados antes).
+
+        Devuelve (candidatos, resumen). Los que ya están en `mensajes` los procesa su propio lote; los
+        vacíos (sin MESSAGE_CONTENT o solo adjuntos) no se pueden analizar.
+        """
+        with self.conectar() as c:
+            filas = c.execute("""SELECT m.id_mensaje, m.autor_id, m.canal_id, m.fecha, m.texto, m.contenido_disponible,
+                    EXISTS (SELECT 1 FROM mensajes x WHERE x.id_mensaje = m.id_mensaje) en_mensajes
+                FROM discord_importacion_mensajes r JOIN discord_mensajes_historicos m USING (id_mensaje)
+                WHERE r.importacion_id=%s ORDER BY m.fecha, m.id_mensaje""", (identificador,)).fetchall()
+        resumen = {"total": len(filas), "ya_en_analisis": 0, "sin_contenido": 0, "pendientes": 0}
+        candidatos = []
+        for f in filas:
+            if f["en_mensajes"]:
+                resumen["ya_en_analisis"] += 1
+            elif not f["contenido_disponible"] or not (f["texto"] or "").strip():
+                resumen["sin_contenido"] += 1
+            else:
+                candidatos.append(f)
+        resumen["pendientes"] = len(candidatos)
+        return candidatos, resumen
+
     def mensajes(self, identificador, limite=50, desplazamiento=0):
         """Mensajes de la importación. `estado_ia` se calcula AHORA (no queda obsoleto si el mensaje se
         procesó después por otra vía); `estado_ia_captura` es lo observado al importarlo."""

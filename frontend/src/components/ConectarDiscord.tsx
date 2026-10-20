@@ -1,8 +1,14 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, Hash, Loader2, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
-import { previsualizarDiscordHistorico, crearImportacionDiscord, describirError, type PrevisualizacionDiscord, type ImportacionDiscord } from '@/services/api';
+import { previsualizarDiscordHistorico, crearImportacionDiscord, consultarImportacionDiscord, obtenerEstadoDiscordHistorico, describirError, ESTADOS_FINALES_DISCORD, type PrevisualizacionDiscord, type ImportacionDiscord, type EstadoDiscordHistorico } from '@/services/api';
+import EnviarAnalisisDiscord from './EnviarAnalisisDiscord';
+
+const ETIQUETA_ESTADO: Record<string, string> = {
+  pendiente: 'En cola', ejecutando: 'Importando', completada: 'Completada',
+  completada_con_limite: 'Completada con límite', cancelada: 'Cancelada', error: 'Error',
+};
 
 type Unidad = 'dias' | 'meses' | 'anos';
 function rangoFechas(unidad: Unidad, desde: string, hasta: string) {
@@ -33,7 +39,8 @@ export default function ConectarDiscord() {
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [zona, setZona] = useState('America/Guatemala');
-  const [escucha, setEscucha] = useState(false);
+  // null = consultando; el estado sale de la configuración del backend, no se cambia desde aquí.
+  const [servicio, setServicio] = useState<EstadoDiscordHistorico | 'no_disponible' | null>(null);
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [preview, setPreview] = useState<PrevisualizacionDiscord | null>(null);
@@ -41,6 +48,27 @@ export default function ConectarDiscord() {
   const [importacion, setImportacion] = useState<ImportacionDiscord | null>(null);
   const clave = useRef<string | null>(null);
   const enCurso = useRef(false);
+  useEffect(() => {
+    let vigente = true;
+    obtenerEstadoDiscordHistorico()
+      .then((e) => { if (vigente) setServicio(e); })
+      .catch(() => { if (vigente) setServicio('no_disponible'); });
+    return () => { vigente = false; };
+  }, []);
+  // Seguimiento de la importación hasta un estado final (el runner la ejecuta aparte).
+  const idImportacion = importacion?.id;
+  const finalizada = !!importacion && ESTADOS_FINALES_DISCORD.includes(importacion.estado);
+  useEffect(() => {
+    if (!idImportacion || finalizada) return;
+    let vigente = true;
+    const timer = setInterval(async () => {
+      try { const actual = await consultarImportacionDiscord(idImportacion); if (vigente) setImportacion(actual); }
+      catch { /* se reintenta en el siguiente ciclo */ }
+    }, 2500);
+    return () => { vigente = false; clearInterval(timer); };
+  }, [idImportacion, finalizada]);
+  const disponible = typeof servicio === 'object' && servicio?.configurado;
+  const etiquetaServicio = servicio === null ? 'Consultando…' : disponible ? 'Disponible' : servicio === 'no_disponible' ? 'Sin acceso' : 'No configurado';
   const invalidar = () => { setPreview(null); setImportacion(null); setConfirmado(false); setError(''); clave.current = null; };
   let rango: { desde: string; hasta: string } | null = null;
   try { rango = rangoFechas(unidad, desde, hasta); } catch {}
@@ -63,8 +91,8 @@ export default function ConectarDiscord() {
     finally { setOcupado(false); enCurso.current = false; }
   };
   return <section className="card discord-connect" aria-labelledby="discord-connect-title">
-    <div className="discord-panel-heading"><div className="discord-heading-copy"><span className="discord-brand-icon"><DiscordIcon className="h-5 w-5"/></span><div><h2 id="discord-connect-title">Conectar a Discord</h2><p>Elige un canal y trae únicamente los mensajes del período que necesitas.</p></div></div><button type="button" role="switch" aria-checked={escucha} aria-label="Vista previa de escucha del bot" onClick={()=>setEscucha(!escucha)} className={`discord-bot-control ${escucha ? 'is-online' : ''}`} title="Vista previa del estado del bot"><DiscordIcon className="h-4 w-4"/><span className="discord-bot-dot"/><span>{escucha ? 'En línea' : 'Apagado'}</span></button></div>
-    <p className="discord-preview-note">Control del bot en vista previa: no modifica el bot real.</p>
+    <div className="discord-panel-heading"><div className="discord-heading-copy"><span className="discord-brand-icon"><DiscordIcon className="h-5 w-5"/></span><div><h2 id="discord-connect-title">Conectar a Discord</h2><p>Elige un canal y trae únicamente los mensajes del período que necesitas.</p></div></div><span role="status" className={`discord-bot-control ${disponible ? 'is-online' : ''}`} title="Estado de la importación histórica en el servidor"><DiscordIcon className="h-4 w-4"/><span className="discord-bot-dot"/><span>{etiquetaServicio}</span></span></div>
+    <p className="discord-preview-note">{disponible ? `${(servicio as EstadoDiscordHistorico).canales} ${(servicio as EstadoDiscordHistorico).canales === 1 ? 'canal autorizado' : 'canales autorizados'} en el servidor.` : servicio === 'no_disponible' ? 'Tu cuenta necesita el rol de operador para importar.' : servicio ? 'Falta configurar el bot y los canales autorizados en el servidor.' : ' '}</p>
     <form onSubmit={conectar} className="discord-connect-form">
       <fieldset disabled={ocupado} className="contents">
         <label className="discord-field"><span><Hash size={13}/> ID del canal de Discord</span><input className="input" inputMode="numeric" placeholder="Ej. 123456789012345678" value={canal} onChange={e=>{invalidar();setCanal(e.target.value);}} required pattern="[0-9]{17,20}"/><small>Activa el modo desarrollador en Discord y elige «Copiar ID del canal».</small></label>
@@ -75,8 +103,9 @@ export default function ConectarDiscord() {
       <div className="discord-range-summary"><CalendarDays size={15}/><p>{rango ? <>Se solicitarán los mensajes del <strong>{rango.desde}</strong> al <strong>{rango.hasta}</strong>, ambos días incluidos.</> : 'Selecciona un rango para definir qué mensajes se enviarán a la importación.'}</p></div>
       {preview?.limites.requiere_confirmacion && !importacion && <label className="discord-confirm"><input type="checkbox" checked={confirmado} onChange={e=>setConfirmado(e.target.checked)} disabled={ocupado}/>Confirmo la importación de este rango de {preview.rango.dias} días, con un máximo de {preview.limites.max_mensajes} mensajes.</label>}
       {error && <p className="discord-message text-danger" role="alert"><AlertCircle size={16}/>{error}</p>}
-      {importacion && <div className="discord-message text-success" role="status"><CheckCircle2 size={16}/><div>Solicitud recibida: {importacion.estado}.<p className="text-xs text-muted-foreground mt-1 break-all">Importación {importacion.id}</p></div></div>}
-      <div className="discord-connect-footer"><p>Solo se importará el historial del rango elegido. No activa la escucha en tiempo real.</p><button className="btn-primary" type="submit" disabled={ocupado || !!importacion || (!!preview?.limites.requiere_confirmacion && !confirmado)}>{ocupado?<Loader2 size={14} className="animate-spin"/>:<DiscordIcon className="h-4 w-4"/>}{ocupado?'Conectando…':importacion?'Solicitud enviada':preview?.limites.requiere_confirmacion?'Confirmar y conectar':'Conectar'}</button></div>
+      {importacion && <div className={`discord-message ${importacion.estado === 'error' ? 'text-danger' : 'text-success'}`} role="status">{finalizada ? <CheckCircle2 size={16}/> : <Loader2 size={16} className="animate-spin"/>}<div>{ETIQUETA_ESTADO[importacion.estado] ?? importacion.estado}: {importacion.en_rango} mensajes en el rango · {importacion.insertados} nuevos · {importacion.existentes + importacion.existentes_en_vivo} ya guardados.{importacion.estado === 'error' && <> Puedes reanudarla en «Historial de importaciones de Discord», más abajo.</>}<p className="text-xs text-muted-foreground mt-1 break-all">Importación {importacion.id}</p></div></div>}
+      {importacion && finalizada && importacion.estado !== 'error' && <EnviarAnalisisDiscord importacionId={importacion.id}/>}
+      <div className="discord-connect-footer"><p>Solo se importará el historial del rango elegido. No activa la escucha en tiempo real.</p><button className="btn-primary" type="submit" disabled={ocupado || !!importacion || servicio === 'no_disponible' || (typeof servicio === 'object' && servicio !== null && !servicio.configurado) || (!!preview?.limites.requiere_confirmacion && !confirmado)}>{ocupado?<Loader2 size={14} className="animate-spin"/>:<DiscordIcon className="h-4 w-4"/>}{ocupado?'Conectando…':importacion?(finalizada?'Importación terminada':'Importando…'):preview?.limites.requiere_confirmacion?'Confirmar y conectar':'Conectar'}</button></div>
     </form>
   </section>;
 }

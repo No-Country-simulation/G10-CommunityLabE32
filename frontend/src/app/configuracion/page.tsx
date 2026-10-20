@@ -348,7 +348,7 @@ export default function ConfiguracionPage() {
             </div>
             <button
               type="button"
-              onClick={() => { cerrarSesion(); router.push('/login'); }}
+              onClick={async () => { await cerrarSesion(); router.push('/login'); }}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-danger/30 bg-danger-soft px-5 py-3 text-sm font-semibold text-danger hover:bg-danger hover:text-white transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />

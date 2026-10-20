@@ -28,6 +28,7 @@ import {
   Calendar,
   Hash,
 } from 'lucide-react';
+import EnviarAnalisisDiscord from './EnviarAnalisisDiscord';
 
 // La importación solo trae mensajes a tablas protegidas; el análisis con IA es otro paso.
 const ETIQUETA_IA: Record<string, string> = {
@@ -228,10 +229,10 @@ export default function ImportarDiscordHistorico() {
             <MessageSquare className="w-3.5 h-3.5" /> Historial de Discord
           </span>
           <h2 className="text-lg font-bold text-foreground">
-            Importación histórica de Discord por canal y fechas
+            Historial de importaciones de Discord
           </h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Verifica permisos, previsualiza el volumen e importa mensajes históricos a tablas protegidas (sin llamar a Gemini ni publicar).
+            Revisa importaciones anteriores, cancélalas o reanúdalas, mira sus mensajes y envíalas al análisis. Incluye la verificación detallada de permisos del bot.
           </p>
         </div>
 
@@ -241,7 +242,7 @@ export default function ImportarDiscordHistorico() {
           className="btn-primary flex items-center gap-2"
         >
           <MessageSquare className="w-4 h-4" />
-          {abierto ? 'Ocultar panel de Discord' : 'Abrir importador de Discord'}
+          {abierto ? 'Ocultar historial' : 'Ver historial y opciones avanzadas'}
         </button>
       </div>
 
@@ -524,6 +525,10 @@ export default function ImportarDiscordHistorico() {
                   <span className="text-base font-bold text-foreground tabular-nums">{importacion.en_rango}</span>
                 </div>
               </div>
+
+              {(importacion.estado === 'completada' || importacion.estado === 'completada_con_limite' || importacion.estado === 'cancelada') && (
+                <EnviarAnalisisDiscord importacionId={importacion.id} />
+              )}
 
               {mensajes.length > 0 && (
                 <div className="pt-3 border-t border-border space-y-2">

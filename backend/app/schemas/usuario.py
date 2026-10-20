@@ -26,6 +26,8 @@ class UsuarioAdminUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     rol: Optional[Rol] = None
     is_active: Optional[bool] = None
+    # Contraseña temporal fijada por un administrador; la persona la cambia luego en Configuración.
+    new_password: Optional[str] = Field(default=None, min_length=10, max_length=72)
 
 
 class UsuarioUpdate(BaseModel):

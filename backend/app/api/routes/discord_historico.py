@@ -14,7 +14,11 @@ Prefijo: /api/v1/discord/historico
   POST /importaciones/{id}/cancelar     cancela (pendiente: al instante; ejecutando: entre páginas)
   POST /importaciones/{id}/reanudar     solo errores reanudables (límite de Discord o red)
   GET  /importaciones/{id}/mensajes     mensajes importados (paginado; protegido)
-Importar no llama a la IA, no publica, no responde en Discord ni cierra períodos.
+  GET  /importaciones/{id}/analisis     cuántos mensajes faltan por enviar al análisis y en cuántos lotes
+  POST /importaciones/{id}/analisis     los encola en el worker (IA): acción explícita, aparte de importar
+  GET  /estado                          si el servicio está configurado (sin consultar a Discord)
+Importar no llama a la IA, no publica, no responde en Discord ni cierra períodos. Enviar al análisis
+sí usa la IA (una llamada por bloque de mensajes) y cierra un período `discord-historico` por semana.
 """
 import asyncio
 import os
@@ -25,11 +29,13 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.core.acceso import Operador
+from backend.app.discord_historico import analisis
 from backend.app.discord_historico.cliente import ClienteDiscord, CredencialInvalida, ErrorDiscord
 from backend.app.discord_historico.configuracion import Configuracion, ConfiguracionInvalida
 from backend.app.discord_historico.fechas import RangoInvalido, normalizar_rango
 from backend.app.discord_historico.servicio import AccesoDenegado, previsualizar, requiere_confirmacion, verificar_acceso
-from backend.app.discord_historico.store import Conflicto, Store, huella_solicitud
+from backend.app.discord_historico.store import FINALES, Conflicto, Store, huella_solicitud
+from worker.store_postgres import ColaPostgres, ConflictoMensaje
 
 router = APIRouter(prefix="/api/v1/discord/historico", tags=["Discord: importación histórica"])
 
@@ -99,6 +105,19 @@ async def _con_cliente(funcion, config):
         return await asyncio.to_thread(ejecutar)
     except (RangoInvalido, AccesoDenegado, ErrorDiscord) as e:
         raise _traducir(e) from None
+
+
+@router.get("/estado")
+async def estado(_: Operador):
+    """Estado declarado por la configuración: no lee Discord ni el latido del runner (otro contenedor)."""
+    try:
+        config = Configuracion.desde_entorno()
+    except ConfiguracionInvalida:
+        return {"estado": "configuracion_invalida", "configurado": False, "servidores": 0, "canales": 0}
+    canales = sum(len(c) for c in config.autorizados.values())
+    configurado = config.configurada and canales > 0
+    return {"estado": "disponible" if configurado else "sin_configurar", "configurado": configurado,
+            "servidores": len(config.autorizados), "canales": canales}
 
 
 @router.post("/verificar")
@@ -222,3 +241,41 @@ async def mensajes(identificador: str, principal: Operador, limite: int = Query(
     await asyncio.to_thread(_obtener, identificador, principal)
     filas, total = await asyncio.to_thread(_store().mensajes, identificador, limite, desplazamiento)
     return {"total": total, "items": filas}
+
+
+def _resumen_analisis(identificador, principal):
+    fila = _obtener(identificador, principal)
+    candidatos, resumen = _store().para_analisis(identificador)
+    por_enviar = analisis.lotes(candidatos)
+    resumen.update(lotes=len(por_enviar), semanas=sorted({l["periodo_referencia"] for l in por_enviar}),
+                   origen=analisis.ORIGEN, importacion_finalizada=fila["estado"] in FINALES)
+    return fila, resumen, por_enviar
+
+
+@router.get("/importaciones/{identificador}/analisis")
+async def resumen_analisis(identificador: str, principal: Operador):
+    _, resumen, _ = await asyncio.to_thread(_resumen_analisis, identificador, principal)
+    return resumen
+
+
+@router.post("/importaciones/{identificador}/analisis", status_code=202)
+async def enviar_a_analisis(identificador: str, principal: Operador):
+    """Encola los mensajes que aún no están en el análisis. Repetirlo no duplica: lo ya enviado queda fuera
+    y un lote idéntico reutiliza su trabajo (clave derivada del contenido)."""
+    fila, resumen, por_enviar = await asyncio.to_thread(_resumen_analisis, identificador, principal)
+    if fila["estado"] not in FINALES:
+        raise _error(409, "importacion_en_curso", "Espera a que la importación termine antes de enviarla al análisis.")
+    cola = ColaPostgres(os.environ["DATABASE_URL"])
+    trabajos = []
+    try:
+        for lote in por_enviar:
+            ident, nuevo = await asyncio.to_thread(cola.encolar_detalle, lote)
+            trabajos.append({"procesamiento_id": ident, "periodo": lote["periodo_referencia"],
+                             "mensajes": len(lote["interacciones"]), "reutilizado": not nuevo})
+    except ConflictoMensaje as exc:
+        raise HTTPException(409, {"codigo": "conflicto_mensaje", "mensaje":
+                                  "Un mensaje ya existe en el análisis con otro contenido; no se envió el resto.",
+                                  "id_mensaje": exc.id_mensaje, "trabajos": trabajos}) from None
+    except ValueError as exc:
+        raise _error(422, "lote_invalido", str(exc)) from None
+    return {**resumen, "trabajos": trabajos}
