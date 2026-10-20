@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   obtenerPerfilActual,
   actualizarPerfilUsuario,
   describirError,
   UsuarioAuth,
+  cerrarSesion,
 } from '@/services/api';
 import {
   User,
@@ -18,12 +20,14 @@ import {
   Loader2,
   Palette,
   KeyRound,
+  LogOut,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import RutaProtegida from '@/components/RutaProtegida';
 import TokenOperador from '@/components/TokenOperador';
 
 export default function ConfiguracionPage() {
+  const router = useRouter();
   const [usuario, setUsuario] = useState<UsuarioAuth | null>(null);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -107,7 +111,7 @@ export default function ConfiguracionPage() {
   const aplicarTema = (nuevo: 'light' | 'dark') => {
     document.documentElement.dataset.theme = nuevo;
     try {
-      localStorage.setItem('theme', nuevo);
+      localStorage.setItem('communitylab-theme', nuevo);
     } catch {}
   };
 
@@ -116,10 +120,10 @@ export default function ConfiguracionPage() {
       <div className="flex min-h-screen w-full">
         <Sidebar />
 
-        <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
+        <main className="dashboard-content flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
           <header className="mb-8">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              Configuración de Cuenta y Seguridad
+              Configuración de cuenta y seguridad
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
               Administra tus credenciales de operador, actualiza tu correo o contraseña y gestiona tus permisos.
@@ -127,26 +131,26 @@ export default function ConfiguracionPage() {
           </header>
 
           {mensajeExito && (
-            <div className="mb-6 p-4 rounded-xl bg-success-soft border border-success/30 text-success text-sm font-medium flex items-center gap-2.5 max-w-4xl">
+            <div className="mb-6 p-4 rounded-xl bg-success-soft border border-success/30 text-success text-sm font-medium flex items-center gap-2.5">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{mensajeExito}</span>
             </div>
           )}
 
           {mensajeError && (
-            <div className="mb-6 p-4 rounded-xl bg-danger-soft border border-danger/30 text-danger text-sm font-medium flex items-center gap-2.5 max-w-4xl">
+            <div className="mb-6 p-4 rounded-xl bg-danger-soft border border-danger/30 text-danger text-sm font-medium flex items-center gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{mensajeError}</span>
             </div>
           )}
 
           {cargandoPerfil ? (
-            <div className="card p-12 flex items-center justify-center max-w-4xl">
+            <div className="card p-12 flex items-center justify-center">
               <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" />
               <span className="text-sm text-muted-foreground">Cargando perfil del operador…</span>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Tarjeta 1: Información del Perfil y Correo */}
               <form onSubmit={guardarDatosPersonales} className="card p-6 flex flex-col justify-between space-y-5">
                 <div className="space-y-4">
@@ -156,18 +160,18 @@ export default function ConfiguracionPage() {
                         <User className="w-5 h-5" />
                       </div>
                       <div>
-                        <h2 className="text-base font-bold text-foreground">Perfil del Operador</h2>
+                        <h2 className="text-base font-bold text-foreground">Perfil del operador</h2>
                         <p className="text-xs text-muted-foreground">
-                          ID #{usuario?.id ?? '—'} · Rol: {usuario?.rol ?? '—'}
+                          {usuario ? `ID #${usuario.id} · Rol: ${usuario.rol}` : 'Vista local · sin sesión de cuenta'}
                         </p>
                       </div>
                     </div>
-                    <span className="badge-success">Verificado</span>
+                    <span className={usuario ? "badge-success" : "badge-neutral"}>{usuario ? 'Verificado' : 'Vista local'}</span>
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Nombre Completo
+                      Nombre completo
                     </label>
                     <div className="relative">
                       <User className="absolute left-3.5 top-3 w-4 h-4 text-subtle-foreground" />
@@ -184,7 +188,7 @@ export default function ConfiguracionPage() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Correo Electrónico de Acceso
+                      Correo electrónico de acceso
                     </label>
                     <div className="relative">
                       <Mail className="absolute left-3.5 top-3 w-4 h-4 text-subtle-foreground" />
@@ -202,11 +206,11 @@ export default function ConfiguracionPage() {
 
                 <button
                   type="submit"
-                  disabled={guardandoPerfil}
+                  disabled={guardandoPerfil || !usuario}
                   className="btn-primary w-full flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{guardandoPerfil ? 'Guardando cambios…' : 'Actualizar Datos de Perfil'}</span>
+                  <span>{guardandoPerfil ? 'Guardando cambios…' : 'Actualizar datos del perfil'}</span>
                 </button>
               </form>
 
@@ -218,7 +222,7 @@ export default function ConfiguracionPage() {
                       <Lock className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-foreground">Seguridad y Contraseña</h2>
+                      <h2 className="text-base font-bold text-foreground">Seguridad y contraseña</h2>
                       <p className="text-xs text-muted-foreground">
                         Almacenamiento seguro con hash Bcrypt en PostgreSQL
                       </p>
@@ -227,7 +231,7 @@ export default function ConfiguracionPage() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Contraseña Actual
+                      Contraseña actual
                     </label>
                     <input
                       type="password"
@@ -241,7 +245,7 @@ export default function ConfiguracionPage() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Nueva Contraseña
+                      Nueva contraseña
                     </label>
                     <input
                       type="password"
@@ -256,7 +260,7 @@ export default function ConfiguracionPage() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Confirmar Nueva Contraseña
+                      Confirmar Nueva contraseña
                     </label>
                     <input
                       type="password"
@@ -272,11 +276,11 @@ export default function ConfiguracionPage() {
 
                 <button
                   type="submit"
-                  disabled={guardandoClave}
+                  disabled={guardandoClave || !usuario}
                   className="btn-secondary w-full flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <ShieldCheck className="w-4 h-4 text-primary" />
-                  <span>{guardandoClave ? 'Actualizando clave…' : 'Cambiar Contraseña'}</span>
+                  <span>{guardandoClave ? 'Actualizando clave…' : 'Cambiar contraseña'}</span>
                 </button>
               </form>
 
@@ -294,7 +298,7 @@ export default function ConfiguracionPage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Procesar pendientes, aprobar textos, generar banners e importar historial requieren el rol operador. El navegador no usa tokens de operador: los permisos dependen de tu sesión.
+                  Procesar pendientes, aprobar textos, generar banners e importar historial requieren el rol operador. Los permisos se verifican en el servidor según la sesión de la cuenta.
                 </p>
                 <TokenOperador />
               </div>
@@ -307,14 +311,14 @@ export default function ConfiguracionPage() {
                       <Palette className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-foreground">Apariencia e Interfaz</h2>
+                      <h2 className="text-base font-bold text-foreground">Apariencia e interfaz</h2>
                       <p className="text-xs text-muted-foreground">
                         Personaliza el tema visual de tu estación de trabajo
                       </p>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-                    Elige entre el modo claro de alto contraste editorial o el modo oscuro inspirado en centros de monitoreo nocturno.
+                    El modo oscuro usa fondo negro y paneles grises. Puedes cambiar el tema aquí; tu preferencia se guarda en este navegador.
                   </p>
                 </div>
 
@@ -324,19 +328,33 @@ export default function ConfiguracionPage() {
                     onClick={() => aplicarTema('light')}
                     className="btn-secondary justify-center cursor-pointer"
                   >
-                    Modo Claro
+                    Modo claro
                   </button>
                   <button
                     type="button"
                     onClick={() => aplicarTema('dark')}
                     className="btn-secondary justify-center cursor-pointer"
                   >
-                    Modo Oscuro
+                    Modo oscuro
                   </button>
                 </div>
               </div>
             </div>
           )}
+          <section className="card mt-6 p-6 flex flex-wrap items-center justify-between gap-4" aria-labelledby="sesion-titulo">
+            <div>
+              <h2 id="sesion-titulo" className="text-base font-bold text-foreground">Sesión</h2>
+              <p className="text-sm text-muted-foreground mt-1">Sal de tu cuenta en este dispositivo.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { cerrarSesion(); router.push('/login'); }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-danger/30 bg-danger-soft px-5 py-3 text-sm font-semibold text-danger hover:bg-danger hover:text-white transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger"
+            >
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              Cerrar sesión
+            </button>
+          </section>
         </main>
       </div>
     </RutaProtegida>

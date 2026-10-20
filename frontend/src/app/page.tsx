@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
+import { esVistaLocal } from '@/services/vistaLocal';
 import Link from 'next/link';
 import {
   obtenerMensajes,
@@ -14,10 +15,12 @@ import {
   DashboardKPIs,
 } from '@/services/api';
 import {
-  Loader2, Wifi, WifiOff, MessageSquare, Layers, CheckCircle2, AlertTriangle, Activity, UploadCloud,
+  Loader2, Wifi, WifiOff, MessageSquare, Layers, CheckCircle2, AlertTriangle, Activity, UploadCloud, ArrowRight,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
+import CommunityIntro from '@/components/CommunityIntro';
+import { esReferenciaPublicada } from '@/services/referenciaPublicada';
 
 const tonos = {
   info: { fondo: 'bg-info-soft', texto: 'text-info' },
@@ -46,6 +49,11 @@ export default function CommunityDashboard() {
   useEffect(() => {
     // Sesión verificada por el servidor (cookie HttpOnly); sin sesión, al login.
     let vigente = true;
+    // Vista sin sesión: solo `npm run dev` en loopback con NEXT_PUBLIC_VISTA_LOCAL=true (ver vistaLocal.ts).
+    if (esVistaLocal()) {
+      const timer = setTimeout(() => { if (vigente) setAutorizado(true); }, 0);
+      return () => { vigente = false; clearTimeout(timer); };
+    }
     obtenerSesion()
       .then((usuario) => {
         if (!vigente) return;
@@ -99,48 +107,31 @@ export default function CommunityDashboard() {
     );
   }
 
-  const sentimiento = kpis?.sentimiento;
   const tarjetas = kpis
     ? [
         {
-          titulo: 'Total mensajes',
+          titulo: 'Total de mensajes',
           valor: kpis.total_mensajes,
           icono: MessageSquare,
           tono: tonos.info,
-          pie: !sentimiento || sentimiento.estado === 'sin_datos' ? (
-            <span>Sentimiento: sin datos ({kpis.total_mensajes} sin analizar)</span>
-          ) : (
-            <div className="flex justify-between gap-2">
-              <span className="text-success font-medium">
-                +{kpis.distribucion_sentimiento.positivo} positivos
-              </span>
-              <span className="text-danger font-medium">
-                {kpis.distribucion_sentimiento.negativo} negativos
-              </span>
-              {sentimiento.sin_clasificar > 0 && <span>{sentimiento.sin_clasificar} sin analizar</span>}
-            </div>
-          ),
         },
         {
           titulo: 'Borradores por revisar',
           valor: kpis.borradores_pendientes,
           icono: Layers,
           tono: tonos.info,
-          pie: <span>Generados o revisados, de {kpis.activos_generados} contenidos en total</span>,
         },
         {
           titulo: 'Aprobados',
           valor: kpis.activos_aprobados,
           icono: CheckCircle2,
           tono: tonos.success,
-          pie: <span>Sin publicar: la publicación externa aún no está habilitada</span>,
         },
         {
           titulo: 'Alertas internas',
           valor: kpis.alertas_internas,
           icono: AlertTriangle,
           tono: kpis.alertas_internas > 0 ? tonos.danger : tonos.warning,
-          pie: <span>Mensajes con bloqueo detectado por el pipeline (no se publican)</span>,
         },
       ]
     : [];
@@ -149,12 +140,13 @@ export default function CommunityDashboard() {
     <div className="flex min-h-screen w-full">
       <Sidebar />
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
+      <main className="dashboard-content flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
+        <CommunityIntro />
         <header className="mb-8 flex flex-wrap justify-between items-end gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mb-1.5">
-              Centro de Operaciones
-            </h1>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mb-1.5">
+              Centro de operaciones
+            </h2>
             <p className="text-muted-foreground text-[15px]">
               Métricas e interacciones procesadas{ambito ? ` · ${ambito.origen} · ${ambito.periodo}` : ' · todos los lotes'}.
             </p>
@@ -190,11 +182,12 @@ export default function CommunityDashboard() {
             ) : conectado ? (
               <span className="badge-success py-1.5! px-3!">
                 <Wifi className="w-3.5 h-3.5" />
-                API conectada
+                {esReferenciaPublicada() ? 'Referencia cargada' : 'API conectada'}
               </span>
             ) : null}
           </div>
         </header>
+
 
         {cargando ? (
           <div className="card flex items-center justify-center h-72">
@@ -211,11 +204,11 @@ export default function CommunityDashboard() {
             className="space-y-8"
           >
             {kpis && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="dashboard-metrics grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 {tarjetas.map((t) => {
                   const Icono = t.icono;
                   return (
-                    <motion.div key={t.titulo} variants={itemAnim} className="card p-5">
+                    <article key={t.titulo} className="metric-card card p-5">
                       <div className="flex items-center gap-3 mb-3">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${t.tono.fondo}`}>
                           <Icono className={`w-5 h-5 ${t.tono.texto}`} />
@@ -223,8 +216,7 @@ export default function CommunityDashboard() {
                         <span className="text-sm font-medium text-muted-foreground">{t.titulo}</span>
                       </div>
                       <h3 className="text-3xl font-bold text-foreground tabular-nums">{t.valor}</h3>
-                      <div className="mt-3 text-xs text-subtle-foreground">{t.pie}</div>
-                    </motion.div>
+                    </article>
                   );
                 })}
               </div>
@@ -237,12 +229,20 @@ export default function CommunityDashboard() {
               <p className="text-xs text-subtle-foreground -mt-2 mb-4">
                 Ordenados por fecha del mensaje. Usa el selector para separar históricos, pruebas y actividad actual.
               </p>
+              {mensajes.length === 0 && (
+                <div className="overview-empty">
+                  <MessageSquare className="h-6 w-6 text-subtle-foreground" />
+                  <h3>Aquí comienza la conversación</h3>
+                  <p>{conectado === false ? 'Conecta el backend para consultar los mensajes y las métricas de tu comunidad.' : 'Importa tu primer lote para explorar los mensajes de tu comunidad.'}</p>
+                  <Link href="/ingesta" className="btn-secondary">Ir a ingesta <ArrowRight className="h-4 w-4" /></Link>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {mensajes.slice(0, 9).map((msg) => (
                   <motion.div
                     key={msg.id_mensaje}
                     variants={itemAnim}
-                    className="card p-5 flex flex-col justify-between transition-all duration-200 hover:shadow-md hover:border-border-strong hover:-translate-y-0.5"
+                    className="message-card card p-5 flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex justify-between items-start mb-4">

@@ -79,9 +79,9 @@ export default function ProcesarPendientes() {
   const terminados = solicitud?.lotes.filter(l => l.trabajo_estado === 'terminado' && l.activos > 0) ?? [];
 
   return (
-    <section aria-live="polite" className="card p-5 sm:p-6 min-w-0">
+    <section aria-live="polite" className="discord-pending-card card p-5 sm:p-6 min-w-0">
       <h2 className="text-[15px] font-semibold text-foreground mb-1 flex items-center gap-2">
-        <MessagesSquare className="w-4 h-4 text-primary" /> Discord: procesar pendientes
+        <MessagesSquare className="w-4 h-4 text-primary" /> Procesar mensajes pendientes de Discord
       </h2>
       <p className="text-sm text-muted-foreground">
         Genera borradores con los mensajes nuevos sin cerrar la semana. Las dudas y alertas del bot siguen en tiempo real.

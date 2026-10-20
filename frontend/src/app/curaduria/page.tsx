@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { listarActivos, obtenerDetalleActivo, actualizarActivo, describirError, Activo, EstadoActivo } from '@/services/api';
 import Sidebar from '@/components/Sidebar';
+import { esReferenciaPublicada } from '@/services/referenciaPublicada';
 import PanelBanner from '@/components/PanelBanner';
 import RutaProtegida from '@/components/RutaProtegida';
 
@@ -43,6 +44,7 @@ export default function Page() {
 
 function CuraduriaPage() {
   const parametros = useSearchParams();
+  const soloReferencia = esReferenciaPublicada();
   const [activos, setActivos] = useState<Activo[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedActivo, setSelectedActivo] = useState<Activo | null>(null);
@@ -111,7 +113,7 @@ function CuraduriaPage() {
 
     if (nuevoEstado === 'aprobado' && tieneConsentimiento) {
       if (!editCopy.toLowerCase().includes('aprobación de demostración')) {
-        alert('Política Ética: Como tienes consentimiento, debes incluir la frase «aprobación de demostración» dentro del texto.');
+        alert('Política ética: Como tienes consentimiento, debes incluir la frase «aprobación de demostración» dentro del texto.');
         return;
       }
     }
@@ -162,7 +164,8 @@ function CuraduriaPage() {
                 <button
                   key={st}
                   onClick={() => { setFiltroEstado(st); setPage(1); setLoadingList(true); }}
-                  className={filtroEstado === st ? 'badge-primary' : 'badge-neutral hover:border-border-strong'}
+                  aria-pressed={filtroEstado === st}
+                  className="filtro-borrador"
                 >
                   {st === '' ? 'Todos' : st.charAt(0).toUpperCase() + st.slice(1)}
                 </button>
@@ -269,10 +272,11 @@ function CuraduriaPage() {
                     {isDirty && <span className="badge-warning">Cambios sin guardar</span>}
                   </div>
                   <textarea
+                    readOnly={soloReferencia}
                     value={editCopy}
                     onChange={(e) => { setEditCopy(e.target.value); setIsDirty(true); }}
-                    className="w-full flex-1 bg-transparent border-none outline-none text-sm text-foreground resize-none font-mono leading-relaxed placeholder:text-subtle-foreground"
-                    placeholder="Redacta el contenido..."
+                    className="w-full flex-1 bg-transparent border-none outline-none text-sm text-foreground resize-none leading-relaxed placeholder:text-subtle-foreground"
+                    placeholder="Redacta el contenido…"
                   />
                 </div>
 
@@ -291,6 +295,7 @@ function CuraduriaPage() {
                       <label className="flex items-center gap-3 cursor-pointer w-fit">
                         <input
                           type="checkbox"
+                          disabled={soloReferencia}
                           checked={tieneConsentimiento}
                           onChange={(e) => setTieneConsentimiento(e.target.checked)}
                           className="w-4 h-4 accent-primary"
@@ -300,6 +305,7 @@ function CuraduriaPage() {
 
                       {!tieneConsentimiento && (
                         <button
+                          disabled={soloReferencia}
                           onClick={() => {
                             const autorOriginal = selectedActivo?.fuentes_detalle?.[0]?.autor;
                             if (!autorOriginal) return;
@@ -319,37 +325,38 @@ function CuraduriaPage() {
                       Notas del curador
                     </label>
                     <textarea
+                      readOnly={soloReferencia}
                       value={comentario}
                       onChange={(e) => { setComentario(e.target.value); setIsDirty(true); }}
-                      placeholder="Justificación del ajuste..."
+                      placeholder="Justificación del ajuste…"
                       className="input h-24 resize-none"
                     />
                   </div>
                 </div>
 
-                <PanelBanner
+                {soloReferencia ? <section className="card p-5"><h2 className="text-sm font-semibold">Banner del contenido</h2><p className="text-xs text-muted-foreground mt-2">El flujo publicado permite generar y revisar banners después de aprobar el texto. Esta muestra local es de solo lectura y no incluye los archivos de imagen.</p></section> : <PanelBanner
                   idActivo={selectedActivo.id_activo}
                   estadoActivo={selectedActivo.estado}
                   version={selectedActivo.version}
-                />
+                />}
               </div>
 
               {/* Barra de acciones */}
               <div className="px-4 sm:px-6 py-4 border-t border-border bg-surface flex justify-between items-center shrink-0 gap-3 flex-wrap">
                 <div className="flex flex-wrap items-center gap-3">
-                  <button disabled={saving || !isDirty} onClick={() => handleUpdate()} className="btn-secondary">
+                  <button disabled={soloReferencia || saving || !isDirty} onClick={() => handleUpdate()} className="btn-secondary">
                     <Save className="w-4 h-4" /> Guardar texto
                   </button>
                   {/* AQUÍ ESTABA TokenOperador, ya lo quitamos para usar JWT automático */}
                 </div>
                 <div className="flex gap-2.5 flex-wrap">
-                  <button disabled={saving || selectedActivo.estado === 'rechazado'} onClick={() => handleUpdate('rechazado')} className="btn-danger-soft">
+                  <button disabled={soloReferencia || saving || selectedActivo.estado === 'rechazado'} onClick={() => handleUpdate('rechazado')} className="btn-danger-soft">
                     <XCircle className="w-4 h-4" /> Rechazar
                   </button>
-                  <button disabled={saving || selectedActivo.estado === 'revisado'} onClick={() => handleUpdate('revisado')} className="btn-info-soft">
+                  <button disabled={soloReferencia || saving || selectedActivo.estado === 'revisado'} onClick={() => handleUpdate('revisado')} className="btn-info-soft">
                     <Clock className="w-4 h-4" /> Marcar revisado
                   </button>
-                  <button disabled={saving || selectedActivo.estado === 'aprobado'} onClick={() => handleUpdate('aprobado')} className="btn-success">
+                  <button disabled={soloReferencia || saving || selectedActivo.estado === 'aprobado'} onClick={() => handleUpdate('aprobado')} className="btn-success">
                     <CheckCircle2 className="w-4 h-4" /> Aprobar definitivo
                   </button>
                 </div>
