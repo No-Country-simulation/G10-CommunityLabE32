@@ -316,6 +316,26 @@ def test_administrador_crea_cuentas_y_el_token_de_operador_no_administra(entorno
     assert c.get("/api/mensajes").status_code == 200
 
 
+def test_administrador_restablece_contrasena_revoca_sesiones_y_valida_largo(entorno, c):
+    crear_cuenta(entorno, "admin@example.com", rol="administrador")
+    uid = crear_cuenta(entorno, "operadora@example.com")
+    ha, admin = entrar(c, "admin@example.com")
+    _, op = entrar(c, "operadora@example.com")
+    como(c, admin)
+    assert c.patch(f"/api/auth/usuarios/{uid}", json={"new_password": "corta"}, headers=ha).status_code == 422
+    temporal = "temporal-" + CONTRASENA
+    r = c.patch(f"/api/auth/usuarios/{uid}", json={"new_password": temporal}, headers=ha)
+    assert r.status_code == 200 and "password" not in r.text and "hashed" not in r.text
+    como(c, op)
+    assert c.get("/api/auth/sesion").status_code == 401                    # sesiones previas revocadas
+    como(c, None)
+    assert c.post("/api/auth/login", data={"username": "operadora@example.com", "password": CONTRASENA}).status_code == 401
+    entrar(c, "operadora@example.com", temporal)
+    assert c.get("/api/mensajes").status_code == 200
+    ho, _ = entrar(c, "operadora@example.com", temporal)
+    assert c.patch(f"/api/auth/usuarios/{uid}", json={"new_password": temporal}, headers=ho).status_code == 403
+
+
 def test_cambiar_contrasena_exige_la_actual_y_revoca_otras_sesiones(entorno, c):
     crear_cuenta(entorno, "operadora@example.com")
     _, otra = entrar(c, "operadora@example.com")

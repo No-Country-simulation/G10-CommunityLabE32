@@ -165,12 +165,16 @@ async def crear_usuario(datos: UsuarioCreadoPorAdmin, _: Administrador, db: Asyn
 @router.patch("/usuarios/{usuario_id}", response_model=UsuarioResponse)
 async def actualizar_usuario(usuario_id: int, datos: UsuarioAdminUpdate, principal: Administrador,
                              db: AsyncSession = Depends(get_db)):
-    """Cambiar el rol o deshabilitar revoca todas las sesiones de esa cuenta."""
+    """Cambiar el rol, deshabilitar o restablecer la contraseña revoca todas las sesiones de esa cuenta."""
     if usuario_id == principal.sesion.usuario_id:
         raise _error(409, "no_modificable", "No puede cambiar su propio rol ni deshabilitar su propia cuenta.")
     usuario = await db.get(Usuario, usuario_id)
     if usuario is None:
         raise _error(404, "usuario_no_encontrado", "Usuario no encontrado.")
+    if datos.new_password is not None:
+        if not auth.contrasena_valida(datos.new_password):
+            raise _error(422, "contrasena_invalida", "La contraseña debe tener entre 10 caracteres y 72 bytes.")
+        usuario.hashed_password = auth.hash_contrasena(datos.new_password)
     if datos.rol is not None:
         usuario.rol = datos.rol
     if datos.is_active is not None:

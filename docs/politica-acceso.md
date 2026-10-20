@@ -56,7 +56,8 @@ de datos enviados por el cliente.
   docker compose exec api python -m backend.scripts.crear_usuario --email <correo> --rol administrador
   ```
   Después, el administrador crea cuentas con `POST /api/auth/usuarios` y las gestiona con
-  `PATCH /api/auth/usuarios/{id}` (rol y habilitación).
+  `PATCH /api/auth/usuarios/{id}` (rol, habilitación y contraseña temporal), también desde la pantalla
+  **Usuarios** del panel (solo administradores).
   - **Verificación.** Antes de dar por terminado un despliegue, ejecutar
     `python -m backend.scripts.verificar_acceso --email <correo>`. Hace login, consulta la sesión y una
     lectura del rol, e imprime solo los códigos.

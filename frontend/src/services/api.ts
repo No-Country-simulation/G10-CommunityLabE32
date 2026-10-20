@@ -320,8 +320,6 @@ export const actualizarActivo = async (
 
 // Semántica documentada en docs/metricas-panel.md.
 export interface DashboardKPIs {
-  /** Número de mensajes sin responder; lo proporciona el backend cuando esté disponible. */
-  mensajes_sin_responder?: number;
   total_mensajes: number;
   mensajes_por_tipo: Record<string, number>;
   distribucion_sentimiento: Record<Sentimiento, number>;
@@ -344,10 +342,11 @@ export interface Ambito {
   ultimo?: string | null;
 }
 
-// El contador consulta el backend local incluso cuando las métricas usan una captura.
-export const obtenerMensajesSinResponder = async (): Promise<number | undefined> => {
+// Campana: mensajes con alerta interna real del análisis (frustración, bloqueo, etc.). El backend no
+// registra respuestas en Discord, así que no existe un conteo de «sin responder».
+export const obtenerAlertasInternas = async (): Promise<number> => {
   const response = await apiClient.get<DashboardKPIs>('/dashboard/kpis', { timeout: 10000 });
-  return response.data.mensajes_sin_responder;
+  return response.data.alertas_internas;
 };
 
 export const obtenerKPIs = async (ambito?: Ambito | null): Promise<DashboardKPIs> => {
@@ -712,6 +711,70 @@ export const obtenerMensajesImportacionDiscord = async (
     `/v1/discord/historico/importaciones/${encodeURIComponent(id)}/mensajes`,
     { params: { limite, desplazamiento } }
   );
+  return response.data;
+};
+
+export interface EstadoDiscordHistorico {
+  estado: 'disponible' | 'sin_configurar' | 'configuracion_invalida';
+  configurado: boolean;
+  servidores: number;
+  canales: number;
+}
+
+export const obtenerEstadoDiscordHistorico = async (): Promise<EstadoDiscordHistorico> => {
+  const response = await apiClient.get('/v1/discord/historico/estado');
+  return response.data;
+};
+
+export const ESTADOS_FINALES_DISCORD: EstadoImportacionDiscord[] = ['completada', 'completada_con_limite', 'cancelada', 'error'];
+
+export interface ResumenAnalisisDiscord {
+  total: number;
+  ya_en_analisis: number;
+  sin_contenido: number;
+  pendientes: number;
+  lotes: number;
+  semanas: string[];
+  origen: string;
+  importacion_finalizada: boolean;
+  trabajos?: { procesamiento_id: string; periodo: string; mensajes: number; reutilizado: boolean }[];
+}
+
+export const obtenerResumenAnalisisDiscord = async (id: string): Promise<ResumenAnalisisDiscord> => {
+  const response = await apiClient.get(`/v1/discord/historico/importaciones/${encodeURIComponent(id)}/analisis`);
+  return response.data;
+};
+
+export const enviarImportacionAAnalisis = async (id: string): Promise<ResumenAnalisisDiscord> => {
+  const response = await apiClient.post(`/v1/discord/historico/importaciones/${encodeURIComponent(id)}/analisis`);
+  return response.data;
+};
+
+// --- Administración de cuentas (solo rol administrador) ---
+export interface UsuarioAdmin extends UsuarioAuth {
+  created_at: string;
+}
+
+export const listarUsuarios = async (): Promise<UsuarioAdmin[]> => {
+  const response = await apiClient.get('/auth/usuarios');
+  return response.data;
+};
+
+export const crearUsuarioAdmin = async (datos: {
+  email: string;
+  full_name?: string;
+  password: string;
+  rol: RolUsuario;
+}): Promise<UsuarioAdmin> => {
+  const response = await apiClient.post('/auth/usuarios', datos);
+  return response.data;
+};
+
+export const actualizarUsuarioAdmin = async (
+  id: number,
+  datos: { rol?: RolUsuario; is_active?: boolean; new_password?: string },
+): Promise<UsuarioAdmin> => {
+  const response = await apiClient.patch(`/auth/usuarios/${id}`, datos);
   return response.data;
 };
 

@@ -844,3 +844,59 @@ def test_runner_operativo_solo_es_sano_si_sus_ciclos_funcionan(tmp_path, monkeyp
         runner.main()
     salidas = []
     assert runner.salud(str(latido), 0, salida=salidas.append) == 0 and salidas == ["operativo"]
+
+
+# ---------------------------------------------------------------- Estado y envío al análisis
+def test_estado_del_servicio_sin_consultar_discord(entorno, monkeypatch):
+    api = entorno["api"]
+    assert api.get(f"{BASE}/estado").status_code == 401
+    r = api.get(f"{BASE}/estado", headers=H)
+    assert r.status_code == 200 and r.json() == {"estado": "disponible", "configurado": True, "servidores": 1, "canales": 3}
+    assert TOKEN_FALSO not in r.text
+    monkeypatch.delenv("DISCORD_HISTORICO_TOKEN")
+    assert api.get(f"{BASE}/estado", headers=H).json()["estado"] == "sin_configurar"
+    monkeypatch.setenv("DISCORD_HISTORICO_AUTORIZADOS", "no-es-json")
+    assert api.get(f"{BASE}/estado", headers=H).json()["estado"] == "configuracion_invalida"
+    assert entorno["d"].peticiones == []
+
+
+def test_conversion_identica_al_lector_en_vivo():
+    from backend.app.discord_historico.analisis import interaccion
+    from pipelines.communitylab.normalizador_discord import ESQUEMA_FUENTE, normalizar_evento
+    fecha = datetime(2026, 9, 5, 14, 30, 15, 123000, tzinfo=UTC)
+    vivo = normalizar_evento({"schema_version": ESQUEMA_FUENTE, "message_id": "1234567890123456789", "guild_id": GUILD,
+                              "channel_id": CANAL, "author_id": "700000000000000001",
+                              "created_at": fecha.isoformat(), "content": "  hola comunidad  "})
+    historico = interaccion({"id_mensaje": "discord-1234567890123456789", "autor_id": "700000000000000001",
+                             "canal_id": CANAL, "fecha": fecha, "texto": "  hola comunidad  "})
+    assert historico == vivo
+
+
+def test_enviar_a_analisis_por_semana_sin_duplicar_ni_llamar_a_gemini(entorno):
+    api, d = entorno["api"], entorno["d"]
+    msgs = sembrar(d, datetime(2026, 9, 1, 12, tzinfo=UTC), 10, paso=timedelta(days=2))   # semanas W36 a W38
+    d.msg(datetime(2026, 9, 2, 12, tzinfo=UTC), "")                                          # sin contenido
+    with entorno["cola"].conectar() as c:   # uno ya llegó por el lector en vivo: lo procesa su propio lote
+        c.execute("""INSERT INTO mensajes (id_mensaje, autor, fecha, canal, tipo, texto)
+            VALUES (%s,'a','2026-09-01T12:00:00+00:00','discord_x','sin_clasificar','hola')""", (f"discord-{msgs[0]['id']}",))
+    imp = crear(entorno, hasta="2026-09-22").json()["importacion"]
+    ruta = f"{BASE}/importaciones/{imp['id']}/analisis"
+    assert api.post(ruta, headers=H).status_code == 409                       # la importación aún no termina
+    correr_runner(entorno)
+    resumen = api.get(ruta, headers=H).json()
+    assert resumen["ya_en_analisis"] == 1 and resumen["pendientes"] == 9
+    assert resumen["semanas"] == ["2026-W36", "2026-W37", "2026-W38"] and resumen["lotes"] == 3
+    r = api.post(ruta, headers=H)
+    assert r.status_code == 202, r.text
+    trabajos = r.json()["trabajos"]
+    assert [t["periodo"] for t in trabajos] == resumen["semanas"] and sum(t["mensajes"] for t in trabajos) == 9
+    with entorno["cola"].conectar() as c:
+        entradas = [f["entrada"] for f in c.execute("SELECT entrada FROM trabajos_worker ORDER BY entrada->>'periodo_referencia'")]
+        en_mensajes = c.execute("SELECT count(*) n FROM mensajes").fetchone()["n"]
+    assert len(entradas) == 3 and all(e["origen_comunidad"] == "discord-historico" and e["cierre_periodo"] for e in entradas)
+    assert en_mensajes == 10
+    # Repetir no encola nada nuevo: todo está ya en el análisis.
+    otra = api.post(ruta, headers=H).json()
+    assert otra["pendientes"] == 0 and otra["trabajos"] == [] and otra["ya_en_analisis"] == 10
+    assert fila(entorno, "SELECT count(*) n FROM trabajos_worker")["n"] == 3
+    assert api.get(f"{BASE}/importaciones/imp-inexistente/analisis", headers=H).status_code == 404

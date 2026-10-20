@@ -117,8 +117,23 @@ tanto en las peticiones como en las respuestas. **Nunca los conviertas a número
 | `POST` | `/importaciones/{id}/cancelar` | 200 |
 | `POST` | `/importaciones/{id}/reanudar` | 200 / 409 |
 | `GET` | `/importaciones/{id}/mensajes?limite=50&desplazamiento=0` | 200: mensajes importados (`limite` 1–200) |
+| `GET` | `/importaciones/{id}/analisis` | 200: cuántos faltan por enviar al análisis, en cuántos lotes y semanas |
+| `POST` | `/importaciones/{id}/analisis` | **202**: los encola en el worker (IA) / 409 si la importación no terminó |
+| `GET` | `/estado` | 200: `disponible`, `sin_configurar` o `configuracion_invalida` (no consulta Discord) |
 
-No existe ningún endpoint para procesar con IA, publicar o borrar importaciones.
+No existe ningún endpoint para publicar o borrar importaciones.
+
+### Envío al análisis
+
+Importar **no** usa la IA. Enviar al análisis es un paso aparte y explícito:
+- Solo entra lo que aún **no está en `mensajes`**: lo que llegó por el lector en vivo lo procesa su propio
+  lote, y los mensajes sin texto se omiten.
+- Cada mensaje se convierte igual que en el lector en vivo (`discord-<id>`, autor = id del autor,
+  canal = `discord_<canal_id>`), así que no hay conflictos con la ingesta en vivo.
+- Los lotes usan el origen `discord-historico` y un período por semana ISO (`2026-W36`); el último lote de
+  cada semana cierra ese período (alertas y borradores). Máximo 500 mensajes por lote.
+- Repetirlo no duplica: lo enviado ya está en `mensajes` y un lote idéntico reutiliza su trabajo.
+- Consume cuota de Gemini (una llamada por bloque de mensajes, como cualquier lote).
 
 ### 3.1 `POST /verificar`
 
