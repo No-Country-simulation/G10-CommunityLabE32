@@ -85,16 +85,51 @@ def tarea_de(peticion):
     return "analizar" if "es_logro" in item else "puntuar"
 
 
-def responder_con_senales(senales, copy="Borrador generado para revisión editorial."):
-    """Respuestas válidas para el grafo completo a partir de señales por ID."""
+def originales_del_bloque(contexto, interacciones, coincide=None):
+    """IDs originales de un bloque enviado con alias (m01, m02…), como los vería un modelo real.
+
+    El modelo solo recibe alias y contenido. El grafo ordena el lote por ID (validar_lote) y lo parte en
+    tramos contiguos: se busca el tramo cuyo contenido (texto, canal si viaja y, con `coincide`, otros
+    campos como las señales de puntuar) coincide en orden con el contexto. Debe haber exactamente uno:
+    con textos repetidos y ambiguos el doble falla en vez de adivinar, para no ocultar errores de mapeo.
+    """
+    ordenadas = sorted(interacciones, key=lambda m: m["id"])
+
+    def igual(item, m):
+        return (item["texto"].strip() == m["texto"].strip()
+                and ("canal" not in item or item["canal"] == m["canal"])
+                and (coincide is None or coincide(item, m["id"])))
+    candidatos = [ordenadas[k:k + len(contexto)] for k in range(len(ordenadas) - len(contexto) + 1)
+                  if all(igual(item, m) for item, m in zip(contexto, ordenadas[k:k + len(contexto)]))]
+    if len(candidatos) != 1:
+        raise AssertionError(f"El contexto coincide con {len(candidatos)} tramos del lote (se esperaba 1)")
+    return {item["id"]: m["id"] for item, m in zip(contexto, candidatos[0])}
+
+
+def responder_con_senales(senales, copy="Borrador generado para revisión editorial.", interacciones=None):
+    """Respuestas válidas para el grafo completo a partir de señales por ID original.
+
+    Responde con los alias que recibe (como un modelo real); `interacciones` (las del lote, en orden)
+    permite traducir cada alias al ID original para elegir sus señales.
+    """
     def responder(peticion):
         tarea = tarea_de(peticion)
         if tarea == "generar":
             return ok({"copy": copy})
-        ids = [m["id"] for m in json.loads(peticion["cuerpo"]["contents"][0]["parts"][0]["text"])]
+        contexto = json.loads(peticion["cuerpo"]["contents"][0]["parts"][0]["text"])
+        if all(m["id"] in senales for m in contexto):
+            originales = {m["id"]: m["id"] for m in contexto}
+        else:
+            if interacciones is None:
+                raise AssertionError("responder_con_senales necesita las interacciones del lote para resolver alias")
+            def coincide(item, original):
+                # puntuar envía las señales del análisis: desambiguan textos repetidos.
+                return "senales" not in item or item["senales"].get("tema") == " ".join(
+                    str(senales[original]["tema"]).lower().split())
+            originales = originales_del_bloque(contexto, list(interacciones), coincide)
         if tarea == "analizar":
-            return ok({"resultados": [{"id": i, **{k: senales[i][k] for k in
+            return ok({"resultados": [{"id": a, **{k: senales[o][k] for k in
                        ("es_logro", "es_duda", "es_bloqueo", "tema")},
-                       "sentimiento": senales[i].get("sentimiento", "neutral")} for i in ids]})
-        return ok({"resultados": [{"id": i, "relevancia": senales[i]["relevancia"]} for i in ids]})
+                       "sentimiento": senales[o].get("sentimiento", "neutral")} for a, o in originales.items()]})
+        return ok({"resultados": [{"id": a, "relevancia": senales[o]["relevancia"]} for a, o in originales.items()]})
     return responder

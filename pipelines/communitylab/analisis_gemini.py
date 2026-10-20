@@ -2,9 +2,19 @@
 
 Reemplazan a analizar_real/puntuar_real de OpenRouter. Procesan el lote por bloques
 (GEMINI_TAMANO_BLOQUE) y exigen exactamente un resultado por ID del bloque.
+
+Alias por bloque: Gemini nunca recibe los IDs originales (p. ej. «discord-<snowflake>», 27
+caracteres). Cada bloque usa alias cortos «m01», «m02»… en el contexto y en el enum del esquema, y
+la respuesta se traduce de vuelta con el mapa de ese bloque, por alias y nunca por posición. Un
+esquema con muchos IDs largos en el enum y un array de longitud fija es rechazado por el proveedor
+(HTTP 400 INVALID_ARGUMENT; trabajo 7e2f5d03 del 19-10-2026, reproducido con datos ficticios). Los
+IDs originales no salen de la aplicación ni cambian: los alias solo existen dentro de una llamada.
 """
 import json
 import math
+import re
+
+from .gemini import RespuestaInvalidaIA, RespuestaTruncadaIA
 
 SISTEMA_ANALISIS = (
     "Eres analista de una comunidad tecnológica. Clasifica cada mensaje en español.\n"
@@ -31,6 +41,12 @@ SISTEMA_PUNTUACION = (
 )
 MAX_TEMA = 80
 ENUM_IDS_MAXIMO = 50  # Esquemas muy grandes pueden ser rechazados; la validación local es la garantía.
+# Presupuesto de salida por bloque (ver _bloque_efectivo), calibrado con usageMetadata real del 19-10-2026
+# (gemini-3.5-flash-lite, 19 mensajes, sin tokens de razonamiento informados): analizar ≈ 68 tokens por
+# resultado y puntuar ≈ 19. Se estiman con margen (80 y 40) más una reserva fija por llamada. Con
+# maxOutputTokens=2048 resultan bloques de 22 (analizar) y 40 (puntuar, acotado por GEMINI_TAMANO_BLOQUE).
+TOKENS_POR_RESULTADO = {"analizar": 80, "puntuar": 40}
+TOKENS_RESERVA = {"analizar": 256, "puntuar": 256}
 
 
 def _bloques(interacciones, tamano):
@@ -45,14 +61,33 @@ def _ids(bloque):
     return ids
 
 
+def _alias(ids):
+    """(alias en el mismo orden que ids, mapa alias -> ID original). Cortos y únicos dentro del bloque."""
+    ancho = max(2, len(str(len(ids))))
+    alias = [f"m{n:0{ancho}d}" for n in range(1, len(ids) + 1)]
+    return alias, dict(zip(alias, ids))
+
+
+_FORMATO_ALIAS = re.compile(r"m\d{2,}")
+
+
+def _restaurar(mapa_por_alias, originales):
+    """Mapa por alias validado -> mapa por ID original. Rechaza cualquier clave que no sea un alias del bloque."""
+    if any(not isinstance(a, str) or not _FORMATO_ALIAS.fullmatch(a) or a not in originales for a in mapa_por_alias):
+        raise ValueError("Alias desconocido o con formato incorrecto")
+    return {originales[a]: v for a, v in mapa_por_alias.items()}
+
+
 def _esquema(ids, propiedades):
+    """Esquema de respuesta por bloque. Sin minItems/maxItems: un array de longitud fija combinado con
+    el enum de IDs volvió el esquema demasiado complejo para el proveedor (400 con 40 alias). La
+    cardinalidad exacta (un resultado por ID, sin duplicados ni faltantes) la garantiza _por_id."""
     id_esquema = {"type": "string"}
     if len(ids) <= ENUM_IDS_MAXIMO:
         id_esquema["enum"] = list(ids)
     item = {"type": "object", "properties": {"id": id_esquema, **propiedades},
             "required": ["id", *propiedades], "additionalProperties": False}
-    return {"type": "object", "properties": {"resultados": {"type": "array", "items": item,
-            "minItems": len(ids), "maxItems": len(ids)}},
+    return {"type": "object", "properties": {"resultados": {"type": "array", "items": item}},
             "required": ["resultados"], "additionalProperties": False}
 
 
@@ -71,23 +106,54 @@ def _por_id(objeto, ids, campos, opcionales=()):
     return mapa
 
 
+def _bloque_efectivo(cliente, tarea):
+    """Tamaño de bloque que cabe en el límite de salida configurado (sin subirlo), acotado por GEMINI_TAMANO_BLOQUE.
+
+    Con 40 resultados por bloque, analizar superó maxOutputTokens=2048 (MAX_TOKENS, 19-10-2026). El límite por
+    llamada sigue siendo cliente.cfg.max_tokens_salida (máximo explícito); se reservan TOKENS_RESERVA para el
+    razonamiento y el envoltorio JSON, y cada resultado se estima en TOKENS_POR_RESULTADO[tarea].
+    """
+    disponible = cliente.cfg.max_tokens_salida - TOKENS_RESERVA[tarea]
+    return max(1, min(cliente.cfg.tamano_bloque, disponible // TOKENS_POR_RESULTADO[tarea]))
+
+
+def _por_bloques(interacciones, cliente, tarea, llamar):
+    """Ejecuta llamar(bloque) por bloques; si un bloque se trunca, lo divide en dos UNA sola vez.
+
+    Sin recursión ni repetición de bloques completados: cada bloque original se divide como máximo una vez
+    y una mitad truncada termina el trabajo con RespuestaInvalidaIA (sin resultados parciales, porque el
+    nodo falla entero). Cada petición sigue pasando por el presupuesto de llamadas, tokens y tiempo.
+    """
+    salida = {}
+    pendientes = [(b, False) for b in _bloques(interacciones, _bloque_efectivo(cliente, tarea))]
+    while pendientes:
+        bloque, ya_dividido = pendientes.pop(0)
+        try:
+            salida.update(llamar(bloque))
+        except RespuestaTruncadaIA:
+            if ya_dividido or len(bloque) < 2:
+                raise RespuestaInvalidaIA("truncado") from None
+            mitad = len(bloque) // 2
+            pendientes[0:0] = [(bloque[:mitad], True), (bloque[mitad:], True)]
+    return salida
+
+
 def analizar(lote, cliente):
     """Mapa por ID con es_logro, es_duda, es_bloqueo (bool), tema (str) y, si es válido, sentimiento."""
-    salida = {}
-    for bloque in _bloques(lote["interacciones"], cliente.cfg.tamano_bloque):
-        ids = _ids(bloque)
-        contexto = [{"id": m["id"], "canal": m["canal"], "texto": m["texto"],
-                     **({"tipo_sugerido": m["tipo"]} if m.get("tipo") else {})} for m in bloque]
-        esquema = _esquema(ids, {"es_logro": {"type": "boolean"}, "es_duda": {"type": "boolean"},
-                                 "es_bloqueo": {"type": "boolean"}, "tema": {"type": "string"},
-                                 "sentimiento": {"type": "string", "enum": list(SENTIMIENTOS)}})
+    def llamar(bloque):
+        alias, originales = _alias(_ids(bloque))
+        contexto = [{"id": a, "canal": m["canal"], "texto": m["texto"],
+                     **({"tipo_sugerido": m["tipo"]} if m.get("tipo") else {})} for a, m in zip(alias, bloque)]
+        esquema = _esquema(alias, {"es_logro": {"type": "boolean"}, "es_duda": {"type": "boolean"},
+                                   "es_bloqueo": {"type": "boolean"}, "tema": {"type": "string"},
+                                   "sentimiento": {"type": "string", "enum": list(SENTIMIENTOS)}})
 
-        def validar(objeto, ids=ids):
+        def validar(objeto):
             resultado = {}
             # El sentimiento es secundario: si falta o sale del contrato, ese mensaje queda
             # "sin analizar" (nunca neutral) y el lote sigue; las señales sí son obligatorias.
-            for i, r in _por_id(objeto, ids, ("es_logro", "es_duda", "es_bloqueo", "tema"),
-                                ("sentimiento",)).items():
+            por_alias = _por_id(objeto, alias, ("es_logro", "es_duda", "es_bloqueo", "tema"), ("sentimiento",))
+            for i, r in _restaurar(por_alias, originales).items():
                 if any(type(r[k]) is not bool for k in ("es_logro", "es_duda", "es_bloqueo")):
                     raise ValueError("Las señales deben ser booleanos")
                 if not isinstance(r["tema"], str) or len(r["tema"]) > MAX_TEMA:
@@ -101,29 +167,30 @@ def analizar(lote, cliente):
                     resultado[i]["sentimiento"] = r["sentimiento"]
             return resultado
 
-        salida.update(cliente.generar_json("analizar", SISTEMA_ANALISIS,
-                                           json.dumps(contexto, ensure_ascii=False), esquema, validar))
-    return salida
+        return cliente.generar_json("analizar", SISTEMA_ANALISIS, json.dumps(contexto, ensure_ascii=False),
+                                    esquema, validar, escalar_si_trunca=False)
+    return _por_bloques(lote["interacciones"], cliente, "analizar", llamar)
 
 
 def puntuar(peticion, cliente):
     """Mapa por ID con relevancia finita entre 0 y 1."""
-    salida = {}
     analisis = peticion["analisis"]
-    for bloque in _bloques(peticion["lote"]["interacciones"], cliente.cfg.tamano_bloque):
-        ids = _ids(bloque)
-        contexto = [{"id": m["id"], "texto": m["texto"], "senales": analisis.get(m["id"], {})} for m in bloque]
-        esquema = _esquema(ids, {"relevancia": {"type": "number", "minimum": 0, "maximum": 1}})
 
-        def validar(objeto, ids=ids):
+    def llamar(bloque):
+        alias, originales = _alias(_ids(bloque))
+        contexto = [{"id": a, "texto": m["texto"], "senales": analisis.get(m["id"], {})}
+                    for a, m in zip(alias, bloque)]
+        esquema = _esquema(alias, {"relevancia": {"type": "number", "minimum": 0, "maximum": 1}})
+
+        def validar(objeto):
             resultado = {}
-            for i, r in _por_id(objeto, ids, ("relevancia",)).items():
+            for i, r in _restaurar(_por_id(objeto, alias, ("relevancia",)), originales).items():
                 valor = r["relevancia"]
                 if type(valor) not in (int, float) or not math.isfinite(valor) or not 0 <= valor <= 1:
                     raise ValueError("Relevancia fuera de rango")
                 resultado[i] = float(valor)
             return resultado
 
-        salida.update(cliente.generar_json("puntuar", SISTEMA_PUNTUACION,
-                                           json.dumps(contexto, ensure_ascii=False), esquema, validar))
-    return salida
+        return cliente.generar_json("puntuar", SISTEMA_PUNTUACION, json.dumps(contexto, ensure_ascii=False),
+                                    esquema, validar, escalar_si_trunca=False)
+    return _por_bloques(peticion["lote"]["interacciones"], cliente, "puntuar", llamar)

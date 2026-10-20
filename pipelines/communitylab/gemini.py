@@ -63,6 +63,14 @@ class RespuestaInvalidaIA(ErrorIA):
     codigo = "ia_respuesta_invalida"  # todos los modelos incumplieron el contrato
 
 
+class RespuestaTruncadaIA(RespuestaInvalidaIA):
+    """La respuesta llegó cortada por maxOutputTokens (finishReason=MAX_TOKENS).
+
+    Solo la reciben los llamadores que lo piden (generar_json(..., escalar_si_trunca=False)): escalar al
+    modelo siguiente con el mismo límite de salida no arregla un truncamiento. analisis_gemini la usa
+    para dividir el bloque; nunca sale del nodo (se traduce a RespuestaInvalidaIA si no hay solución)."""
+
+
 class ContenidoBloqueadoIA(ErrorIA):
     codigo = "ia_bloqueado"  # filtro de seguridad del proveedor
 
@@ -221,10 +229,12 @@ def _forma_peticion(cuerpo, esquema):
             return sum(contar_enum(v) for v in nodo)
         return 0
     items = ((esquema.get("properties") or {}).get("resultados") or {}) if isinstance(esquema, dict) else {}
+    # Sin maxItems (analisis_gemini ya no fija la longitud), los ítems esperados son los IDs del enum.
+    enum_ids = (((items.get("items") or {}).get("properties") or {}).get("id") or {}).get("enum")
     return {"bytes_peticion": len(json.dumps(cuerpo, ensure_ascii=False).encode()),
             "bytes_esquema": len(json.dumps(esquema, ensure_ascii=False).encode()),
             "valores_enum": contar_enum(esquema),
-            "items_esperados": items.get("maxItems") or 0}
+            "items_esperados": items.get("maxItems") or (len(enum_ids) if isinstance(enum_ids, list) else 0)}
 
 
 class ClienteGemini:
@@ -234,8 +244,11 @@ class ClienteGemini:
         self.reloj, self.dormir = reloj, dormir
         self.http = httpx.Client(transport=transporte, follow_redirects=False, trust_env=False)
 
-    def generar_json(self, tarea, sistema, usuario, esquema, validar):
-        """Devuelve validar(objeto_json). Escala de modelo solo si el contrato falla."""
+    def generar_json(self, tarea, sistema, usuario, esquema, validar, escalar_si_trunca=True):
+        """Devuelve validar(objeto_json). Escala de modelo solo si el contrato falla.
+
+        Con escalar_si_trunca=False, una respuesta truncada (MAX_TOKENS) lanza RespuestaTruncadaIA en vez
+        de repetir la misma petición, con el mismo límite de salida, en el modelo siguiente."""
         for indice, modelo in enumerate(self.cfg.modelos):
             try:
                 texto = self._llamar(tarea, modelo, sistema, usuario, esquema)
@@ -248,6 +261,9 @@ class ClienteGemini:
                 except (ValueError, TypeError, KeyError):
                     raise _FalloContrato("contrato") from None
             except _FalloContrato as fallo:
+                if fallo.motivo == "truncado" and not escalar_si_trunca:
+                    LOG.warning("gemini truncado tarea=%s modelo=%s sin_escalamiento", tarea, modelo)
+                    raise RespuestaTruncadaIA("truncado") from None
                 siguiente = self.cfg.modelos[indice + 1] if indice + 1 < len(self.cfg.modelos) else None
                 LOG.warning("gemini escalamiento tarea=%s modelo=%s motivo=%s siguiente=%s",
                             tarea, modelo, fallo.motivo, siguiente or "ninguno")

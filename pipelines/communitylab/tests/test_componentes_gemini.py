@@ -24,7 +24,7 @@ class PruebasComponentesGemini(unittest.TestCase):
         return crear_componentes_gemini(configuracion(**cfg), transporte=self.falso.transporte)
 
     def test_usa_la_clase_canonica_y_solo_componentes_reales(self):
-        c = self.componentes(responder_con_senales(SENALES))
+        c = self.componentes(responder_con_senales(SENALES, interacciones=ENTRADA["interacciones"]))
         self.assertIs(type(c), Componentes)
         self.assertIs(c.simulado, False)
         construir_grafo(c)  # el grafo real acepta la instancia
@@ -38,7 +38,7 @@ class PruebasComponentesGemini(unittest.TestCase):
 
     def test_grafo_completo_con_analisis_y_puntuacion_reales(self):
         with patch("pipelines.communitylab.simulados.crear_componentes", side_effect=AssertionError("doble")):
-            salida = ejecutar_lote(ENTRADA, self.componentes(responder_con_senales(SENALES)))
+            salida = ejecutar_lote(ENTRADA, self.componentes(responder_con_senales(SENALES, interacciones=ENTRADA["interacciones"])))
         self.assertEqual(salida["estado"], "completado_local", salida["errores"])
         self.assertIs(salida["simulado"], False)
         activos = salida["activos_distribucion_generados"]
@@ -56,18 +56,18 @@ class PruebasComponentesGemini(unittest.TestCase):
             self.assertEqual(sorted(activo["fuentes"]), sorted(decision["fuentes"]))
 
     def test_lote_en_bloques_comparte_presupuesto(self):
-        salida = ejecutar_lote(ENTRADA, self.componentes(responder_con_senales(SENALES), tamano_bloque=2))
+        salida = ejecutar_lote(ENTRADA, self.componentes(responder_con_senales(SENALES, interacciones=ENTRADA["interacciones"]), tamano_bloque=2))
         self.assertEqual(salida["estado"], "completado_local")
         n = len(ENTRADA["interacciones"])
         self.assertEqual([tarea_de(p) for p in self.falso.peticiones].count("analizar"), (n + 1) // 2)
-        sin_presupuesto = ejecutar_lote(ENTRADA, self.componentes(responder_con_senales(SENALES),
+        sin_presupuesto = ejecutar_lote(ENTRADA, self.componentes(responder_con_senales(SENALES, interacciones=ENTRADA["interacciones"]),
                                                                   tamano_bloque=2, max_llamadas=4))
         self.assertEqual(sin_presupuesto["estado"], "error")
         self.assertEqual(sin_presupuesto["errores"][0]["tipo"], "PresupuestoAgotadoIA")
         self.assertEqual(sin_presupuesto["activos_distribucion_generados"], [])
 
     def test_fallo_en_un_generador_no_deja_activos_ni_alertas_parciales(self):
-        base = responder_con_senales(SENALES)
+        base = responder_con_senales(SENALES, interacciones=ENTRADA["interacciones"])
         generados = []
 
         def responder(p):
@@ -100,10 +100,10 @@ class PruebasComponentesGemini(unittest.TestCase):
 
     def test_duda_sin_tema_y_relevancia_fuera_de_rango_son_contrato_invalido(self):
         malas = {i: {**s, "tema": "" if s["es_duda"] else s["tema"]} for i, s in SENALES.items()}
-        salida = ejecutar_lote(ENTRADA, self.componentes(responder_con_senales(malas)))
+        salida = ejecutar_lote(ENTRADA, self.componentes(responder_con_senales(malas, interacciones=ENTRADA["interacciones"])))
         self.assertEqual(salida["errores"][0]["tipo"], "RespuestaInvalidaIA")
         fuera = {i: {**s, "relevancia": 1.5} for i, s in SENALES.items()}
-        salida = ejecutar_lote(ENTRADA, self.componentes(responder_con_senales(fuera)))
+        salida = ejecutar_lote(ENTRADA, self.componentes(responder_con_senales(fuera, interacciones=ENTRADA["interacciones"])))
         self.assertEqual((salida["errores"][0]["nodo"], salida["errores"][0]["tipo"]),
                          ("puntuar", "RespuestaInvalidaIA"))
 

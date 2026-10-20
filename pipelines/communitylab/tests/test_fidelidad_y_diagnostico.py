@@ -5,6 +5,7 @@ afirmaciones no sustentadas observadas en la prueba real del 17/10 con el datase
 """
 import json
 from pathlib import Path
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -209,17 +210,60 @@ class PruebasBloques(unittest.TestCase):
                           "fecha": "2023-02-01T10:00:00Z", "texto": f"Consulta número {i}"} for i in range(85)]
         senales = {m["id"]: {"es_logro": False, "es_duda": False, "es_bloqueo": False,
                              "tema": "general", "relevancia": 0.1} for m in interacciones}
-        falso = GeminiFalso(responder=responder_con_senales(senales))
+        falso = GeminiFalso(responder=responder_con_senales(senales, interacciones=interacciones))
         componentes = crear_componentes_gemini(configuracion(tamano_bloque=40, max_llamadas=16),
                                                transporte=falso.transporte)
         salida = ejecutar_lote({"origen_comunidad": "prueba", "periodo_referencia": "2023-W05",
                                 "cierre_periodo": False, "interacciones": interacciones}, componentes)
         self.assertEqual(salida["estado"], "completado_local", salida["errores"])
         tareas = [tarea_de(p) for p in falso.peticiones]
-        self.assertEqual((tareas.count("analizar"), tareas.count("puntuar")), (3, 3))
+        # Bloques dimensionados por el límite de salida (analisis_gemini._bloque_efectivo), acotados por 40.
+        from pipelines.communitylab.analisis_gemini import _bloque_efectivo
+        cliente = SimpleNamespace(cfg=configuracion(tamano_bloque=40, max_llamadas=16))
+        esperado = tuple(-(-85 // _bloque_efectivo(cliente, t)) for t in ("analizar", "puntuar"))
+        self.assertEqual((tareas.count("analizar"), tareas.count("puntuar")), esperado)
         for p in falso.peticiones:
             items = p["cuerpo"]["generationConfig"]["responseJsonSchema"]["properties"]["resultados"]
-            self.assertLessEqual(items["maxItems"], 40)
+            # Bloques acotados y sin longitud fija del array (ver analisis_gemini._esquema).
+            self.assertLessEqual(len(items["items"]["properties"]["id"]["enum"]), 40)
+            self.assertNotIn("minItems", items)
+            self.assertNotIn("maxItems", items)
+
+
+class PruebasPresupuestoCierre(unittest.TestCase):
+    """Límite conocido (docs/gemini-grafo-worker.md): 16 llamadas por trabajo y generadores sin tope.
+    Con la configuración de la VM (bloque 40, salida 2048 -> bloques de 22 y 40), un cierre de N mensajes
+    usa ceil(N/22) + ceil(N/40) llamadas base + 1 highlights (si hay mensajes relevantes) + 1 por logro/FAQ.
+    Sin nada relevante, 220 mensajes caben justo (10 + 6) y 221 ya no (11 + 6). Si no cabe, el trabajo
+    falla ENTERO con PresupuestoAgotadoIA: no hay borradores parciales ni descartes silenciosos."""
+
+    def _cierre(self, n, logros):
+        interacciones = [{"id": f"w-{i:04d}", "autor": f"persona {i}", "canal": "general",
+                          "fecha": "2026-10-20T10:00:00Z", "texto": f"Mensaje ficticio {i}"} for i in range(n)]
+        senales = {m["id"]: {"es_logro": i < logros, "es_duda": False, "es_bloqueo": False,
+                             "tema": f"tema {i}", "relevancia": 0.9 if i < logros else 0.1}
+                   for i, m in enumerate(interacciones)}
+        falso = GeminiFalso(responder=responder_con_senales(senales, interacciones=interacciones))
+        componentes = crear_componentes_gemini(configuracion(tamano_bloque=40, max_llamadas=16),
+                                               transporte=falso.transporte)
+        salida = ejecutar_lote({"origen_comunidad": "prueba", "periodo_referencia": "2026-W43",
+                                "cierre_periodo": True, "interacciones": interacciones}, componentes)
+        return salida, len(falso.peticiones)
+
+    def test_cierre_de_150_con_4_logros_cabe_justo_en_16_llamadas(self):
+        salida, llamadas = self._cierre(150, 4)
+        self.assertEqual(salida["errores"], [])
+        self.assertEqual(llamadas, 7 + 4 + 1 + 4)          # analizar + puntuar + highlights + posts
+        self.assertEqual(len(salida["activos_distribucion_generados"]), 5)
+
+    def test_cierre_que_no_cabe_falla_entero_sin_borradores_parciales(self):
+        self.assertEqual(self._cierre(220, 0)[0]["errores"], [])
+        for n, logros in ((150, 5), (221, 0)):
+            with self.subTest(n=n, logros=logros):
+                salida, llamadas = self._cierre(n, logros)
+                self.assertLessEqual(llamadas, 16)
+                self.assertEqual(salida["errores"][0]["tipo"], "PresupuestoAgotadoIA")
+                self.assertEqual(salida["activos_distribucion_generados"], [])
 
 
 class PruebasGrafoFidelidad(unittest.TestCase):
@@ -228,7 +272,7 @@ class PruebasGrafoFidelidad(unittest.TestCase):
                              "tema": "proyectos", "relevancia": 0.9 if m["id"] == "demo-04" else 0.1}
                    for m in DATASET["interacciones"]}
         copy = "Andrés publicó su bot. El repositorio incluye la guía de despliegue."
-        falso = GeminiFalso(responder=responder_con_senales(senales, copy=copy))
+        falso = GeminiFalso(responder=responder_con_senales(senales, copy=copy, interacciones=DATASET["interacciones"]))
         salida = ejecutar_lote({**DATASET, "cierre_periodo": False},
                                crear_componentes_gemini(configuracion(), transporte=falso.transporte))
         self.assertEqual(salida["estado"], "completado_local", salida["errores"])
@@ -239,7 +283,7 @@ class PruebasGrafoFidelidad(unittest.TestCase):
     def test_bloqueo_nunca_llega_a_un_generador(self):
         senales = {m["id"]: {"es_logro": True, "es_duda": False, "es_bloqueo": m["id"] == "demo-06",
                              "tema": "x", "relevancia": 0.9} for m in DATASET["interacciones"]}
-        falso = GeminiFalso(responder=responder_con_senales(senales))
+        falso = GeminiFalso(responder=responder_con_senales(senales, interacciones=DATASET["interacciones"]))
         original = modulo_grafo.enrutar_lote
 
         def router_defectuoso(lote, cfg):
