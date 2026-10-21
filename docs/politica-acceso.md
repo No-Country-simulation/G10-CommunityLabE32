@@ -95,6 +95,7 @@ de datos enviados por el cliente.
 | `GET /api/auth/sesion`, `POST /api/auth/logout`, `GET/PATCH /api/auth/me` | ✖ | ✔ | ✔ | ✔ | ✖ | ✖ |
 | `GET/POST/PATCH /api/auth/usuarios…` | ✖ | ✖ | ✖ | ✔ | ✖ | ✖ |
 | `GET /api/dashboard/kpis`, `/ambitos`, `GET /api/mensajes/sentimiento/resumen` (agregados) | ✖ | ✔ | ✔ | ✔ | ✖ | ✔ |
+| `GET /api/dashboard/alertas` (detalle de alertas: textos y autores) | ✖ | ✖ | ✔ | ✔ | ✖ | ✔ |
 | `GET /api/mensajes` (textos y autores) | ✖ | ✖ | ✔ | ✔ | ✖ | ✔ |
 | `GET/PATCH /api/curaduria/activos…` (borradores, toda edición) y `POST …/posts/generar` (IA, máx. 3 por borrador) | ✖ | ✖ | ✔ | ✔ | ✖ | ✔ |
 | Banners: listar, generar, revisar y `GET /api/banners/{id}.svg` | ✖ | ✖ | ✔ | ✔ | ✖ | ✔ |

@@ -5,11 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.acceso import requiere_usuario
+from backend.app.core.acceso import requiere_operador, requiere_usuario
 from backend.app.core.dependencias import get_db
 from backend.app.models.activo import Activo
 from backend.app.models.mensaje import Mensaje
-from backend.app.services.ambito import calcular_ambito, listar_ambitos
+from backend.app.services.ambito import alertas_internas, calcular_ambito, listar_ambitos
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard KPIs"])
 
@@ -79,3 +79,31 @@ async def obtener_kpis(
 async def obtener_ambitos(db: AsyncSession = Depends(get_db)):
     """Pares origen/período con lotes registrados, del más reciente al más antiguo."""
     return {"items": await listar_ambitos(db)}
+
+
+@router.get("/alertas", dependencies=[Depends(requiere_operador)])
+async def listar_alertas(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(9, ge=1, le=100),
+    origen: Optional[str] = Query(None, max_length=200),
+    periodo: Optional[str] = Query(None, max_length=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """Detalle de las alertas internas: mismo conjunto y total que el KPI `alertas_internas`.
+
+    Incluye el mensaje que la originó (texto y autor: solo operadores), el motivo, el lote y el trabajo.
+    Ordenadas por fecha del mensaje, de la más reciente a la más antigua.
+    """
+    por_fuente = await alertas_internas(db, origen, periodo)
+    mensajes = {}
+    if por_fuente:
+        filas = (await db.execute(select(Mensaje).where(Mensaje.id_mensaje.in_(sorted(por_fuente))))).scalars().all()
+        mensajes = {m.id_mensaje: m for m in filas}
+    items = []
+    for id_mensaje, alerta in por_fuente.items():
+        m = mensajes.get(id_mensaje)
+        items.append({**alerta, "autor": m.autor if m else None, "canal": m.canal if m else None,
+                      "fecha": m.fecha if m else None, "texto": m.texto if m else None,
+                      "sentimiento_ref": m.sentimiento_ref if m else None})
+    items.sort(key=lambda a: (a["fecha"] or "", a["id_mensaje"]), reverse=True)
+    return {"items": items[skip:skip + limit], "total": len(items)}

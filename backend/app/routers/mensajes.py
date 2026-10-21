@@ -7,7 +7,7 @@ from typing import List, Literal, Optional
 from backend.app.core.acceso import requiere_operador, requiere_usuario
 from backend.app.core.dependencias import get_db
 from backend.app.models.mensaje import Mensaje
-from backend.app.services.ambito import calcular_ambito
+from backend.app.services.ambito import calcular_ambito, estados_borrador
 # IMPORTAMOS EL NUEVO ESQUEMA PAGINADO
 from backend.app.schemas.mensaje import MensajeResponse, PaginatedMensajesResponse
 
@@ -91,9 +91,14 @@ async def obtener_mensajes(
     try:
         result = await db.execute(query)
         mensajes = result.scalars().all()
-        
+        ids = {m.id_mensaje for m in mensajes}
+        alertas = (await calcular_ambito(db)).alertas_por_fuente & ids
+        borradores = await estados_borrador(db, ids)
+        items = [MensajeResponse.model_validate(m).model_copy(update={
+            "alerta_interna": m.id_mensaje in alertas, "estado_borrador": borradores.get(m.id_mensaje)})
+            for m in mensajes]
         return {
-            "items": mensajes,
+            "items": items,
             "total": total
         }
     except Exception as e:
