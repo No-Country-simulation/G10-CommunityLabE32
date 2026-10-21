@@ -2,7 +2,7 @@
 
 
 import UiTree from '@/components/UiTree';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { esVistaLocal } from '@/services/vistaLocal';
 import {
@@ -12,7 +12,7 @@ import {
 import {
   Loader2, MessageSquare, Layers, CheckCircle2, AlertTriangle,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import CommunityIntro from '@/components/CommunityIntro';
 import ResultadosResumen, { type FiltroResumen } from '@/components/ResultadosResumen';
@@ -26,11 +26,13 @@ const tonos = {
 
 export default function CommunityDashboard() {
   const router = useRouter();
+  const reducirMovimiento = useReducedMotion();
   const [autorizado, setAutorizado] = useState(false);
   const [totales, setTotales] = useState<Record<FiltroResumen, number | null>>({ mensajes: null, pendientes: null, aprobados: null, alertas: null });
   const [filtro, setFiltro] = useState<FiltroResumen>('mensajes');
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState('');
+  const resultadosRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // La sesión la decide el servidor (cookie HttpOnly); la vista sin sesión solo existe en `npm run dev` local.
@@ -68,6 +70,16 @@ export default function CommunityDashboard() {
   const actualizarTotal = useCallback((total: number) => {
     setTotales(actual => ({ ...actual, [filtro]: total }));
   }, [filtro]);
+
+  // Elegir una tarjeta cambia los resultados sin desmontarlos (sin saltos) y, si quedan fuera de la
+  // vista, se desplaza hacia ellos con suavidad.
+  const elegirFiltro = (nuevo: FiltroResumen) => {
+    setFiltro(nuevo);
+    const resultados = resultadosRef.current;
+    if (!resultados) return;
+    const { top } = resultados.getBoundingClientRect();
+    if (top < 0 || top > window.innerHeight - 160) resultados.scrollIntoView({ behavior: reducirMovimiento ? 'auto' : 'smooth', block: 'start' });
+  };
 
   if (!autorizado) {
     return <UiTree>{(
@@ -117,12 +129,12 @@ export default function CommunityDashboard() {
       <Sidebar />
 
       <main className="dashboard-content flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
-        <CommunityIntro />
+        <details className="overview-intro-disclosure"><summary><span translate="no">CommunityLab</span>{' '}<span>Tu comunidad, en contexto · Ver presentación</span></summary><CommunityIntro /></details>
         <header className="mb-8 flex flex-wrap justify-between items-end gap-4">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mb-1.5">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mb-1.5">
               Centro de operaciones
-            </h2>
+            </h1>
             <p className="text-muted-foreground text-[15px]">
               Métricas e interacciones procesadas.
             </p>
@@ -150,7 +162,7 @@ export default function CommunityDashboard() {
                 {tarjetas.map((t) => {
                   const Icono = t.icono;
                   return <UiTree key={t.titulo}>{(
-                    <button type="button" key={t.titulo} className="metric-card card p-5 text-left" aria-pressed={filtro === t.filtro} onClick={() => setFiltro(t.filtro)}>
+                    <button type="button" key={t.titulo} className="metric-card card p-5 text-left" aria-pressed={filtro === t.filtro} onClick={() => elegirFiltro(t.filtro)}>
                       <div className="flex items-center gap-3 mb-3">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${t.tono.fondo}`}>
                           <Icono className={`w-5 h-5 ${t.tono.texto}`} />
@@ -164,7 +176,9 @@ export default function CommunityDashboard() {
               </div>
             )}
 
-            <ResultadosResumen key={filtro} filtro={filtro} onTotal={actualizarTotal} />
+            <div ref={resultadosRef} className="scroll-mt-6">
+              <ResultadosResumen filtro={filtro} onTotal={actualizarTotal} />
+            </div>
           </motion.div>
         )}
       </main>

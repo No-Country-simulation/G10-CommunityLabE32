@@ -18,12 +18,12 @@ function etiquetaTipo(tipo: string | null | undefined): string {
   const etiquetas: Record<string, string> = {
     PREGUNTA_TECNICA: 'Duda', PREGUNTA: 'Duda', DUDA: 'Duda',
     CONSULTA_NEGOCIO: 'Consulta', CONSULTA: 'Consulta',
-    LOGRO: 'Éxito', EXITO: 'Éxito', CASO_DE_EXITO: 'Éxito',
+    LOGRO: 'Logro', EXITO: 'Éxito', CASO_DE_EXITO: 'Éxito', TESTIMONIO: 'Testimonio',
     BLOQUEO: 'Bloqueo', PROBLEMA: 'Problema',
     COMENTARIO: 'Comentario', SUGERENCIA: 'Sugerencia',
-    SIN_CLASIFICAR: 'Pendiente',
+    SIN_CLASIFICAR: 'Sin clasificar',
   };
-  return clave ? etiquetas[clave] ?? 'Otro' : 'Pendiente';
+  return clave ? etiquetas[clave] ?? 'Otro' : 'Sin clasificar';
 }
 
 
@@ -115,14 +115,14 @@ export default function InteraccionesPage() {
     { filtro: 'sin_analizar' as FiltroSentimiento, etiqueta: 'Sin analizar', valor: resumen?.sin_analizar ?? '—' },
   ];
 
-  const tituloListado = stats.find(item => item.filtro === filtroSentimiento)?.etiqueta ?? 'Total de mensajes';
+  const tituloListado = ({ neutral: 'Neutrales', indeterminado: 'Indeterminados' } as Record<string, string>)[filtroSentimiento] ?? stats.find(item => item.filtro === filtroSentimiento)?.etiqueta ?? 'Total de mensajes';
 
   return <UiTree>{(
     <RutaProtegida>
       <div className="flex min-h-screen w-full">
         <Sidebar />
 
-        <main className="interactions-page dashboard-content flex-1 min-w-0 p-6 md:p-10 flex flex-col h-[calc(100dvh-var(--topbar-h))] overflow-hidden">
+        <main className="interactions-page dashboard-content flex-1 min-w-0 p-4 sm:p-6 md:p-10 flex flex-col min-h-[calc(100dvh-var(--topbar-h))] md:h-[calc(100dvh-var(--topbar-h))] md:overflow-hidden">
           <header className="mb-6 shrink-0">
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
               Interacciones importadas
@@ -142,29 +142,28 @@ export default function InteraccionesPage() {
               </button>
             ))}
           </div>
-          {resumen && resumen.analizados > 0 && (
-            <p className="-mt-3 mb-5 text-xs text-subtle-foreground shrink-0">
-              Porcentajes sobre {resumen.analizados} mensajes analizados · {resumen.por_valor.neutral} neutrales
-              · {resumen.por_valor.indeterminado} indeterminados.
-            </p>
-          )}
+          <div className="flex flex-wrap gap-2 mb-5" role="group" aria-label="Otros sentimientos">
+            <button type="button" className="btn-secondary" aria-pressed={filtroSentimiento === 'neutral'} onClick={() => elegirFiltro('neutral')}>Neutrales · {resumen?.por_valor.neutral ?? '—'}</button>
+            <button type="button" className="btn-secondary" aria-pressed={filtroSentimiento === 'indeterminado'} onClick={() => elegirFiltro('indeterminado')}>Indeterminados · {resumen?.por_valor.indeterminado ?? '—'}</button>
+          </div>
 
           <div className="flex flex-wrap items-center justify-between gap-4 mb-3 shrink-0">
-            <div className="interaction-keyword-search">
+            <div className="interaction-keyword-search" role="search">
               <button type="button" className="interaction-search-toggle" aria-label={buscadorAbierto ? 'Cerrar búsqueda' : 'Buscar por palabra clave'} aria-expanded={buscadorAbierto} aria-controls="busqueda-interacciones" onClick={() => { setBuscadorAbierto(v => !v); if (buscadorAbierto) setBusqueda(''); }}><Search className="w-4 h-4" aria-hidden="true" /></button>
               {buscadorAbierto && <input id="busqueda-interacciones" className="input interaction-keyword-input" type="search" aria-label="Buscar por palabra clave" autoFocus value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={e => { if (e.key === 'Escape') { setBuscadorAbierto(false); setBusqueda(''); } }} />}
             </div>
             {filtroSentimiento !== 'todos' && <h2 className="text-base font-bold">{tituloListado}</h2>}
           </div>
+          {busquedaAplicada && <p className="text-sm text-muted-foreground mb-3">Resultados para «<span translate="no">{busquedaAplicada}</span>»</p>}
           {errorCarga && <p role="alert" className="text-sm text-danger mb-3">{errorCarga}</p>}
 
           <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            className="card mt-2 flex-1 min-h-0 overflow-hidden flex flex-col"
+            className="interaction-table-card card mt-2 flex-none md:flex-1 min-h-0 overflow-hidden flex flex-col"
           >
-            <div className="overflow-auto flex-1">
-              <table className="min-w-full">
+            <div className="interaction-table-scroll overflow-x-auto md:overflow-auto md:flex-1">
+              <table className="interaction-table min-w-full">
                 <thead className="sticky top-0 z-10 bg-surface">
                   <tr>
                     <th scope="col" className="table-th">Autor</th>
@@ -185,29 +184,30 @@ export default function InteraccionesPage() {
                   ) : filtrados.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="table-td py-14 text-center text-subtle-foreground">
-                        {mensajes.length === 0 ? 'No hay mensajes.' : 'Ningún resultado con estos filtros.'}
+                        {errorCarga ? 'Los mensajes no están disponibles.' : busquedaAplicada || filtroSentimiento !== 'todos' ? 'No hay resultados con estos filtros.' : 'No hay mensajes.'}
                       </td>
                     </tr>
                   ) : (
                     filtrados.map((msg) => (
                       <tr key={msg.id_mensaje} className="table-row">
-                        <td className="table-td whitespace-nowrap">
+                        <td data-label="Autor" className="table-td whitespace-nowrap">
                           <div className="flex items-center gap-3">
                             <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-white text-[11px] font-bold shrink-0" translate="no">
-                              {msg.autor.substring(0, 2).toUpperCase()}
+                              {/^\d{16,22}$/.test(msg.autor) ? 'CL' : msg.autor.substring(0, 2).toUpperCase()}
                             </div>
-                            <span className="font-medium text-foreground" translate="no">{msg.autor}</span>
+                            <span className="font-medium text-foreground" translate="no">{/^\d{16,22}$/.test(msg.autor) ? 'Integrante de Discord' : msg.autor}</span>
                           </div>
                         </td>
-                        <td className="table-td">
-                          <div className="text-muted-foreground line-clamp-2 max-w-xl" title={msg.texto} translate="no">
+                        <td data-label="Mensaje" className="table-td">
+                          <div className="text-muted-foreground md:line-clamp-2 max-w-xl" title={msg.texto} translate="no">
                             {msg.texto}
                           </div>
                         </td>
-                        <td className="table-td whitespace-nowrap">
+                        <td data-label="Tipo" className="table-td whitespace-nowrap">
                           <span className="badge-neutral" title={msg.tipo || 'Sin clasificación disponible'}>{etiquetaTipo(msg.tipo)}</span>
+                          {msg.tema_ref && <div className="mt-1 text-xs text-muted-foreground max-w-[12rem] truncate" title={msg.tema_ref} translate="no">{msg.tema_ref}</div>}
                         </td>
-                        <td className="table-td whitespace-nowrap">
+                        <td data-label="Sentimiento detectado" className="table-td whitespace-nowrap">
                           <span
                             className={sentimentBadge[msg.sentimiento_ref ?? ''] ?? 'badge-neutral'}
                             title={msg.sentimiento_version ? `Análisis ${msg.sentimiento_origen ?? ''} · ${msg.sentimiento_version}` : undefined}
@@ -222,7 +222,7 @@ export default function InteraccionesPage() {
               </table>
             </div>
 
-            <div className="px-5 py-3.5 border-t border-border flex items-center justify-between shrink-0 bg-surface">
+            <div className="px-4 py-3.5 border-t border-border flex flex-wrap gap-3 items-center justify-between shrink-0 bg-surface">
               <div className="text-sm text-subtle-foreground">
                 Mostrando{' '}
                 <span className="text-foreground font-medium">

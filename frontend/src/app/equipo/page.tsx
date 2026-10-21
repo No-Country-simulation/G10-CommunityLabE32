@@ -34,7 +34,7 @@ interface MiembroEquipo {
 const integrantes: MiembroEquipo[] = [
   {
     nombre: 'Elizabeth Aguilar',
-    rol: 'Project Manager',
+    rol: 'Gestión de proyectos',
     especialidad: 'Gestión del proyecto • Metodologías ágiles • Control de calidad',
     bio: 'Coordinación general del equipo de trabajo en No Country, planificación de ciclos de trabajo y control de calidad para la presentación del proyecto.',
     stack: ['Agile', 'Scrum', 'Jira', 'QA Management'],
@@ -42,7 +42,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Vania Sherel Cruz Hernandez',
-    rol: 'Vibe Coder',
+    rol: 'Desarrollo asistido por IA',
     especialidad: 'Experiencia de usuario • Soporte de integración',
     bio: 'Colaboración en el desarrollo del flujo frontend, pruebas y refinamiento general de la experiencia de la plataforma.',
     stack: ['Frontend', 'JavaScript', 'Tailwind', 'UI Testing'],
@@ -50,7 +50,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Jose Angel Olan de los Santos',
-    rol: 'Data Engineer',
+    rol: 'Ingeniería de datos',
     especialidad: 'PostgreSQL • Modelado de datos • ETL',
     bio: 'Estructuración de esquemas relacionales, optimización de consultas asíncronas y gestión de bases de datos.',
     stack: ['PostgreSQL', 'SQLAlchemy', 'Python', 'Docker'],
@@ -58,7 +58,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Fredy Pachon',
-    rol: 'Backend Developer',
+    rol: 'Desarrollo de backend',
     especialidad: 'Ciencia de datos • Modelado y lógica',
     bio: 'Construcción y validación de flujos de datos analíticos y soporte en la lógica del backend.',
     stack: ['Python', 'SQLAlchemy', 'Data Science', 'FastAPI'],
@@ -66,7 +66,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Ianjaner Alfonso Beltran Guañarita',
-    rol: 'Full Stack Developer',
+    rol: 'Desarrollo de aplicaciones web',
     especialidad: 'Next.js 16 • UI/UX • Autenticación JWT y FastAPI',
     bio: 'Desarrollo de la interfaz de usuario, el centro de operaciones, la seguridad JWT y la protección de rutas en el ecosistema del frontend.',
     stack: ['Next.js 16', 'TypeScript', 'Tailwind', 'FastAPI', 'PostgreSQL'],
@@ -74,7 +74,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Santiago Horta Hurtado',
-    rol: 'Autonomous Agent Engineer',
+    rol: 'Ingeniería de agentes autónomos',
     especialidad: 'Agentes inteligentes • Integración con el backend',
     bio: 'Desarrollo y optimización de componentes de automatización y lógica de agentes de inteligencia artificial.',
     stack: ['Python', 'IA', 'FastAPI', 'Git'],
@@ -82,7 +82,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Fabián Hernández Alejandro',
-    rol: 'Prompt Engineer',
+    rol: 'Ingeniería de prompts',
     especialidad: 'Ingeniería de prompts • Modelos LLM',
     bio: 'Diseño, prueba y optimización de prompts estructurados para el análisis de sentimiento y la generación de contenido editorial.',
     stack: ['Prompt Engineering', 'Gemini AI', 'JSON Schema', 'NLP'],
@@ -90,7 +90,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Paulo Andrés Escobar Saldaña',
-    rol: 'Autonomous Agent Engineer',
+    rol: 'Ingeniería de agentes autónomos',
     especialidad: 'LangGraph • Gemini AI • Infraestructura de máquinas virtuales',
     bio: 'Arquitectura de agentes autónomos con Gemini, integración con Discord y despliegue del backend.',
     stack: ['Python', 'LangGraph', 'Gemini API', 'Docker', 'Nginx', 'Claude Code', 'Codex'],
@@ -100,7 +100,7 @@ const integrantes: MiembroEquipo[] = [
 
 const pilaresArquitectura = [
   {
-    titulo: 'Ingesta multimodal y puente de Discord',
+    titulo: 'Ingesta de datos y puente de Discord',
     descripcion: 'Captura conversaciones reales desde Discord y archivos JSON/CSV con validación estricta e idempotencia.',
     icono: Code2,
   },
@@ -111,12 +111,12 @@ const pilaresArquitectura = [
   },
   {
     titulo: 'Persistencia asíncrona en PostgreSQL',
-    descripcion: 'Consultas parametrizadas O(1) en memoria RAM con SQLAlchemy 2.0 y cola de trabajos resiliente.',
+    descripcion: 'Persistencia de datos, consultas parametrizadas y seguimiento de trabajos de procesamiento.',
     icono: Database,
   },
   {
-    titulo: 'Curaduría ética y seguridad JWT',
-    descripcion: 'Revisión obligatoria, protección de identidad del autor y acceso blindado con tokens JWT y Bcrypt.',
+    titulo: 'Curaduría ética y acceso seguro',
+    descripcion: 'Revisión humana de los contenidos, protección de identidad y permisos según la cuenta.',
     icono: ShieldCheck,
   },
 ];

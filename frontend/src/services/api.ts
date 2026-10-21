@@ -338,6 +338,8 @@ export interface DashboardKPIs {
   mensajes_sin_responder?: number;
   total_mensajes: number;
   mensajes_por_tipo: Record<string, number>;
+  /** Temas que la IA asignó a los mensajes del ámbito, del más frecuente al menos (máximo 10). */
+  temas_principales?: { tema: string; cantidad: number }[];
   distribucion_sentimiento: Record<Sentimiento, number>;
   sentimiento: { estado: 'sin_datos' | 'parcial' | 'completo'; clasificados: number; sin_clasificar: number };
   activos_generados: number;

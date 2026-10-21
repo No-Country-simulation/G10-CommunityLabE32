@@ -25,6 +25,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import PasswordInput from '@/components/PasswordInput';
 import RutaProtegida from '@/components/RutaProtegida';
 import TokenOperador from '@/components/TokenOperador';
 
@@ -75,7 +76,7 @@ export default function ConfiguracionPage() {
         ...(cambiaEmail ? { email, current_password: currentPassword } : {}),
       });
       setUsuario(actualizado);
-      setMensajeExito('Tus datos de perfil se actualizaron correctamente en la base de datos.');
+      setMensajeExito('Tus datos se actualizaron correctamente.');
     } catch (err) {
       setMensajeError(describirError(err).mensaje || 'No se pudo actualizar el perfil.');
     } finally {
@@ -128,7 +129,7 @@ export default function ConfiguracionPage() {
               Configuración de la cuenta y seguridad
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Administra tus credenciales de operador, actualiza tu correo o contraseña y gestiona tus permisos.
+              Actualiza tus datos, protege tu cuenta y personaliza la apariencia.
             </p>
           </header>
 
@@ -149,7 +150,7 @@ export default function ConfiguracionPage() {
           {cargandoPerfil ? (
             <div className="card p-12 flex items-center justify-center">
               <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" />
-              <span className="text-sm text-muted-foreground">Cargando perfil del operador…</span>
+              <span className="text-sm text-muted-foreground">Cargando tu perfil…</span>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -162,13 +163,13 @@ export default function ConfiguracionPage() {
                         <User className="w-5 h-5" />
                       </div>
                       <div>
-                        <h2 className="text-base font-bold text-foreground">Perfil del operador</h2>
+                        <h2 className="text-base font-bold text-foreground">Tu perfil</h2>
                         <p className="text-xs text-muted-foreground">
                           {usuario ? `ID #${usuario.id} · Rol: ${usuario.rol}` : 'Vista local · sin sesión de cuenta'}
                         </p>
                       </div>
                     </div>
-                    <span className={usuario ? "badge-success" : "badge-neutral"}>{usuario ? 'Verificado' : 'Vista local'}</span>
+                    <span className={usuario ? "badge-success" : "badge-neutral"}>{usuario ? 'Sesión activa' : 'Vista local'}</span>
                   </div>
 
                   <div>
@@ -226,7 +227,7 @@ export default function ConfiguracionPage() {
                     <div>
                       <h2 className="text-base font-bold text-foreground">Seguridad y contraseña</h2>
                       <p className="text-xs text-muted-foreground">
-                        Almacenamiento seguro con hash Bcrypt en PostgreSQL
+                        Elige una contraseña de al menos 10 caracteres.
                       </p>
                     </div>
                   </div>
@@ -235,8 +236,8 @@ export default function ConfiguracionPage() {
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Contraseña actual
                     </label>
-                    <input
-                      type="password"
+                    <PasswordInput
+                      aria-label="Contraseña actual" autoComplete="current-password"
                       required
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
@@ -249,8 +250,8 @@ export default function ConfiguracionPage() {
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Nueva contraseña
                     </label>
-                    <input
-                      type="password"
+                    <PasswordInput
+                      aria-label="Nueva contraseña" autoComplete="new-password"
                       required
                       minLength={10}
                       value={newPassword}
@@ -264,8 +265,8 @@ export default function ConfiguracionPage() {
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                       Confirmar nueva contraseña
                     </label>
-                    <input
-                      type="password"
+                    <PasswordInput
+                      aria-label="Confirmar nueva contraseña" autoComplete="new-password"
                       required
                       minLength={10}
                       value={confirmPassword}
