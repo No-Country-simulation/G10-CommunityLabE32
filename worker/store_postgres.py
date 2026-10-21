@@ -86,8 +86,9 @@ class ColaPostgres:
     def encolar(self, entrada, clave_idempotencia=None):
         return self.encolar_detalle(entrada, clave_idempotencia)[0]
 
-    def encolar_detalle(self, entrada, clave_idempotencia=None):
-        """(id, nuevo): nuevo=False cuando la misma clave y el mismo contenido reutilizan un trabajo."""
+    def encolar_detalle(self, entrada, clave_idempotencia=None, fuente=None):
+        """(id, nuevo): nuevo=False cuando la misma clave y el mismo contenido reutilizan un trabajo.
+        `fuente` ('discord' o 'manual') es la vía de entrada; un trabajo reutilizado conserva la suya."""
         from pipelines.communitylab.grafo import validar_lote
         entrada = validar_lote(entrada)
         if not entrada["interacciones"]:
@@ -104,9 +105,9 @@ class ColaPostgres:
             raise ValueError("Clave de idempotencia inválida")
         identificador = str(uuid4())
         with self.conectar() as c:
-            nuevo = c.execute("""INSERT INTO trabajos_worker (id,entrada,clave_idempotencia)
-                VALUES (%s,%s,%s) ON CONFLICT (clave_idempotencia) DO NOTHING RETURNING id""",
-                (identificador, Jsonb(entrada), clave_idempotencia)).fetchone()
+            nuevo = c.execute("""INSERT INTO trabajos_worker (id,entrada,clave_idempotencia,fuente)
+                VALUES (%s,%s,%s,%s) ON CONFLICT (clave_idempotencia) DO NOTHING RETURNING id""",
+                (identificador, Jsonb(entrada), clave_idempotencia, fuente)).fetchone()
             if nuevo is None:
                 existente = c.execute("SELECT id,entrada FROM trabajos_worker WHERE clave_idempotencia=%s",
                                       (clave_idempotencia,)).fetchone()

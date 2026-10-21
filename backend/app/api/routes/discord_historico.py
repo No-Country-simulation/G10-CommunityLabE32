@@ -269,7 +269,7 @@ async def enviar_a_analisis(identificador: str, principal: Operador):
     trabajos = []
     try:
         for lote in por_enviar:
-            ident, nuevo = await asyncio.to_thread(cola.encolar_detalle, lote)
+            ident, nuevo = await asyncio.to_thread(cola.encolar_detalle, lote, None, "discord")
             trabajos.append({"procesamiento_id": ident, "periodo": lote["periodo_referencia"],
                              "mensajes": len(lote["interacciones"]), "reutilizado": not nuevo})
     except ConflictoMensaje as exc:
