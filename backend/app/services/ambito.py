@@ -40,6 +40,9 @@ class Ambito:
     alertas_por_fuente: set = field(default_factory=set)
     alertas_registradas: int = 0
     trabajos_por_estado: dict = field(default_factory=dict)
+    # Lo que solo aparece en lotes de prueba (se oculta en las vistas sin filtro de lotes).
+    excluidos_mensajes: set = field(default_factory=set)
+    excluidos_activos: set = field(default_factory=set)
 
 
 FUENTES = ("discord", "manual")
@@ -83,21 +86,38 @@ def en_ambito(entrada, fuente, origen=None, periodo=None, fuente_ingesta=None, l
 
 
 async def leer_trabajos(db: AsyncSession):
-    """(id, estado, entrada, resultado, actualizado, fuente) de cada trabajo; fuente siempre resuelta."""
+    """(id, estado, entrada, resultado, actualizado, fuente, es_prueba) de cada trabajo; fuente siempre resuelta."""
     try:
         filas = (await db.execute(text(
-            "SELECT id, estado, entrada, resultado, actualizado, fuente FROM trabajos_worker"))).all()
+            "SELECT id, estado, entrada, resultado, actualizado, fuente, es_prueba FROM trabajos_worker"))).all()
     except ProgrammingError:
         await db.rollback()  # Instalación sin la tabla de la cola del worker: no hay trabajos.
         return []
-    return [(f[0], f[1], _json(f[2]) or {}, _json(f[3]) or {}, f[4], fuente_de(f[5], _json(f[2]) or {}))
+    return [(f[0], f[1], _json(f[2]) or {}, _json(f[3]) or {}, f[4], fuente_de(f[5], _json(f[2]) or {}), bool(f[6]))
             for f in filas]
 
 
+def _ids_mensajes(entrada):
+    return {m["id"] for m in entrada.get("interacciones") or [] if isinstance(m, dict) and isinstance(m.get("id"), str)}
+
+
+def _ids_activos(id_trabajo, resultado):
+    return {id_activo_curaduria(id_trabajo, a["id_activo"]) for a in resultado.get("activos_distribucion_generados") or []
+            if isinstance(a, dict) and isinstance(a.get("id_activo"), str)}
+
+
 async def calcular_ambito(db: AsyncSession, origen: str | None = None, periodo: str | None = None,
-                          fuente_ingesta: str | None = None, lotes: list | None = None) -> Ambito:
+                          fuente_ingesta: str | None = None, lotes: list | None = None,
+                          incluir_pruebas: bool = False) -> Ambito:
     ambito = Ambito(filtrado=bool(origen or periodo or fuente_ingesta) or lotes is not None)
-    for id_trabajo, estado, entrada, resultado, _, fuente in await leer_trabajos(db):
+    de_prueba, de_reales = set(), set()
+    for id_trabajo, estado, entrada, resultado, _, fuente, es_prueba in await leer_trabajos(db):
+        if es_prueba and not incluir_pruebas:
+            de_prueba |= _ids_mensajes(entrada)
+            if estado == "terminado":
+                ambito.excluidos_activos |= _ids_activos(id_trabajo, resultado)
+            continue
+        de_reales |= _ids_mensajes(entrada)
         if not en_ambito(entrada, fuente, origen, periodo, fuente_ingesta, lotes):
             continue
         ambito.trabajos_por_estado[estado] = ambito.trabajos_por_estado.get(estado, 0) + 1
@@ -114,19 +134,21 @@ async def calcular_ambito(db: AsyncSession, origen: str | None = None, periodo: 
                 ambito.alertas_registradas += 1
                 if isinstance(alerta.get("fuente"), str):
                     ambito.alertas_por_fuente.add(alerta["fuente"])
+    ambito.excluidos_mensajes = de_prueba - de_reales   # un mensaje también presente en un lote real se muestra
     return ambito
 
 
 async def alertas_internas(db: AsyncSession, origen: str | None = None, periodo: str | None = None,
-                           fuente_ingesta: str | None = None, lotes: list | None = None):
+                           fuente_ingesta: str | None = None, lotes: list | None = None, incluir_pruebas: bool = False):
     """Una alerta por mensaje fuente (el mismo conjunto que cuenta el KPI `alertas_internas`).
 
     Si el mismo mensaje se alertó en varios trabajos (reenvío o cierre), queda una sola entrada con la
     primera detección y `veces` = cuántas alertas lo citan. Solo trabajos terminados del ámbito.
     """
     por_fuente = {}
-    for id_trabajo, estado, entrada, resultado, actualizado, fuente in await leer_trabajos(db):
-        if estado != "terminado" or not en_ambito(entrada, fuente, origen, periodo, fuente_ingesta, lotes):
+    for id_trabajo, estado, entrada, resultado, actualizado, fuente, es_prueba in await leer_trabajos(db):
+        if (es_prueba and not incluir_pruebas) or estado != "terminado" \
+                or not en_ambito(entrada, fuente, origen, periodo, fuente_ingesta, lotes):
             continue
         marca = actualizado.isoformat() if hasattr(actualizado, "isoformat") else str(actualizado)
         for alerta in resultado.get("alertas_internas") or []:
@@ -164,15 +186,16 @@ async def estados_borrador(db: AsyncSession, ids_mensajes) -> dict:
     return resultado
 
 
-async def listar_ambitos(db: AsyncSession):
+async def listar_ambitos(db: AsyncSession, incluir_pruebas: bool = False):
     grupos = {}
-    for _, estado, entrada, _, actualizado, fuente in await leer_trabajos(db):
+    for _, estado, entrada, _, actualizado, fuente, es_prueba in await leer_trabajos(db):
         clave = (entrada.get("origen_comunidad"), entrada.get("periodo_referencia"), fuente)
-        if not all(isinstance(v, str) for v in clave):
+        if not all(isinstance(v, str) for v in clave) or (es_prueba and not incluir_pruebas):
             continue
         # Mismo origen y período por vías distintas = lotes distintos.
         g = grupos.setdefault(clave, {"origen": clave[0], "periodo": clave[1], "fuente_ingesta": fuente,
-                                      "trabajos": 0, "terminados": 0, "ultimo": None})
+                                      "es_prueba": False, "trabajos": 0, "terminados": 0, "ultimo": None})
+        g["es_prueba"] = g["es_prueba"] or es_prueba
         g["trabajos"] += 1
         g["terminados"] += estado == "terminado"
         marca = actualizado.isoformat() if hasattr(actualizado, "isoformat") else str(actualizado)
@@ -182,9 +205,15 @@ async def listar_ambitos(db: AsyncSession):
 
 async def ids_activos_de_trabajo(db: AsyncSession, id_trabajo: str) -> set:
     """IDs de curaduría de los activos que generó un trabajo terminado (vacío si no existe)."""
-    for identificador, estado, _, resultado, _, _ in await leer_trabajos(db):
+    for identificador, estado, _, resultado, _, _, _ in await leer_trabajos(db):
         if identificador == id_trabajo and estado == "terminado":
             return {id_activo_curaduria(identificador, a["id_activo"])
                     for a in resultado.get("activos_distribucion_generados") or []
                     if isinstance(a, dict) and isinstance(a.get("id_activo"), str)}
     return set()
+
+
+async def ids_excluidos(db: AsyncSession):
+    """(mensajes, activos) que solo pertenecen a lotes de prueba: lo que se oculta sin incluir_pruebas."""
+    ambito = await calcular_ambito(db)
+    return ambito.excluidos_mensajes, ambito.excluidos_activos

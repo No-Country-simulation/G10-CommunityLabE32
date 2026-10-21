@@ -10,7 +10,8 @@ afirmaciones verificables que no constan en los mensajes fuente.
 - diagnostico_no_sustentado: afirmaciones de causa ("la causa es", "carecía de", "se debe a")
   cuando las fuentes solo plantean una pregunta.
 - posible_atribucion_individual: la fuente describe un logro colectivo ("organizamos",
-  "terminamos", "nuestro equipo") y el texto no lo presenta como trabajo de un equipo.
+  "terminamos", "nuestro equipo") y el texto no lo presenta como trabajo de un equipo. No cuentan las
+  menciones negadas ("no fue un logro de todo el equipo") ni las fuentes que se declaran individuales.
 
 Las advertencias contienen el término detectado, nunca fragmentos del lote.
 """
@@ -52,12 +53,24 @@ DIAGNOSTICOS = (
     r"\bse debe a\b", r"\bse debia a\b", r"\bfaltaba\b",
     r"\bel origen del (?:problema|error|fallo)\b",
 )
+# «el equipo» suelto no indica un logro colectivo («para que el equipo pueda integrarlos»).
 COLECTIVO_FUENTE = re.compile(
     r"\b(?:organizamos|terminamos|logramos|lanzamos|publicamos|creamos|desarrollamos|ganamos|"
-    r"construimos|nuestro equipo|el equipo|en equipo|juntos)\b")
+    r"construimos|nuestro equipo|en equipo|juntos)\b")
+# Una mención negada («no fue un logro de todo el equipo», «sin el equipo») no es encuadre colectivo.
+NEGACION_PREVIA = re.compile(r"\b(?:no|ni|sin|nunca|tampoco)\b(?:\W+\w+){0,5}\W*$")
+INDIVIDUAL_EXPLICITO = re.compile(
+    r"\b(?:individualmente|de forma individual|por mi cuenta|por mi misma|por mi mismo|yo sol[oa])\b")
 COLECTIVO_TEXTO = re.compile(
     r"\b(?:equipo|equipos|junto|juntos|colectiv\w*|organizador\w*|integrantes|participantes|"
     r"companer\w*|colaborador\w*|mentores)\b")
+
+
+def logro_colectivo(fuentes):
+    """¿Las fuentes (normalizadas) describen un logro colectivo? Ignora menciones negadas y lo explícitamente individual."""
+    if INDIVIDUAL_EXPLICITO.search(fuentes):
+        return False
+    return any(not NEGACION_PREVIA.search(fuentes[:m.start()]) for m in COLECTIVO_FUENTE.finditer(fuentes))
 
 
 def _numeros(texto):
@@ -94,7 +107,7 @@ def revisar_fidelidad(copy, interacciones, formato, contexto=()):
                 advertencias.append({"tipo": "detalle_no_sustentado", "detalle": concepto})
         # Palabras como "equipos" o "participantes" copiadas de la fuente son datos, no encuadre colectivo.
         encuadre = {m.group(0) for m in COLECTIVO_TEXTO.finditer(texto)} - set(re.findall(r"\w+", fuentes))
-        if COLECTIVO_FUENTE.search(fuentes) and not encuadre:
+        if logro_colectivo(fuentes) and not encuadre:
             advertencias.append({"tipo": "posible_atribucion_individual",
                                  "detalle": "la fuente describe un logro colectivo"})
 

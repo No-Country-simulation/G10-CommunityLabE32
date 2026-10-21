@@ -152,6 +152,8 @@ Claude Code debe verificar que terminado se emita únicamente después de persis
 
 ## Interacciones: tarjetas de filtro y búsqueda por palabra clave
 
+> **Resuelto en el backend (fix/busqueda-fidelidad-fechas-pruebas):** `GET /api/mensajes?q=` busca en texto, autor y canal sin distinguir mayúsculas ni tildes (`%` y `_` son literales), combinado con `sentimiento` y los lotes, antes de contar y paginar.
+
 Se elimina el botón Filtros. Total de mensajes, Positivos, Negativos y Sin analizar filtran el listado usando sentimiento (sin filtro, positivo, negativo o sin_analizar), con paginación reiniciada. La lupa izquierda despliega hacia la derecha el buscador sin texto de ayuda visible. El frontend prepara q como parámetro opcional en GET /api/mensajes y combina la búsqueda con el filtro antes de paginar. Claude Code debe verificar soporte real para q o adaptar al contrato equivalente existente; buscar en el conjunto completo autorizado y devolver un total coherente, no filtrar solo diez mensajes de una página. La muestra local filtra antes de paginar. Verificar normalización, permisos y consulta parametrizada. No crear un endpoint si ya existe uno equivalente.
 
 ### Confirmación del usuario — funcionamiento completo de Interacciones

@@ -34,18 +34,24 @@ async def obtener_kpis(
     periodo: Optional[str] = Query(None, max_length=100, description="periodo_referencia de los lotes"),
     fuente_ingesta: Optional[FuenteIngesta] = Query(None, description="discord o manual"),
     lotes: Optional[str] = Query(None, max_length=8000, description=DESCRIPCION_LOTES),
+    incluir_pruebas: bool = Query(False, description="Incluir lotes marcados como de prueba"),
     db: AsyncSession = Depends(get_db),
 ):
     """Indicadores sin doble conteo; con origen/período se limitan a los lotes de ese ámbito."""
     seleccion = lotes_o_422(lotes)
     try:
-        ambito = await calcular_ambito(db, origen, periodo, fuente_ingesta, seleccion)
+        ambito = await calcular_ambito(db, origen, periodo, fuente_ingesta, seleccion, incluir_pruebas)
 
         consulta_mensajes = select(Mensaje.tipo, Mensaje.sentimiento_ref, func.count(Mensaje.id_mensaje))
         consulta_activos = select(Activo.estado, func.count(Activo.id_activo))
         if ambito.filtrado:
             consulta_mensajes = consulta_mensajes.where(Mensaje.id_mensaje.in_(sorted(ambito.ids_mensajes) or [""]))
             consulta_activos = consulta_activos.where(Activo.id_activo.in_(sorted(ambito.ids_activos) or [""]))
+        else:   # vista global: sin lo que solo existe en lotes de prueba
+            if ambito.excluidos_mensajes:
+                consulta_mensajes = consulta_mensajes.where(Mensaje.id_mensaje.not_in(sorted(ambito.excluidos_mensajes)))
+            if ambito.excluidos_activos:
+                consulta_activos = consulta_activos.where(Activo.id_activo.not_in(sorted(ambito.excluidos_activos)))
         filas_mensajes = (await db.execute(consulta_mensajes.group_by(Mensaje.tipo, Mensaje.sentimiento_ref))).all()
         filas_activos = (await db.execute(consulta_activos.group_by(Activo.estado))).all()
 
@@ -89,9 +95,9 @@ async def obtener_kpis(
 
 
 @router.get("/ambitos", dependencies=[Depends(requiere_usuario)])
-async def obtener_ambitos(db: AsyncSession = Depends(get_db)):
+async def obtener_ambitos(incluir_pruebas: bool = Query(False), db: AsyncSession = Depends(get_db)):
     """Pares origen/período con lotes registrados, del más reciente al más antiguo."""
-    return {"items": await listar_ambitos(db)}
+    return {"items": await listar_ambitos(db, incluir_pruebas)}
 
 
 @router.get("/alertas", dependencies=[Depends(requiere_operador)])
@@ -102,6 +108,7 @@ async def listar_alertas(
     periodo: Optional[str] = Query(None, max_length=100),
     fuente_ingesta: Optional[FuenteIngesta] = Query(None),
     lotes: Optional[str] = Query(None, max_length=8000, description=DESCRIPCION_LOTES),
+    incluir_pruebas: bool = Query(False),
     db: AsyncSession = Depends(get_db),
 ):
     """Detalle de las alertas internas: mismo conjunto y total que el KPI `alertas_internas`.
@@ -109,7 +116,7 @@ async def listar_alertas(
     Incluye el mensaje que la originó (texto y autor: solo operadores), el motivo, el lote y el trabajo.
     Ordenadas por fecha del mensaje, de la más reciente a la más antigua.
     """
-    por_fuente = await alertas_internas(db, origen, periodo, fuente_ingesta, lotes_o_422(lotes))
+    por_fuente = await alertas_internas(db, origen, periodo, fuente_ingesta, lotes_o_422(lotes), incluir_pruebas)
     mensajes = {}
     if por_fuente:
         filas = (await db.execute(select(Mensaje).where(Mensaje.id_mensaje.in_(sorted(por_fuente))))).scalars().all()
