@@ -18,6 +18,23 @@ SENTIMIENTOS = ("positivo", "negativo", "neutral", "indeterminado")
 
 
 VERSION = "grafo-local-v1-provisional"
+MAX_TEMA = 100
+
+
+def tipo_de(analisis):
+    """Tipo de participación de un mensaje según sus señales (misma precedencia que el router)."""
+    if analisis.get("es_bloqueo"):
+        return "bloqueo"
+    if analisis.get("es_duda"):
+        return "duda"
+    if analisis.get("es_logro"):
+        return "logro"
+    return "comentario"
+
+
+def clasificacion_de(analisis):
+    tema = " ".join(str(analisis.get("tema") or "").split())[:MAX_TEMA] or None
+    return {"tipo": tipo_de(analisis), "tema": tema}
 # El grafo no publica ni copia a almacenamiento externo; los activos se guardan en PostgreSQL
 # cuando el worker termina el trabajo. Este bloque describe solo la copia externa (OCI).
 ALMACENAMIENTO_EXTERNO = {
@@ -270,6 +287,9 @@ def construir_grafo(componentes: Componentes, configuracion: Configuracion | Non
             # Sentimiento por mensaje analizado (vacío si el análisis no lo produjo, p. ej. simulado).
             "sentimientos": {} if fallo else {
                 i: a["sentimiento"] for i, a in estado.get("analisis", {}).items() if "sentimiento" in a},
+            # Tipo de participación y tema por mensaje analizado (el worker los guarda en `mensajes`).
+            "clasificaciones": {} if fallo else {
+                i: clasificacion_de(a) for i, a in estado.get("analisis", {}).items()},
             "traza": estado["traza"] + ["consolidacion"],
         }
         return {"salida": salida, "traza": salida["traza"],
