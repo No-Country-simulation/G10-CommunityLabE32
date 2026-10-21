@@ -418,6 +418,41 @@ def test_render_banner_determinista_ajustado_y_sin_hechos_inventados():
     assert "MUY_LARGA" in b.renderizar("faq", "¿" + "MUY_LARGA" * 30 + "?")  # palabra sin espacios: se corta
 
 
+def test_banner_de_la_plantilla_anterior_se_regenera_con_la_nueva(cliente, cola):
+    a = crear_activo(cola, estado="aprobado")
+    from backend.app.api.routes.banners import id_banner
+    from backend.app.services import banners as b
+    with cola.conectar() as c:   # banner generado con el diseño anterior (misma versión del texto)
+        c.execute("""INSERT INTO banners (id, id_activo, version_texto, huella_texto, proveedor, plantilla, estado, svg, revision)
+            VALUES (%s, %s, 1, %s, 'plantilla-svg-v1', 'fabian-tarjeta-1200x630', 'generado', '<svg fill="#0f1a2e"/>', 'aprobado')""",
+                  (id_banner(a, 1), a, b.huella_texto(fila(cola, "SELECT copy FROM activos WHERE id_activo=%s", a)["copy"])))
+    lista = cliente.get(f"/api/curaduria/activos/{a}/banners", headers=H_OP).json()
+    assert lista["vigente"] is None and lista["banners"][0]["desactualizado"] is True
+    r = cliente.post(f"/api/curaduria/activos/{a}/banners", headers=H_OP)
+    assert r.status_code in (200, 201) and r.json()["reutilizado"] is False
+    assert (r.json()["plantilla"], r.json()["revision"], r.json()["desactualizado"]) == (b.PLANTILLA, "pendiente", False)
+    svg = cliente.get(r.json()["url"], headers=H_OP).text
+    assert "#0f1a2e" not in svg and "#ff90e8" in svg
+    # Con la plantilla vigente, volver a pedirlo reutiliza el mismo banner.
+    assert cliente.post(f"/api/curaduria/activos/{a}/banners", headers=H_OP).json()["reutilizado"] is True
+
+
+def test_banner_con_la_paleta_y_el_simbolo_vigentes():
+    import re
+    from backend.app.services import banners as b
+    copias = {"linkedin": "Ana López: certificación OCI Foundations\nAna aprobó la certificación.\n#OCI",
+              "faq": "¿Cómo valido un JSON contra un esquema?\n#Python",
+              "newsletter": "Semana de avances.\n- 3 certificaciones\n- Hackathon interno\n#Highlights"}
+    for formato, copy in copias.items():
+        svg = b.renderizar(formato, copy)
+        colores = {c.lower() for c in re.findall(r"#[0-9a-fA-F]{6}", svg)}
+        assert not colores & {"#ff5a1f", "#d43008", "#0f1a2e", "#132240", "#4d8dff", "#8b6cff"}   # plantilla anterior
+        assert b.ACENTOS[b.TIPO_POR_FORMATO[formato]] in colores and "#0b0b0b" in colores
+        assert {"#f1f333", "#ff90e8", "#b9e9c5"} <= colores                         # símbolo de tres figuras
+        assert 'viewBox="305 160 414 472"' in svg and "ABC Favorit" in svg
+    assert b.PLANTILLA == "communitylab-2026-10-1200x630"
+
+
 # --- Contador real de llamadas en las herramientas de sentimiento (sin red ni base) ------
 
 def _herramienta_evaluacion():
