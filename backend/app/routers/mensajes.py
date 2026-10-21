@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, File, UploadFile, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import or_, select, func
 from typing import List, Literal, Optional
 
 # Importamos tu inyector de dependencias
@@ -24,14 +24,34 @@ def _lotes(valor):
         raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
-async def _filtros(db, query, canal, origen, periodo, fuente_ingesta=None, lotes=None):
-    """Mismos filtros para la tabla y para el resumen (canal y ámbito de lotes; lotes=[] = ninguno)."""
+async def _filtros(db, query, canal, origen, periodo, fuente_ingesta=None, lotes=None, incluir_pruebas=False):
+    """Mismos filtros para la tabla y para el resumen (canal y ámbito de lotes; lotes=[] = ninguno).
+    Sin incluir_pruebas, lo que solo existe en lotes de prueba no aparece."""
     if canal:
         query = query.where(Mensaje.canal == canal)
-    if origen or periodo or fuente_ingesta or lotes is not None:
-        ambito = await calcular_ambito(db, origen, periodo, fuente_ingesta, lotes)
+    ambito = await calcular_ambito(db, origen, periodo, fuente_ingesta, lotes, incluir_pruebas)
+    if ambito.filtrado:
         query = query.where(Mensaje.id_mensaje.in_(sorted(ambito.ids_mensajes) or [""]))
+    elif ambito.excluidos_mensajes:
+        query = query.where(Mensaje.id_mensaje.not_in(sorted(ambito.excluidos_mensajes)))
     return query
+
+
+ACENTOS, SIN_ACENTOS = "áéíóúüñàèìòùâêîôû", "aeiouunaeiouaeiou"
+
+
+def _normalizar(texto):
+    return texto.lower().translate(str.maketrans(ACENTOS, SIN_ACENTOS))
+
+
+def _por_busqueda(query, q):
+    """Palabra clave en texto, autor o canal, sin distinguir mayúsculas ni tildes (consulta parametrizada)."""
+    q = (q or "").strip()
+    if not q:
+        return query
+    patron = "%" + _normalizar(q).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    campos = [func.translate(func.lower(col), ACENTOS, SIN_ACENTOS) for col in (Mensaje.texto, Mensaje.autor, Mensaje.canal)]
+    return query.where(or_(*(c.like(patron, escape="\\") for c in campos)))
 
 
 def _por_sentimiento(query, sentimiento):
@@ -51,12 +71,13 @@ async def resumen_sentimiento(
     periodo: str = Query(None, max_length=100),
     fuente_ingesta: Optional[FuenteIngesta] = Query(None),
     lotes: Optional[str] = Query(None, max_length=8000),
+    incluir_pruebas: bool = Query(False),
     db: AsyncSession = Depends(get_db),
 ):
     """Conteos sobre TODO el filtro (no solo la página). Los porcentajes usan como denominador
     los mensajes analizados; los sin analizar se informan aparte."""
     query = await _filtros(db, select(Mensaje.sentimiento_ref, func.count(Mensaje.id_mensaje)),
-                           canal, origen, periodo, fuente_ingesta, _lotes(lotes))
+                           canal, origen, periodo, fuente_ingesta, _lotes(lotes), incluir_pruebas)
     filas = (await db.execute(query.group_by(Mensaje.sentimiento_ref))).all()
     por_valor = dict.fromkeys(SENTIMIENTOS, 0)
     total = 0
@@ -83,6 +104,8 @@ async def obtener_mensajes(
     sentimiento: Optional[FiltroSentimiento] = Query(None, description="Filtro en servidor"),
     fuente_ingesta: Optional[FuenteIngesta] = Query(None, description="discord o manual"),
     lotes: Optional[str] = Query(None, max_length=8000, description="JSON de lotes; \"[]\" = ninguno"),
+    q: Optional[str] = Query(None, max_length=200, description="Palabra clave en texto, autor o canal"),
+    incluir_pruebas: bool = Query(False, description="Incluir lotes marcados como de prueba"),
     skip: int = Query(0, ge=0, description="Registros a saltar (offset)"),
     limit: int = Query(10, ge=1, le=100, description="Registros por página"),
     db: AsyncSession = Depends(get_db)
@@ -92,11 +115,11 @@ async def obtener_mensajes(
     Con origen/período, solo los mensajes de los lotes de ese ámbito; más recientes primero.
     """
     seleccion = _lotes(lotes)
-    query = _por_sentimiento(await _filtros(db, select(Mensaje), canal, origen, periodo, fuente_ingesta, seleccion),
-                             sentimiento)
-    count_query = _por_sentimiento(
-        await _filtros(db, select(func.count(Mensaje.id_mensaje)), canal, origen, periodo, fuente_ingesta, seleccion),
-        sentimiento)
+    query = _por_busqueda(_por_sentimiento(await _filtros(
+        db, select(Mensaje), canal, origen, periodo, fuente_ingesta, seleccion, incluir_pruebas), sentimiento), q)
+    count_query = _por_busqueda(_por_sentimiento(await _filtros(
+        db, select(func.count(Mensaje.id_mensaje)), canal, origen, periodo, fuente_ingesta, seleccion, incluir_pruebas),
+        sentimiento), q)
 
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0

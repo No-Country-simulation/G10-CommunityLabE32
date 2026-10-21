@@ -20,7 +20,8 @@ from backend.app.schemas.curaduria import (
     FuenteMensajeDetalle,
     SolicitudPosts,
 )
-from backend.app.services.ambito import ids_activos_de_trabajo
+from backend.app.services.ambito import ids_activos_de_trabajo, ids_excluidos
+from backend.app.services.fidelidad import advertencias_de
 from backend.app.services.oci import subir_activo_aprobado_oci
 
 router = APIRouter(prefix="/api/curaduria", tags=["Curaduría de Activos"])
@@ -43,6 +44,7 @@ async def listar_activos(
     trabajo: Optional[str] = Query(None, max_length=64, description="Solo activos de este trabajo"),
     estados: Optional[str] = Query(None, max_length=100,
                                    description="Varios estados separados por comas, p. ej. generado,revisado"),
+    incluir_pruebas: bool = Query(False, description="Incluir borradores de lotes de prueba"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -51,6 +53,11 @@ async def listar_activos(
     """
     query = select(Activo)
     count_query = select(func.count(Activo.id_activo))
+    if not incluir_pruebas:
+        _, de_prueba = await ids_excluidos(db)
+        if de_prueba:
+            query = query.where(Activo.id_activo.not_in(sorted(de_prueba)))
+            count_query = count_query.where(Activo.id_activo.not_in(sorted(de_prueba)))
 
     if estado and estados:
         raise HTTPException(status_code=422, detail="Use `estado` o `estados`, no ambos.")
@@ -194,6 +201,14 @@ async def actualizar_activo(
         if dto.posts_redes is not None:
             activo.posts_redes = dto.posts_redes.model_dump()
         activo.version += 1
+        # Las advertencias deben corresponder a la versión vigente del texto, no a la generada.
+        mensajes = (await db.execute(select(Mensaje).where(Mensaje.id_mensaje.in_(activo.fuentes or [])))).scalars().all()
+        if mensajes:
+            ambito = await _ambito_de(db, mensajes[0].id_mensaje)
+            activo.advertencias_fidelidad = advertencias_de(
+                activo.copy, activo.formato,
+                [{"id": m.id_mensaje, "autor": m.autor, "canal": m.canal, "fecha": m.fecha, "texto": m.texto}
+                 for m in mensajes], ambito.get("origen"), ambito.get("periodo"))
         # Un texto aprobado que cambia sin aprobarse de nuevo en la misma acción deja de estar aprobado.
         if activo.estado == "aprobado" and not (dto.estado and dto.estado.value == "aprobado"):
             activo.estado = "revisado"
@@ -251,13 +266,19 @@ def _generar_textos(peticion):
     return generar_posts_redes(peticion, _cliente_ia())
 
 
-async def _peticion_post(db, mensajes):
-    """Misma petición que arma el grafo para un logro: las fuentes del activo y el ámbito de su lote."""
-    ambito = (await db.execute(text("""SELECT entrada->>'origen_comunidad' AS origen,
+async def _ambito_de(db, id_mensaje):
+    """Origen y período del lote más reciente que contiene el mensaje ({} si no hay trabajo)."""
+    fila = (await db.execute(text("""SELECT entrada->>'origen_comunidad' AS origen,
             entrada->>'periodo_referencia' AS periodo
         FROM trabajos_worker
         WHERE entrada->'interacciones' @> jsonb_build_array(jsonb_build_object('id', CAST(:id AS text)))
-        ORDER BY creado DESC LIMIT 1"""), {"id": mensajes[0].id_mensaje})).mappings().first()
+        ORDER BY creado DESC LIMIT 1"""), {"id": id_mensaje})).mappings().first()
+    return dict(fila) if fila else {}
+
+
+async def _peticion_post(db, mensajes):
+    """Misma petición que arma el grafo para un logro: las fuentes del activo y el ámbito de su lote."""
+    ambito = await _ambito_de(db, mensajes[0].id_mensaje)
     return {"ruta": "logro", "formato": "post_linkedin_x",
             "origen_comunidad": (ambito or {}).get("origen") or "comunidad",
             "periodo_referencia": (ambito or {}).get("periodo") or "sin período",

@@ -1,7 +1,16 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import List, Literal, Optional
-from datetime import datetime
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from typing import Annotated, List, Literal, Optional
+from datetime import datetime, timezone
 from enum import Enum
+
+def _utc(valor: datetime) -> datetime:
+    # Las columnas de activos se guardan en UTC sin zona (datetime.utcnow): se declaran como UTC para que el
+    # navegador no las tome como hora local (salían 6 h corridas frente al historial, que sí lleva zona).
+    return valor.replace(tzinfo=timezone.utc) if valor.tzinfo is None else valor
+
+
+FechaUTC = Annotated[datetime, AfterValidator(_utc)]
+
 
 class EstadoActivoEnum(str, Enum):
     GENERADO = "generado"
@@ -32,7 +41,7 @@ class EventoHistorial(BaseModel):
     evento: str            # generado | edicion | estado | posts_generados
     estado: str
     version: int
-    fecha: datetime
+    fecha: FechaUTC
     actor: Optional[str] = None
     comentario: Optional[str] = None
 
@@ -52,8 +61,8 @@ class ActivoResponse(BaseModel):
     # Controles automáticos de fidelidad; None en activos anteriores al control.
     advertencias_fidelidad: Optional[List[dict]] = None
     posts_redes: Optional[PostsRedes] = None
-    fecha_creacion: datetime
-    fecha_actualizacion: datetime
+    fecha_creacion: FechaUTC
+    fecha_actualizacion: FechaUTC
 
     model_config = ConfigDict(from_attributes=True)
 

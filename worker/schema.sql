@@ -21,6 +21,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS trabajos_worker_idempotencia
 -- Vía de entrada del lote (aditiva): 'discord' (puente o histórico) o 'manual' (archivo u operador).
 -- NULL en trabajos anteriores: la API la deduce del origen (ver backend/app/services/ambito.py).
 ALTER TABLE trabajos_worker ADD COLUMN IF NOT EXISTS fuente text CHECK (fuente IN ('discord', 'manual'));
+-- Lotes de prueba (aditiva): se ocultan por defecto en el panel; se marcan con backend.scripts.marcar_prueba.
+ALTER TABLE trabajos_worker ADD COLUMN IF NOT EXISTS es_prueba boolean NOT NULL DEFAULT false;
 -- Advertencias de fidelidad editorial por activo (aditiva; NULL en activos anteriores).
 ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS advertencias_fidelidad jsonb;
 -- Curaduría (aditiva): versiones LinkedIn/X, contador de «Generar post» e historial de eventos.
