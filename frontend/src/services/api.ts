@@ -163,6 +163,8 @@ export const actualizarPerfilUsuario = async (
 
 // Tipado estricto basado en tu Pydantic del Backend
 export interface Mensaje {
+  alerta_interna?: boolean;
+  estado_borrador?: 'aprobado' | 'pendiente' | 'rechazado' | null;
   id_mensaje: string;
   autor: string;
   fecha: string;
@@ -291,14 +293,16 @@ export const listarActivos = async (
   page: number = 1,
   limit: number = 15,
   estado?: string,
-  trabajo?: string | null
+  trabajo?: string | null,
+  estados?: string,
 ): Promise<PaginatedActivosResponse> => {
   if (esReferenciaPublicada() && !trabajo) {
-    const muestra = borradoresReferencia.filter(a => !estado || a.estado === estado);
+    const muestra = borradoresReferencia.filter(a => (!estado || a.estado === estado) && (!estados || estados.split(',').includes(a.estado)));
     return { items: structuredClone(muestra.slice((page - 1) * limit, page * limit)), total: muestra.length, page, limit, total_pages: Math.max(1, Math.ceil(muestra.length / limit)) };
   }
   const params: Record<string, string | number> = { page, limit };
   if (estado) params.estado = estado;
+  if (estados) params.estados = estados;
   if (trabajo) params.trabajo = trabajo;
 
   const response = await apiClient.get('/curaduria/activos', { params });
@@ -355,15 +359,12 @@ export interface Ambito {
   ultimo?: string | null;
 }
 
-function parametrosLotes(ambito?: Ambito | Ambito[] | null) {
-  if (Array.isArray(ambito)) {
-    if (ambito.length === 1) return parametrosLote(ambito[0]);
-    return { lotes: JSON.stringify(ambito.map(({ origen, periodo, fuente_ingesta }) => ({ origen, periodo, fuente_ingesta: fuente_ingesta ?? null }))) };
-  }
-  return parametrosLote(ambito);
-}
-function parametrosLote(ambito?: Ambito | null) {
-  return { origen: ambito?.origen, periodo: ambito?.periodo, fuente_ingesta: ambito?.fuente_ingesta ?? undefined };
+function parametrosLotes(ambito?: Ambito | Ambito[] | null): { lotes?: string } {
+  // null/undefined: global. []: sin lotes. Una selección siempre usa el contrato JSON.
+  if (ambito == null) return {};
+  const lotes = (Array.isArray(ambito) ? ambito : [ambito]).map(({ origen, periodo, fuente_ingesta }) => ({ origen, periodo, fuente_ingesta: fuente_ingesta || null }));
+  const unicos = [...new Map(lotes.map(lote => [JSON.stringify(lote), lote])).values()];
+  return { lotes: JSON.stringify(unicos) };
 }
 
 // Campana: mensajes con alerta interna real del análisis (frustración, bloqueo, etc.). El backend no
@@ -828,19 +829,14 @@ export async function listarLogrosCuraduria(page = 1, limit = 10, estado?: strin
     const items = borradoresReferencia.filter(a => esLogroAcademicoElegible(a) && (!estado || (estado === 'pendientes' ? ['generado', 'revisado'].includes(a.estado) : a.estado === estado)));
     return { items: structuredClone(items.slice((page - 1) * limit, page * limit)), total: items.length, page, limit, total_pages: Math.max(1, Math.ceil(items.length / limit)) };
   }
-  // Compatibilidad con el backend actual (ver PENDIENTES-BACKEND.md): /curaduria/activos acepta un solo
-  // `estado` e ignora `estados`, `tipo_revision`, `sentimiento` y `logro_completado`. Pendientes = generado +
-  // revisado se piden por separado y se suman (el total es exacto). El filtro de logro académico solo se
-  // aplica cuando el servidor ya envía `elegibilidad_curaduria`; mientras tanto se muestran todos.
-  const base = { page, limit, trabajo: trabajo || undefined, tipo_revision: 'logro_academico', sentimiento: 'positivo', logro_completado: true };
-  const pedir = (e?: string) => apiClient.get<PaginatedActivosResponse>('/curaduria/activos', { params: { ...base, estado: e } }).then(r => r.data);
-  const partes = estado === 'pendientes' ? await Promise.all([pedir('generado'), pedir('revisado')]) : [await pedir(estado)];
-  const items = partes.flatMap(p => p.items);
-  return {
-    items: items.filter(esLogroAcademicoElegible),
-    total: partes.reduce((n, p) => n + p.total, 0), page, limit,
-    total_pages: Math.max(1, ...partes.map(p => p.total_pages)),
-  };
+  // Pendientes = generado + revisado en una sola consulta paginada en el servidor (`estados`). El backend aún
+  // ignora `tipo_revision`, `sentimiento` y `logro_completado`; el filtro de logro académico solo se aplica
+  // cuando el servidor envía `elegibilidad_curaduria` (ver esLogroAcademicoElegible).
+  const response = await apiClient.get<PaginatedActivosResponse>('/curaduria/activos', { params: {
+    page, limit, trabajo: trabajo || undefined, tipo_revision: 'logro_academico', sentimiento: 'positivo', logro_completado: true,
+    ...(estado === 'pendientes' ? { estados: 'generado,revisado' } : { estado }),
+  } });
+  return { ...response.data, items: response.data.items.filter(esLogroAcademicoElegible) };
 }
 export async function generarPostsLogro(idActivo: string): Promise<{ linkedin: string; x: string }> {
   if (idActivo.startsWith('referencia-')) throw new Error('La muestra local no admite generación real.');
@@ -855,4 +851,26 @@ export async function obtenerPendientesCuraduria(): Promise<number> {
   const resultado = await listarLogrosCuraduria(1, 1, 'pendientes');
   if (!Number.isSafeInteger(resultado.total) || resultado.total < 0) throw new Error('Conteo de pendientes no disponible.');
   return resultado.total;
+}
+
+// Contrato de alertas internas del Resumen, con paginación por desplazamiento.
+export interface AlertaInterna {
+  id_alerta: string;
+  id_mensaje: string;
+  motivo: string;
+  nivel: string;
+  autor: string;
+  canal: string;
+  fecha: string | null;
+  texto: string;
+  origen: string | null;
+  periodo: string | null;
+  trabajo: string | null;
+  detectada: string | null;
+  veces: number;
+  sentimiento_ref: string | null;
+}
+export async function listarAlertasInternas(skip = 0, limit = 9, ambito?: Ambito | Ambito[] | null): Promise<{ items: AlertaInterna[]; total: number }> {
+  const response = await apiClient.get('/dashboard/alertas', { params: { skip, limit, ...parametrosLotes(ambito) } });
+  return response.data;
 }
