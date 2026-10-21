@@ -33,7 +33,7 @@ def normalizar_evento(raw: dict) -> dict | None:
         return None
 
     # Sin "tipo": el análisis de la IA decide la clasificación de cada mensaje.
-    return {
+    interaccion = {
         # Prefijo 'discord-' para evitar colisiones con otras fuentes
         "id": f"discord-{message_id}",
         "autor": str(raw.get("author_id") or "discord_user")[:LIMITE_AUTOR],
@@ -41,6 +41,11 @@ def normalizar_evento(raw: dict) -> dict | None:
         "fecha": fecha,
         "texto": texto,
     }
+    # El autor (ID) es la identidad; el nombre visible solo se muestra y se usa al redactar.
+    nombre = " ".join(str(raw.get("author_name") or "").split())[:LIMITE_AUTOR]
+    if nombre:
+        interaccion["autor_nombre"] = nombre
+    return interaccion
 
 
 def normalizar_eventos(eventos, historial_ids=None) -> dict:

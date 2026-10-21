@@ -23,6 +23,7 @@ def interaccion(fila):
         "canal": f"discord_{fila['canal_id'] or 'general'}"[:LIMITE_CANAL],
         "fecha": fecha_utc(fila["fecha"].isoformat()),
         "texto": fila["texto"].strip(),
+        **({"autor_nombre": fila["autor_nombre"]} if fila.get("autor_nombre") else {}),
     }
 
 

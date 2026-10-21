@@ -8,6 +8,7 @@ from backend.app.core.acceso import requiere_operador, requiere_usuario
 from backend.app.core.dependencias import get_db
 from backend.app.models.mensaje import Mensaje
 from backend.app.services.ambito import calcular_ambito, estados_borrador, parsear_lotes
+from backend.app.services.autores import visible
 # IMPORTAMOS EL NUEVO ESQUEMA PAGINADO
 from backend.app.schemas.mensaje import MensajeResponse, PaginatedMensajesResponse
 
@@ -50,7 +51,8 @@ def _por_busqueda(query, q):
     if not q:
         return query
     patron = "%" + _normalizar(q).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
-    campos = [func.translate(func.lower(col), ACENTOS, SIN_ACENTOS) for col in (Mensaje.texto, Mensaje.autor, Mensaje.canal)]
+    campos = [func.translate(func.lower(func.coalesce(col, "")), ACENTOS, SIN_ACENTOS)
+              for col in (Mensaje.texto, Mensaje.autor, Mensaje.autor_nombre, Mensaje.canal)]
     return query.where(or_(*(c.like(patron, escape="\\") for c in campos)))
 
 
@@ -133,6 +135,7 @@ async def obtener_mensajes(
         alertas = (await calcular_ambito(db)).alertas_por_fuente & ids
         borradores = await estados_borrador(db, ids)
         items = [MensajeResponse.model_validate(m).model_copy(update={
+            "autor": visible(m.autor, m.autor_nombre), "autor_id": m.autor,
             "alerta_interna": m.id_mensaje in alertas, "estado_borrador": borradores.get(m.id_mensaje)})
             for m in mensajes]
         return {

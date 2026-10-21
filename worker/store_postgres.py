@@ -145,9 +145,10 @@ class ColaPostgres:
                 fuente = {"autor": m["autor"], "fecha": m["fecha"], "canal": m["canal"],
                           "tipo": m.get("tipo") or TIPO_POR_DEFECTO, "texto": m["texto"]}
                 c.execute("""INSERT INTO mensajes
-                    (id_mensaje, autor, fecha, canal, tipo, texto)
-                    VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT (id_mensaje) DO NOTHING""",
-                    (m["id"], fuente["autor"], fuente["fecha"], fuente["canal"], fuente["tipo"], fuente["texto"]))
+                    (id_mensaje, autor, fecha, canal, tipo, texto, autor_nombre)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id_mensaje) DO NOTHING""",
+                    (m["id"], fuente["autor"], fuente["fecha"], fuente["canal"], fuente["tipo"], fuente["texto"],
+                     m.get("autor_nombre")))
                 existente = c.execute("SELECT autor, fecha, canal, tipo, texto FROM mensajes WHERE id_mensaje=%s",
                                       (m["id"],)).fetchone()
                 # Sin tipo explícito se acepta el ya guardado; con tipo distinto se rechaza.
@@ -155,6 +156,10 @@ class ColaPostgres:
                 if any((fecha_utc(existente[k]) != fecha_utc(fuente[k])) if k == "fecha"
                        else existente[k] != fuente[k] for k in campos):
                     raise ConflictoMensaje(m["id"])
+                # El nombre visible no es parte de la identidad: se completa o actualiza sin conflicto.
+                if m.get("autor_nombre"):
+                    c.execute("UPDATE mensajes SET autor_nombre=%s WHERE id_mensaje=%s AND autor_nombre IS DISTINCT FROM %s",
+                              (m["autor_nombre"], m["id"], m["autor_nombre"]))
         return identificador, True
 
     def obtener(self, identificador):

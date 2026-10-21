@@ -26,6 +26,8 @@ class InteraccionTrabajo(BaseModel):
     fecha: str = Field(min_length=1)
     texto: str = Field(min_length=1)
     tipo: str | None = Field(default=None, min_length=1, max_length=50)
+    # Nombre visible (p. ej. de Discord); el `autor` sigue siendo la identidad del mensaje.
+    autor_nombre: str | None = Field(default=None, min_length=1, max_length=150)
     # Contexto ya procesado en un lote parcial del mismo período (no genera alertas ni posts).
     previo: bool | None = None
 

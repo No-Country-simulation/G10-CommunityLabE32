@@ -22,3 +22,5 @@ class Mensaje(Base):
     sentimiento_trabajo: Mapped[Optional[str]] = mapped_column(nullable=True)
     sentimiento_fecha: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     tema_ref: Mapped[Optional[str]] = mapped_column(nullable=True)
+    # Nombre visible (p. ej. de Discord). `autor` sigue siendo la identidad (en Discord, el ID).
+    autor_nombre: Mapped[Optional[str]] = mapped_column(nullable=True)

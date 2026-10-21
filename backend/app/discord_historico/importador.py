@@ -30,6 +30,9 @@ def _normalizar(m):
         "id_mensaje": f"discord-{m['id']}",          # misma identidad que el lector en vivo
         "message_id": m["id"],
         "autor_id": str((m.get("author") or {}).get("id") or "desconocido"),
+        # Nombre visible: global_name (perfil) o username. El apodo del servidor no viene en el mensaje.
+        "autor_nombre": " ".join(str((m.get("author") or {}).get("global_name")
+                                     or (m.get("author") or {}).get("username") or "").split())[:150] or None,
         "fecha": fecha_de_snowflake(m["id"]),
         "editado_en": _fecha(m.get("edited_timestamp")),
         "texto": texto,

@@ -10,6 +10,7 @@ from typing import Callable, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from langsmith import tracing_context
+from .autores import nombre_visible
 from .diagnostico import normalizar_diagnostico
 from .generadores.fidelidad import revisar_fidelidad
 from .router_base import Configuracion, enrutar_lote
@@ -128,6 +129,8 @@ def validar_lote(entrada):
         if m["id"] in ids:
             raise ContratoInvalido("IDs duplicados: deben resolverse en ingesta")
         ids.add(m["id"])
+        if item.get("autor_nombre"):
+            m["autor_nombre"] = texto(item["autor_nombre"], "autor_nombre")[:150]
         # 'tipo' es una pista para Santiago, no sustituye las señales del router.
         if "tipo" in item:
             m["tipo"] = texto(item["tipo"], "tipo")
@@ -240,7 +243,9 @@ def construir_grafo(componentes: Componentes, configuracion: Configuracion | Non
                         "origen_comunidad": estado["lote"]["origen_comunidad"],
                         "periodo_referencia": estado["lote"]["periodo_referencia"],
                         "fuentes": deepcopy(d["fuentes"]),
-                        "interacciones": [deepcopy(estado["fuentes"][i]) for i in d["fuentes"]]}
+                        # Los generadores reciben el nombre visible, nunca un ID numérico como si fuera una persona.
+                        "interacciones": [{**{k: v for k, v in deepcopy(estado["fuentes"][i]).items() if k != "autor_nombre"},
+                                           "autor": nombre_visible(estado["fuentes"][i])} for i in d["fuentes"]]}
             respuesta = funcion(peticion)
             if not isinstance(respuesta, dict) or set(respuesta) != {"copy", "fuentes"}:
                 raise ContratoInvalido("El generador debe devolver copy y fuentes")

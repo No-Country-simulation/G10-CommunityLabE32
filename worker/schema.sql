@@ -25,6 +25,9 @@ ALTER TABLE trabajos_worker ADD COLUMN IF NOT EXISTS fuente text CHECK (fuente I
 ALTER TABLE trabajos_worker ADD COLUMN IF NOT EXISTS es_prueba boolean NOT NULL DEFAULT false;
 -- Advertencias de fidelidad editorial por activo (aditiva; NULL en activos anteriores).
 ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS advertencias_fidelidad jsonb;
+-- Nombre visible del autor (aditiva): el autor (ID) sigue siendo la identidad del mensaje.
+ALTER TABLE IF EXISTS mensajes ADD COLUMN IF NOT EXISTS autor_nombre text;
+ALTER TABLE IF EXISTS discord_mensajes_historicos ADD COLUMN IF NOT EXISTS autor_nombre text;
 -- Curaduría (aditiva): versiones LinkedIn/X, contador de «Generar post» e historial de eventos.
 ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS posts_redes jsonb;
 ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS generaciones_ia integer NOT NULL DEFAULT 0;

@@ -37,6 +37,13 @@ class ReaderTests(unittest.TestCase):
             "content": "  ¡Hola!\nSegunda línea  ",
         })
 
+    def test_source_event_includes_visible_name_when_available(self):
+        autor = SimpleNamespace(id=400, bot=False, display_name="  Ana   López ")
+        event, _ = capture(message(author=autor), self.config)
+        self.assertEqual((event["author_id"], event["author_name"]), ("400", "Ana López"))
+        sin_nombre, _ = capture(message(author=SimpleNamespace(id=400, bot=False, display_name="")), self.config)
+        self.assertNotIn("author_name", sin_nombre)
+
     def test_private_messages_and_other_servers_rejected(self):
         for guild in (None, SimpleNamespace(id=999)):
             self.assertEqual(capture(message(guild=guild), self.config),
