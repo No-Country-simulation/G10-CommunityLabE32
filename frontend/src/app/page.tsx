@@ -1,25 +1,22 @@
 'use client';
 
+
+import UiTree from '@/components/UiTree';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { esVistaLocal } from '@/services/vistaLocal';
-import Link from 'next/link';
 import {
-  obtenerMensajes,
   obtenerKPIs,
-  obtenerAmbitos,
   leerTokenOperador,
-  Ambito,
-  Mensaje,
   DashboardKPIs,
 } from '@/services/api';
 import {
-  Loader2, Wifi, WifiOff, MessageSquare, Layers, CheckCircle2, AlertTriangle, Activity, UploadCloud, ArrowRight,
+  Loader2, MessageSquare, Layers, CheckCircle2, AlertTriangle,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import CommunityIntro from '@/components/CommunityIntro';
-import { esReferenciaPublicada } from '@/services/referenciaPublicada';
+import ResultadosResumen, { type FiltroResumen } from '@/components/ResultadosResumen';
 
 const tonos = {
   info: { fondo: 'bg-info-soft', texto: 'text-info' },
@@ -28,22 +25,13 @@ const tonos = {
   danger: { fondo: 'bg-danger-soft', texto: 'text-danger' },
 } as const;
 
-const sentimentBadge: Record<string, string> = {
-  positivo: 'badge-success',
-  negativo: 'badge-danger',
-};
-
-const itemAnim = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } };
-
 export default function CommunityDashboard() {
   const router = useRouter();
   const [autorizado, setAutorizado] = useState(false);
-  const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
-  const [ambitos, setAmbitos] = useState<Ambito[]>([]);
-  const [ambito, setAmbito] = useState<Ambito | null>(null);
+  const [filtro, setFiltro] = useState<FiltroResumen>('mensajes');
   const [cargando, setCargando] = useState(true);
-  const [conectado, setConectado] = useState<boolean | null>(null);
+  const [errorCarga, setErrorCarga] = useState('');
 
   useEffect(() => {
     const token = leerTokenOperador();
@@ -60,62 +48,50 @@ export default function CommunityDashboard() {
 
   useEffect(() => {
     if (!autorizado) return;
-    obtenerAmbitos().then(setAmbitos).catch(() => setAmbitos([]));
+    let vigente = true;
+    obtenerKPIs().then(datos => { if (vigente) setKpis(datos); })
+      .catch(() => { if (vigente) setErrorCarga('No se pudieron cargar las métricas.'); })
+      .finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
   }, [autorizado]);
 
-  useEffect(() => {
-    if (!autorizado) return;
-    let vigente = true;
-    Promise.all([obtenerKPIs(ambito), obtenerMensajes(0, 9, undefined, ambito)])
-      .then(([kpiData, msgsData]) => {
-        if (!vigente) return;
-        setKpis(kpiData);
-        setMensajes(msgsData.items);
-        setConectado(true);
-        setCargando(false);
-      })
-      .catch((err) => {
-        if (!vigente) return;
-        console.error('Error conectando al backend:', err);
-        setConectado(false);
-        setCargando(false);
-      });
-    return () => { vigente = false; };
-  }, [ambito, autorizado]);
-
   if (!autorizado) {
-    return (
+    return <UiTree>{(
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-3 text-muted-foreground text-sm">
           <Loader2 className="w-5 h-5 animate-spin text-primary" />
           Verificando sesión segura…
         </div>
       </div>
-    );
+    )}</UiTree>;
   }
 
   const tarjetas = kpis
     ? [
         {
           titulo: 'Total de mensajes',
+          filtro: 'mensajes' as FiltroResumen,
           valor: kpis.total_mensajes,
           icono: MessageSquare,
           tono: tonos.info,
         },
         {
-          titulo: 'Borradores por revisar',
+          titulo: 'Borradores pendientes',
+          filtro: 'pendientes' as FiltroResumen,
           valor: kpis.borradores_pendientes,
           icono: Layers,
           tono: tonos.info,
         },
         {
           titulo: 'Aprobados',
+          filtro: 'aprobados' as FiltroResumen,
           valor: kpis.activos_aprobados,
           icono: CheckCircle2,
           tono: tonos.success,
         },
         {
           titulo: 'Alertas internas',
+          filtro: 'alertas' as FiltroResumen,
           valor: kpis.alertas_internas,
           icono: AlertTriangle,
           tono: kpis.alertas_internas > 0 ? tonos.danger : tonos.warning,
@@ -123,7 +99,7 @@ export default function CommunityDashboard() {
       ]
     : [];
 
-  return (
+  return <UiTree>{(
     <div className="flex min-h-screen w-full">
       <Sidebar />
 
@@ -135,47 +111,13 @@ export default function CommunityDashboard() {
               Centro de operaciones
             </h2>
             <p className="text-muted-foreground text-[15px]">
-              Métricas e interacciones procesadas{ambito ? ` · ${ambito.origen} · ${ambito.periodo}` : ' · todos los lotes'}.
+              Métricas e interacciones procesadas.
             </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="sr-only" htmlFor="ambito">Ámbito de las métricas</label>
-            <select
-              id="ambito"
-              className="input py-2! w-auto max-w-full"
-              value={ambito ? `${ambito.origen}\u0000${ambito.periodo}` : ''}
-              onChange={(e) => {
-                const elegido = ambitos.find((a) => `${a.origen}\u0000${a.periodo}` === e.target.value) ?? null;
-                setCargando(true);
-                setAmbito(elegido);
-              }}
-            >
-              <option value="">Todos los lotes (incluye históricos)</option>
-              {ambitos.map((a) => (
-                <option key={`${a.origen}\u0000${a.periodo}`} value={`${a.origen}\u0000${a.periodo}`}>
-                  {a.origen} · {a.periodo}
-                </option>
-              ))}
-            </select>
-            <Link className="btn-secondary" href="/ingesta">
-              <UploadCloud className="w-3.5 h-3.5 text-primary" />
-              Nueva ingesta
-            </Link>
-            {conectado === false ? (
-              <span className="badge-danger py-1.5! px-3!">
-                <WifiOff className="w-3.5 h-3.5" />
-                Sin conexión con la API
-              </span>
-            ) : conectado ? (
-              <span className="badge-success py-1.5! px-3!">
-                <Wifi className="w-3.5 h-3.5" />
-                {esReferenciaPublicada() ? 'Referencia cargada' : 'API conectada'}
-              </span>
-            ) : null}
           </div>
         </header>
 
 
+        {errorCarga && <p role="alert" className="card p-4 mb-4">{errorCarga}</p>}
         {cargando ? (
           <div className="card flex items-center justify-center h-72">
             <div className="text-subtle-foreground flex items-center gap-3 text-sm">
@@ -194,8 +136,8 @@ export default function CommunityDashboard() {
               <div className="dashboard-metrics grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 {tarjetas.map((t) => {
                   const Icono = t.icono;
-                  return (
-                    <article key={t.titulo} className="metric-card card p-5">
+                  return <UiTree key={t.titulo}>{(
+                    <button type="button" key={t.titulo} className="metric-card card p-5 text-left" aria-pressed={filtro === t.filtro} onClick={() => setFiltro(t.filtro)}>
                       <div className="flex items-center gap-3 mb-3">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${t.tono.fondo}`}>
                           <Icono className={`w-5 h-5 ${t.tono.texto}`} />
@@ -203,65 +145,16 @@ export default function CommunityDashboard() {
                         <span className="text-sm font-medium text-muted-foreground">{t.titulo}</span>
                       </div>
                       <h3 className="text-3xl font-bold text-foreground tabular-nums">{t.valor}</h3>
-                    </article>
-                  );
+                    </button>
+                  )}</UiTree>;
                 })}
               </div>
             )}
 
-            <div>
-              <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary" /> Mensajes recientes
-              </h2>
-              <p className="text-xs text-subtle-foreground -mt-2 mb-4">
-                Ordenados por fecha del mensaje. Usa el selector para separar históricos, pruebas y actividad actual.
-              </p>
-              {mensajes.length === 0 && (
-                <div className="overview-empty">
-                  <MessageSquare className="h-6 w-6 text-subtle-foreground" />
-                  <h3>Aquí comienza la conversación</h3>
-                  <p>{conectado === false ? 'Conecta el backend para consultar los mensajes y las métricas de tu comunidad.' : 'Importa tu primer lote para explorar los mensajes de tu comunidad.'}</p>
-                  <Link href="/ingesta" className="btn-secondary">Ir a ingesta <ArrowRight className="h-4 w-4" /></Link>
-                </div>
-              )}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                {mensajes.slice(0, 9).map((msg) => (
-                  <motion.div
-                    key={msg.id_mensaje}
-                    variants={itemAnim}
-                    className="message-card card p-5 flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex justify-between items-start mb-4">
-                        <span className="badge-neutral">{msg.canal}</span>
-                        {msg.sentimiento_ref && (
-                          <span className={sentimentBadge[msg.sentimiento_ref] ?? 'badge-neutral'}>
-                            {msg.sentimiento_ref}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-muted-foreground text-sm leading-relaxed mb-5 line-clamp-4">
-                        {msg.texto}
-                      </p>
-                    </div>
-                    <div className="pt-4 border-t border-border flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-bold shrink-0">
-                        {msg.autor.substring(0, 2).toUpperCase()}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-foreground">{msg.autor}</span>
-                        <span className="text-xs text-subtle-foreground">
-                          {new Date(msg.fecha).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
+            <ResultadosResumen key={filtro} filtro={filtro} />
           </motion.div>
         )}
       </main>
     </div>
-  );
+  )}</UiTree>;
 }

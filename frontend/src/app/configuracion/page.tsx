@@ -1,5 +1,7 @@
 'use client';
 
+
+import UiTree from '@/components/UiTree';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -109,7 +111,7 @@ export default function ConfiguracionPage() {
     } catch {}
   };
 
-  return (
+  return <UiTree>{(
     <RutaProtegida>
       <div className="flex min-h-screen w-full">
         <Sidebar />
@@ -117,7 +119,7 @@ export default function ConfiguracionPage() {
         <main className="dashboard-content flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
           <header className="mb-8">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              Configuración de cuenta y seguridad
+              Configuración de la cuenta y seguridad
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
               Administra tus credenciales de operador, actualiza tu correo o contraseña y gestiona tus permisos.
@@ -254,7 +256,7 @@ export default function ConfiguracionPage() {
 
                   <div>
                     <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Confirmar Nueva contraseña
+                      Confirmar nueva contraseña
                     </label>
                     <input
                       type="password"
@@ -292,7 +294,7 @@ export default function ConfiguracionPage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Procesar pendientes, aprobar textos, generar banners e importar historial requieren el rol operador. Los permisos se verifican en el servidor según la sesión de la cuenta.
+                  Para procesar pendientes, aprobar textos, generar banners e importar el historial se requiere el rol de operador. Los permisos se verifican en el servidor según la sesión de la cuenta.
                 </p>
                 <TokenOperador />
               </div>
@@ -307,7 +309,7 @@ export default function ConfiguracionPage() {
                     <div>
                       <h2 className="text-base font-bold text-foreground">Apariencia e interfaz</h2>
                       <p className="text-xs text-muted-foreground">
-                        Personaliza el tema visual de tu estación de trabajo
+                        Personaliza el tema visual de tu estación de trabajo.
                       </p>
                     </div>
                   </div>
@@ -352,5 +354,5 @@ export default function ConfiguracionPage() {
         </main>
       </div>
     </RutaProtegida>
-  );
+  )}</UiTree>;
 }

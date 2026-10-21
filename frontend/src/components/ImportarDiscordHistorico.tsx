@@ -1,5 +1,7 @@
 'use client';
 
+
+import UiTree from '@/components/UiTree';
 import { useEffect, useState } from 'react';
 import {
   verificarCanalDiscord,
@@ -175,7 +177,7 @@ export default function ImportarDiscordHistorico() {
     }
   };
 
-  return (
+  return <UiTree>{(
     <div className="discord-history-card card p-5 sm:p-6 min-w-0 border border-border">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -368,7 +370,7 @@ export default function ImportarDiscordHistorico() {
                   <div className="space-y-1.5 max-h-40 overflow-y-auto">
                     {preview.muestra.map((m) => (
                       <div key={m.id_mensaje} className="p-2 rounded-lg bg-surface-muted text-xs flex justify-between gap-3">
-                        <span className="text-foreground truncate">{m.texto || '(sin texto)'}</span>
+                        <span className="text-foreground truncate" translate="no">{m.texto || '(sin texto)'}</span>
                         <span className="text-subtle-foreground font-mono shrink-0">{new Date(m.fecha).toLocaleDateString()}</span>
                       </div>
                     ))}
@@ -484,7 +486,7 @@ export default function ImportarDiscordHistorico() {
                       <div key={m.id_mensaje} className="p-2.5 rounded-lg bg-surface border border-border text-xs flex justify-between gap-4">
                         <div>
                           <span className="font-mono text-[11px] text-primary">{m.id_mensaje}</span>
-                          <p className="text-foreground mt-0.5">{m.texto || '(sin contenido de texto)'}</p>
+                          <p className="text-foreground mt-0.5" translate="no">{m.texto || '(sin contenido de texto)'}</p>
                         </div>
                         <div className="text-right shrink-0">
                           <span className="badge-neutral">{m.estado_ia ?? 'sin_evidencia'}</span>
@@ -502,5 +504,5 @@ export default function ImportarDiscordHistorico() {
         </div>
       )}
     </div>
-  );
+  )}</UiTree>;
 }

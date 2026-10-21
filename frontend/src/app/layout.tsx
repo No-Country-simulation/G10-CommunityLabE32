@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import Script from "next/script";
 import Topbar from "@/components/Topbar";
@@ -18,17 +17,12 @@ const communitySans = localFont({
   ],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "CommunityLab",
   description: "Plataforma de métricas e IA",
 };
 
-const temaInicial = `(function(){document.documentElement.lang=/^\\/(login|register)\\/?$/.test(location.pathname)?'en':'es';try{document.documentElement.dataset.theme=localStorage.getItem('communitylab-theme')==='light'?'light':'dark'}catch(e){}})();`;
+const temaInicial = `(function(){document.documentElement.lang='es';try{document.documentElement.dataset.theme=localStorage.getItem('communitylab-theme')==='light'?'light':'dark'}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -37,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       translate="yes"
       data-theme="dark"
       suppressHydrationWarning
-      className={`${communitySans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${communitySans.variable} h-full antialiased`}
     >
       <body className="relative z-0 min-h-full flex flex-col bg-background text-foreground pb-16 md:pb-0">
         <Script

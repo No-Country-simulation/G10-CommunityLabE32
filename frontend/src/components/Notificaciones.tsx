@@ -1,10 +1,12 @@
 'use client';
+
+import UiTree from '@/components/UiTree';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
-import { obtenerMensajesSinResponder } from '@/services/api';
+import { obtenerPendientesCuraduria } from '@/services/api';
 
-// El backend puede añadir mensajes_sin_responder a GET /api/dashboard/kpis.
+// El contador corresponde a los logros pendientes de Curaduría.
 export default function Notificaciones() {
   const [pendientes, setPendientes] = useState<number | null>(null);
   useEffect(() => {
@@ -12,7 +14,7 @@ export default function Notificaciones() {
     let timer: ReturnType<typeof setTimeout>;
     const consultar = async () => {
       try {
-        const cantidad = await obtenerMensajesSinResponder();
+        const cantidad = await obtenerPendientesCuraduria();
         if (vigente) setPendientes(typeof cantidad === 'number' && Number.isSafeInteger(cantidad) && cantidad >= 0 ? cantidad : null);
       } catch { if (vigente) setPendientes(null); }
       finally { if (vigente) timer = setTimeout(consultar, 30000); }
@@ -20,6 +22,6 @@ export default function Notificaciones() {
     void consultar();
     return () => { vigente = false; clearTimeout(timer); };
   }, []);
-  const etiqueta = pendientes === null ? 'Mensajes sin responder: pendiente de conexión' : pendientes === 0 ? 'No hay mensajes sin responder' : `${pendientes} mensajes sin responder`;
-  return <div className="header-notifications"><Link href="/interacciones" className="notification-bell" aria-label={`${etiqueta}. Ver interacciones`} title={etiqueta}><Bell size={20} aria-hidden="true"/>{pendientes !== null && pendientes > 0 && <span className="notification-count" aria-hidden="true">{pendientes > 99 ? '99+' : pendientes}</span>}</Link><span className="sr-only" role="status" aria-live="polite">{etiqueta}</span></div>;
+  const etiqueta = pendientes === null ? 'Pendientes de Curaduría: pendiente de conexión' : pendientes === 0 ? 'No hay pendientes de Curaduría' : `${pendientes} pendientes de Curaduría`;
+  return <UiTree>{<div className="header-notifications"><Link href="/curaduria" className="notification-bell" aria-label={`${etiqueta}. Ver pendientes de Curaduría`} title={etiqueta}><Bell size={20} aria-hidden="true"/>{pendientes !== null && pendientes > 0 && <span className="notification-count" aria-hidden="true">{pendientes > 99 ? '99+' : pendientes}</span>}</Link><span className="sr-only" role="status" aria-live="polite">{etiqueta}</span></div>}</UiTree>;
 }

@@ -1,5 +1,7 @@
 'use client';
 
+
+import UiTree from '@/components/UiTree';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -36,7 +38,7 @@ export default function LoginPage() {
     catch (err) { setError(language === 'en' ? 'Unable to log in. Check your credentials and connection.' : describirError(err).mensaje || 'No se pudo iniciar sesión. Revisa tus credenciales y la conexión.'); }
     finally { setLoading(false); }
   };
-  return (
+  return <UiTree>{(
     <main className="auth-page login-illustrated login-centered" lang={language}>
       <div className="login-layout">
         <section className="login-art-panel" aria-labelledby="login-art-title">
@@ -51,10 +53,10 @@ export default function LoginPage() {
       <dialog ref={dialogRef} className="login-dialog" aria-labelledby="login-form-title" onClick={event => { if (event.target === event.currentTarget) dialogRef.current?.close(); }}>
       <div className="auth-content">
         <button type="button" className="login-dialog-close" onClick={() => dialogRef.current?.close()} aria-label={t('Cerrar', 'Close')}>×</button>
-        <h1 id="login-form-title">{t('Inicia sesión en CommunityLab', 'Log in to CommunityLab')}</h1>
+        <h1 id="login-form-title">{t('Inicia sesión en', 'Log in to')} <span translate="no" className="notranslate">CommunityLab</span></h1>
         <form onSubmit={continuar} className="auth-form">
           {paso === 'correo' ? <><label htmlFor="login-email" className="sr-only">{t('Correo electrónico', 'Email address')}</label><input id="login-email" className="auth-input" type="email" autoComplete="email" placeholder={t('Correo electrónico', 'Email address')} required value={email} onChange={e => setEmail(e.target.value)} /></> : <>
-            <button className="auth-email-back" type="button" onClick={() => { setPaso('correo'); setError(''); }}><ArrowLeft size={14} />{email}</button>
+            <button className="auth-email-back" type="button" onClick={() => { setPaso('correo'); setError(''); }} translate="no"><ArrowLeft size={14} />{email}</button>
             <div className="auth-password"><label htmlFor="login-password" className="sr-only">{t('Contraseña', 'Password')}</label><input id="login-password" className="auth-input" type={visible ? 'text' : 'password'} autoComplete="current-password" placeholder={t('Contraseña', 'Password')} required autoFocus value={password} onChange={e => setPassword(e.target.value)} /><button type="button" onClick={() => setVisible(!visible)} aria-label={visible ? t('Ocultar contraseña', 'Hide password') : t('Mostrar contraseña', 'Show password')}>{visible ? <EyeOff size={16} /> : <Eye size={16} />}</button></div>
           </>}
           {error && <p role="alert" className="auth-error">{error}</p>}
@@ -65,7 +67,7 @@ export default function LoginPage() {
       </div>
       </dialog>
       </div>
-      <footer className="auth-footer">CommunityLab <span>·</span> {t('Inteligencia para tu comunidad', 'Insights for your community')}</footer>
+      <footer className="auth-footer"><span translate="no" className="notranslate">CommunityLab</span> <span>·</span> {t('Inteligencia para tu comunidad', 'Insights for your community')}</footer>
     </main>
-  );
+  )}</UiTree>;
 }
