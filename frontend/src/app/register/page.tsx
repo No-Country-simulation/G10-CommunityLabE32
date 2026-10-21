@@ -3,6 +3,7 @@
 import UiTree from '@/components/UiTree';
 import { useState } from 'react';
 import Link from 'next/link';
+import PasswordInput from '@/components/PasswordInput';
 import useAuthLanguage from '@/components/useAuthLanguage';
 import { registrarUsuario, describirError } from '@/services/api';
 import { CheckCircle2, Loader2 } from 'lucide-react';
@@ -24,7 +25,8 @@ export default function RegisterPage() {
     {exito ? <div className="auth-success"><CheckCircle2 size={24} /><h2>{t('Tu cuenta está lista', 'Your account is ready')}</h2><p translate="no">{t('Ya puedes iniciar sesión con tu correo electrónico y contraseña.', 'You can now log in with your email and password.')}</p><Link className="auth-submit" href="/login">{t('Ir al inicio de sesión', 'Log in')}</Link></div> : <form className="auth-form" onSubmit={registrar}>
       <label htmlFor="register-name" className="sr-only">{t('Nombre completo', 'Full name')}</label><input className="auth-input" id="register-name" placeholder={t('Nombre completo', 'Full name')} autoComplete="name" required value={nombre} onChange={e => setNombre(e.target.value)} />
       <label htmlFor="register-email" className="sr-only">{t('Correo electrónico', 'Email address')}</label><input className="auth-input" id="register-email" placeholder={t('Correo electrónico', 'Email address')} type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} />
-      <label htmlFor="register-password" className="sr-only">{t('Contraseña', 'Password')}</label><input className="auth-input" id="register-password" placeholder={t('Contraseña (mínimo 6 caracteres)', 'Password (at least 6 characters)')} type="password" autoComplete="new-password" minLength={6} required value={password} onChange={e => setPassword(e.target.value)} />
+      <label htmlFor="register-password" className="sr-only">{t('Contraseña', 'Password')}</label><PasswordInput className="auth-input" id="register-password" placeholder={t('Contraseña (mínimo 10 caracteres)', 'Password (at least 10 characters)')} type="password" autoComplete="new-password" minLength={10} required value={password} onChange={e => setPassword(e.target.value)} />
+      <p className="text-xs text-muted-foreground">Usa al menos 10 caracteres. Evita reutilizar contraseñas.</p>
       {error && <p role="alert" className="auth-error">{error}</p>}<button className="auth-submit" type="submit" disabled={loading}>{loading ? <><Loader2 size={16} className="animate-spin" /> {t('Creando cuenta…', 'Creating account…')}</> : t('Crear cuenta', 'Create account')}</button>
     </form>}
     <p className="auth-signup">{t('¿Ya tienes una cuenta?', 'Already have an account?')} <Link href="/login">{t('Inicia sesión', 'Log in')}</Link></p>

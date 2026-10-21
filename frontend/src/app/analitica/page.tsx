@@ -97,22 +97,22 @@ export default function AnaliticaPage() {
   // Embudo de Curaduría
   const estadosActivos = [
     {
-      etiqueta: 'Indeterminados',
+      etiqueta: 'Generados',
       cantidad: kpis?.activos_por_estado?.generado ?? 0,
       color: '#f1f333',
     },
     {
-      etiqueta: 'Neutrales',
+      etiqueta: 'Revisados',
       cantidad: kpis?.activos_por_estado?.revisado ?? 0,
-      color: '#90a8ed',
+      color: '#f1f333',
     },
     {
-      etiqueta: 'Positivos',
+      etiqueta: 'Aprobados',
       cantidad: kpis?.activos_por_estado?.aprobado ?? 0,
       color: '#b9e9c5',
     },
     {
-      etiqueta: 'Negativos',
+      etiqueta: 'Denegados',
       cantidad: kpis?.activos_por_estado?.rechazado ?? 0,
       color: '#ff90e8',
     },
@@ -145,8 +145,8 @@ export default function AnaliticaPage() {
   // Segmentos de la Dona con colores y metadatos
   const segmentos = [
     { id: 'positivo', nombre: 'Positivos', valor: pctPos, cantidad: pos, stroke: '#b9e9c5', bgHex: '#b9e9c5' },
-    { id: 'neutral', nombre: 'Neutrales', valor: pctNeu, cantidad: neu, stroke: '#90a8ed', bgHex: '#90a8ed' },
-    { id: 'negativo', nombre: 'Negativos', valor: pctNeg, cantidad: neg, stroke: '#ff90e8', bgHex: '#ff90e8' },
+    { id: 'neutral', nombre: 'Neutrales', valor: pctNeu, cantidad: neu, stroke: '#a7a79f', bgHex: '#a7a79f' },
+    { id: 'negativo', nombre: 'Negativos', valor: pctNeg, cantidad: neg, stroke: '#90a8ed', bgHex: '#90a8ed' },
     { id: 'indeterminado', nombre: 'Indeterminados', valor: pctInd, cantidad: ind, stroke: '#f1f333', bgHex: '#f1f333' },
   ];
 

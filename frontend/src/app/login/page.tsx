@@ -54,6 +54,7 @@ export default function LoginPage() {
       <div className="auth-content">
         <button type="button" className="login-dialog-close" onClick={() => dialogRef.current?.close()} aria-label={t('Cerrar', 'Close')}>×</button>
         <h1 id="login-form-title">{t('Inicia sesión en', 'Log in to')} <span translate="no" className="notranslate">CommunityLab</span></h1>
+        <p className="text-sm text-muted-foreground mb-4">{paso === 'correo' ? 'Introduce tu correo y continúa para ingresar tu contraseña.' : 'Introduce la contraseña de tu cuenta.'}</p>
         <form onSubmit={continuar} className="auth-form">
           {paso === 'correo' ? <><label htmlFor="login-email" className="sr-only">{t('Correo electrónico', 'Email address')}</label><input id="login-email" className="auth-input" type="email" autoComplete="email" placeholder={t('Correo electrónico', 'Email address')} required value={email} onChange={e => setEmail(e.target.value)} /></> : <>
             <button className="auth-email-back" type="button" onClick={() => { setPaso('correo'); setError(''); }} translate="no"><ArrowLeft size={14} />{email}</button>
@@ -62,6 +63,7 @@ export default function LoginPage() {
           {error && <p role="alert" className="auth-error">{error}</p>}
           <button className="auth-submit" type="submit" disabled={loading}>{loading ? <><Loader2 size={16} className="animate-spin" /> {t('Iniciando sesión…', 'Logging in…')}</> : paso === 'correo' ? t('Continuar con correo', 'Continue with email') : t('Iniciar sesión', 'Log in')}</button>
         </form>
+        <p className="text-xs text-muted-foreground mt-4">¿Olvidaste tu contraseña? Solicita ayuda a la persona que administra tu cuenta.</p>
         {local && <><div className="auth-divider"><span>{t('o', 'or')}</span></div><Link href="/" className="auth-option"><Monitor size={16} /> {t('Explorar en localhost', 'Explore on localhost')} <ArrowRight size={14} /></Link><p className="auth-local-note">{t('Vista previa sin registro. Conecta el backend para cargar los datos.', 'Preview without signing up. Connect the backend to load data.')}</p></>}
         <p className="auth-signup">{t('¿No tienes una cuenta?', 'Don’t have an account?')} <Link href="/register">{t('Regístrate', 'Sign up')}</Link></p>
       </div>

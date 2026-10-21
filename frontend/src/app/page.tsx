@@ -12,7 +12,7 @@ import {
 import {
   Loader2, MessageSquare, Layers, CheckCircle2, AlertTriangle,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import CommunityIntro from '@/components/CommunityIntro';
 import ResultadosResumen, { type FiltroResumen } from '@/components/ResultadosResumen';
@@ -26,6 +26,7 @@ const tonos = {
 
 export default function CommunityDashboard() {
   const router = useRouter();
+  const reducirMovimiento = useReducedMotion();
   const [autorizado, setAutorizado] = useState(false);
   const [totales, setTotales] = useState<Record<FiltroResumen, number | null>>({ mensajes: null, pendientes: null, aprobados: null, alertas: null });
   const [filtro, setFiltro] = useState<FiltroResumen>('mensajes');
@@ -117,12 +118,12 @@ export default function CommunityDashboard() {
       <Sidebar />
 
       <main className="dashboard-content flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
-        <CommunityIntro />
+        <details className="overview-intro-disclosure"><summary><span translate="no">CommunityLab</span>{' '}<span>Tu comunidad, en contexto · Ver presentación</span></summary><CommunityIntro /></details>
         <header className="mb-8 flex flex-wrap justify-between items-end gap-4">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mb-1.5">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mb-1.5">
               Centro de operaciones
-            </h2>
+            </h1>
             <p className="text-muted-foreground text-[15px]">
               Métricas e interacciones procesadas.
             </p>
@@ -164,7 +165,17 @@ export default function CommunityDashboard() {
               </div>
             )}
 
-            <ResultadosResumen key={filtro} filtro={filtro} onTotal={actualizarTotal} />
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={filtro}
+                initial={{ opacity: 0, y: reducirMovimiento ? 0 : 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: reducirMovimiento ? 0 : -4 }}
+                transition={{ duration: reducirMovimiento ? 0 : 0.3, ease: 'easeInOut' }}
+              >
+                <ResultadosResumen filtro={filtro} onTotal={actualizarTotal} />
+              </motion.div>
+            </AnimatePresence>
           </motion.div>
         )}
       </main>

@@ -201,21 +201,6 @@ export default function IngestaPage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
               Ingesta de datos
             </h1>
-            <div className="ingestion-info">
-              <span className="ingestion-info-trigger" tabIndex={0} aria-label="Información sobre formatos y requisitos de ingesta" aria-describedby="ingestion-requisitos"><AlertCircle className="w-5 h-5" aria-hidden="true" /></span>
-              <div id="ingestion-requisitos" className="ingestion-info-content" role="tooltip">
-                <h2 className="font-bold mb-3">Formatos y requisitos</h2>
-                <ul className="list-disc pl-5 space-y-3 text-sm">
-                  <li><strong>Formatos:</strong> <code>.json</code> (lista o <code>{'{"interacciones": [...]}'}</code>), <code>.jsonl</code> o <code>.csv</code> con encabezado, en UTF-8.</li>
-                  <li><strong>Campos obligatorios:</strong> <code>id</code> (o <code>id_mensaje</code>), <code>autor</code>, <code>canal</code>, <code>fecha</code> y <code>texto</code>. <code>tipo</code> es opcional.</li>
-                  <li><strong>Fecha:</strong> ISO 8601 con hora y zona, por ejemplo, <code>2026-10-19T14:10:00Z</code>.</li>
-                  <li><strong>Límites:</strong> 5 MiB y 500 registros por archivo; <code>autor</code>, hasta 150 caracteres; <code>canal</code> y <code>tipo</code>, hasta 50.</li>
-                  <li><strong>Repetidos:</strong> los idénticos se omiten; el mismo <code>id</code> con otro contenido es un error.</li>
-                  <li><strong>Si hay un error, no se procesa nada:</strong> verás la lista de problemas para corregirlos.</li>
-                  <li><strong>Reenviar el mismo archivo</strong> con el mismo nombre y período no lo procesa dos veces.</li>
-                </ul>
-              </div>
-            </div>
           </header>
 
           <div className="ingestion-panels grid gap-6 items-stretch">
@@ -392,7 +377,7 @@ export default function IngestaPage() {
 
             <div className="ingestion-support grid gap-6 min-w-0 items-stretch">
               {subida && estado && (
-                <section aria-live="polite" className="card p-5 sm:p-6 min-w-0">
+                <section aria-live="polite" className="ingestion-tracking card p-5 sm:p-6 min-w-0">
                   <h2 className="text-[15px] font-semibold text-foreground mb-1">Seguimiento del trabajo</h2>
                   <p className="text-xs text-muted-foreground font-mono break-all mb-4">{subida.procesamiento_id}</p>
 
@@ -491,6 +476,16 @@ export default function IngestaPage() {
 
 
               <PendientesDiscord />
+              <section className="ingestion-requirements card p-5 sm:p-6 min-w-0" aria-labelledby="ingestion-requisitos-titulo"><h2 id="ingestion-requisitos-titulo" className="text-[15px] font-semibold text-foreground mb-4 flex items-center gap-2"><AlertCircle className="w-4 h-4 shrink-0 text-[#f1f333] fill-none warning-outline" aria-hidden="true" />Formatos y requisitos</h2>
+                <ul className="list-disc pl-5 space-y-3 text-sm">
+                  <li><strong>Formatos:</strong> <code>.json</code> (lista o <code>{'{"interacciones": [...]}'}</code>), <code>.jsonl</code> o <code>.csv</code> con encabezado, en UTF-8.</li>
+                  <li><strong>Campos obligatorios:</strong> <code>id</code> (o <code>id_mensaje</code>), <code>autor</code>, <code>canal</code>, <code>fecha</code> y <code>texto</code>. <code>tipo</code> es opcional.</li>
+                  <li><strong>Fecha:</strong> ISO 8601 con hora y zona, por ejemplo, <code>2026-10-19T14:10:00Z</code>.</li>
+                  <li><strong>Límites:</strong> 5 MiB; 500 registros; <code>autor</code>: 150 caracteres; <code>canal</code> y <code>tipo</code>: 50.</li>
+                  <li><strong>Repetidos:</strong> los idénticos se omiten; el mismo <code>id</code> con otro contenido es un error.</li>
+                  <li><strong>Si hay un error, no se procesa nada:</strong> verás la lista de problemas para corregirlos.</li>
+                  <li><strong>Reenviar el mismo archivo</strong> con el mismo nombre y período no lo procesa dos veces.</li>
+                </ul></section>
 
 
             </div>
