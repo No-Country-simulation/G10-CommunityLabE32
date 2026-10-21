@@ -53,6 +53,16 @@ async def obtener_kpis(
             if ambito.excluidos_activos:
                 consulta_activos = consulta_activos.where(Activo.id_activo.not_in(sorted(ambito.excluidos_activos)))
         filas_mensajes = (await db.execute(consulta_mensajes.group_by(Mensaje.tipo, Mensaje.sentimiento_ref))).all()
+        # Temas: mismo conjunto de mensajes que los demás indicadores (ámbito o vista global sin pruebas).
+        tema = func.lower(func.trim(Mensaje.tema_ref))
+        consulta_temas = select(tema, func.count(Mensaje.id_mensaje)).where(Mensaje.tema_ref.is_not(None),
+                                                                           func.trim(Mensaje.tema_ref) != "")
+        if ambito.filtrado:
+            consulta_temas = consulta_temas.where(Mensaje.id_mensaje.in_(sorted(ambito.ids_mensajes) or [""]))
+        elif ambito.excluidos_mensajes:
+            consulta_temas = consulta_temas.where(Mensaje.id_mensaje.not_in(sorted(ambito.excluidos_mensajes)))
+        filas_temas = (await db.execute(consulta_temas.group_by(tema)
+                                        .order_by(func.count(Mensaje.id_mensaje).desc(), tema).limit(10))).all()
         filas_activos = (await db.execute(consulta_activos.group_by(Activo.estado))).all()
 
         total_mensajes, por_tipo = 0, {}
@@ -89,6 +99,8 @@ async def obtener_kpis(
             "alertas_internas": len(ambito.alertas_por_fuente),
             "alertas_registradas": ambito.alertas_registradas,
             "trabajos_por_estado": ambito.trabajos_por_estado,
+            # Temas que la IA asignó a los mensajes (normalizados en minúsculas), del más frecuente al menos.
+            "temas_principales": [{"tema": t, "cantidad": n} for t, n in filas_temas],
         }
     except Exception:
         raise HTTPException(status_code=500, detail="Error al calcular los indicadores.")

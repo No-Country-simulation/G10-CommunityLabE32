@@ -42,6 +42,8 @@ El selector permite marcar uno o varios lotes y aplica la selección solo al pul
 
 ## Temas recurrentes de la comunidad
 
+> **Resuelto en el backend (feat/tipo-temas-mensaje):** `GET /api/dashboard/kpis` incluye `temas_principales` (`[{tema, cantidad}]`, top 10, temas en minúsculas) sobre el mismo conjunto de mensajes que el resto de indicadores; `mensajes_por_tipo` ya refleja los tipos analizados. «Palabras frecuentes» no se implementa (pendiente de decisión).
+
 La sección inferior de Analítica sustituye la repetición de sentimientos por los tipos de participación disponibles en mensajes_por_tipo, ordenados por volumen y excluyendo Sin clasificar. Incluye espacios para preguntas repetidas y palabras frecuentes. El frontend contempla recurrencia opcional en DashboardKPIs con preguntas y palabras, cada una como lista de objetos texto y cantidad. Verificar si existe un análisis equivalente antes de implementar este contrato. El análisis debe respetar los lotes aplicados, agrupar preguntas similares semánticamente y contar mensajes/ocurrencias con una definición explícita. Para palabras, normalizar mayúsculas y acentos según criterio acordado, excluir palabras vacías, URLs y datos personales; no presentar frecuencias de una muestra como si fueran del conjunto completo. No hay resultados inventados; cuando faltan datos se muestran estados vacíos.
 
 Actualización visual: se retiraron las subsecciones y mensajes vacíos de preguntas repetidas y palabras frecuentes por solicitud del usuario. La sección conserva un único título y descripción general. Su detección sigue pendiente de verificación; actualmente las barras muestran solo los tipos de participación disponibles.
@@ -173,6 +175,8 @@ El frontend vuelve a consultar la página activa y el resumen cada 15 segundos m
 Se retira el contorno de selección de las cuatro tarjetas de Interacciones; siguen filtrando al pulsarlas y mantienen semántica accesible. No requiere cambios del backend.
 
 ## Columna Tipo en Interacciones
+
+> **Resuelto en el backend (feat/tipo-temas-mensaje):** el worker guarda en `mensajes.tipo` el tipo que deduce el análisis (`bloqueo` > `duda` > `logro` > `comentario`) y en `tema_ref` el tema de la IA, para Discord y carga manual. Un tipo que trae el archivo se conserva; el tema solo se completa si estaba vacío. `backend.scripts.reclasificar_mensajes` completa lo ya procesado desde el enrutamiento guardado (sin IA).
 
 Se reemplaza la columna visible Canal por Tipo. Mostrar una etiqueta corta por mensaje basada en su campo tipo, independiente de su sentimiento. Mapeo de presentación actual: PREGUNTA_TECNICA/PREGUNTA/DUDA → Duda; CONSULTA_NEGOCIO/CONSULTA → Consulta; LOGRO/EXITO/CASO_DE_EXITO → Éxito; BLOQUEO → Bloqueo; PROBLEMA → Problema; COMENTARIO → Comentario; SUGERENCIA → Sugerencia. Sin tipo confirmado, mostrar Pendiente; los valores no reconocidos muestran Otro y conservan el original como información de ayuda. No clasificar automáticamente en el navegador a partir de palabras sueltas ni deducirlo del canal.
 

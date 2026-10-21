@@ -69,6 +69,32 @@ def guardar_sentimientos(c, trabajo, resultado):
     return guardados
 
 
+TIPOS_ANALISIS = ("bloqueo", "duda", "logro", "comentario")
+
+
+def guardar_clasificaciones(c, trabajo, resultado):
+    """Guarda tipo y tema de cada mensaje analizado del lote.
+
+    El tipo solo reemplaza a `sin_clasificar` (un tipo que trajo el archivo es dato de origen y se
+    conserva); el tema solo se completa si estaba vacío. Un análisis simulado no clasifica.
+    Devuelve cuántos mensajes cambiaron.
+    """
+    if resultado.get("simulado"):
+        return 0
+    ids = {m["id"] for m in trabajo.entrada["interacciones"]}
+    cambiados = 0
+    for id_mensaje, clase in sorted((resultado.get("clasificaciones") or {}).items()):
+        if id_mensaje not in ids or not isinstance(clase, dict) or clase.get("tipo") not in TIPOS_ANALISIS:
+            continue
+        tema = clase.get("tema") if isinstance(clase.get("tema"), str) else None
+        cambiados += c.execute("""UPDATE mensajes SET
+                tipo = CASE WHEN tipo = %s THEN %s ELSE tipo END,
+                tema_ref = coalesce(tema_ref, %s)
+            WHERE id_mensaje=%s AND (tipo = %s OR (tema_ref IS NULL AND %s::text IS NOT NULL))""",
+            (TIPO_POR_DEFECTO, clase["tipo"], tema, id_mensaje, TIPO_POR_DEFECTO, tema)).rowcount
+    return cambiados
+
+
 class ColaPostgres:
     def __init__(self, url, lease=30, max_intentos=3):
         if lease < 2 or max_intentos < 1:
@@ -207,10 +233,11 @@ class ColaPostgres:
                         VALUES (%s, 'generado', 'generado', 1, 'ia', %s)""", (id_activo, f"Trabajo {trabajo.id}"))
                 activo["id_activo_curaduria"] = id_activo
             sentimientos = guardar_sentimientos(c, trabajo, resultado)
+            clasificaciones = guardar_clasificaciones(c, trabajo, resultado)
             # Persistencia real (PostgreSQL); "almacenamiento" del grafo describe solo la copia externa.
             resultado["persistencia"] = {"postgres": "guardado",
                                          "activos": len(resultado["activos_distribucion_generados"]),
-                                         "sentimientos": sentimientos}
+                                         "sentimientos": sentimientos, "clasificaciones": clasificaciones}
             c.execute("""UPDATE trabajos_worker SET estado='terminado', resultado=%s,
                 token=NULL, vence=NULL, error_codigo=NULL,
                 historial=historial || '["terminado"]'::jsonb, actualizado=clock_timestamp()
