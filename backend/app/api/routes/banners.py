@@ -48,8 +48,10 @@ async def _activo(db, id_activo):
 
 
 def _vista(fila, activo):
+    # Un banner de otra plantilla (diseño anterior) queda desactualizado: «Generar» lo vuelve a renderizar.
     vigente = (activo is not None and activo.estado == "aprobado" and activo.version == fila["version_texto"]
-               and plantilla.huella_texto(activo.copy) == fila["huella_texto"])
+               and plantilla.huella_texto(activo.copy) == fila["huella_texto"]
+               and fila["plantilla"] == plantilla.PLANTILLA)
     return {"id": fila["id"], "id_activo": fila["id_activo"], "version_texto": fila["version_texto"],
             "estado": fila["estado"], "revision": fila["revision"], "desactualizado": not vigente,
             "proveedor": fila["proveedor"], "plantilla": fila["plantilla"],
@@ -92,7 +94,7 @@ async def generar_banner(id_activo: str, response: Response, db: AsyncSession = 
         actualizado < clock_timestamp() - make_interval(secs => :s) AS abandonado
         FROM banners WHERE id_activo=:a AND version_texto=:v FOR UPDATE"""),
         {"a": id_activo, "v": version, "s": ABANDONO_SEGUNDOS})).mappings().first()
-    if fila["estado"] == "generado":
+    if fila["estado"] == "generado" and fila["plantilla"] == plantilla.PLANTILLA:
         await db.commit()
         response.status_code = 200
         return {**_vista(fila, activo), "reutilizado": True}
@@ -100,7 +102,8 @@ async def generar_banner(id_activo: str, response: Response, db: AsyncSession = 
         await db.commit()
         raise HTTPException(409, {"codigo": "generacion_en_curso", "mensaje": "El banner ya se está generando."})
     await db.execute(text("""UPDATE banners SET estado='generando', intentos=intentos+1, error_codigo=NULL,
-        actualizado=clock_timestamp() WHERE id=:id"""), {"id": fila["id"]})
+        proveedor=:p, plantilla=:t, actualizado=clock_timestamp() WHERE id=:id"""),
+        {"id": fila["id"], "p": plantilla.PROVEEDOR, "t": plantilla.PLANTILLA})
     await db.commit()  # Estado visible antes de renderizar: un reinicio deja rastro recuperable.
     try:
         svg, estado, error = plantilla.renderizar(formato, copy), "generado", None

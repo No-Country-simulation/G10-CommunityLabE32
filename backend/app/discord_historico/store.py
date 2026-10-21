@@ -135,6 +135,13 @@ class Store:
                 "SELECT * FROM discord_importaciones WHERE (%s::text IS NULL OR solicitante = %s) "
                 "ORDER BY creado DESC LIMIT %s", (solicitante, solicitante, limite))]
 
+    def activa_de_canal(self, canal_id):
+        """Importación pendiente o en ejecución del canal (hay como máximo una), o None."""
+        with self.conectar() as c:
+            return self._publico(c.execute("""SELECT * FROM discord_importaciones
+                WHERE canal_id=%s AND estado IN ('pendiente','ejecutando') ORDER BY creado DESC LIMIT 1""",
+                (canal_id,)).fetchone())
+
     def solicitar_cancelacion(self, identificador):
         """Pendiente → cancelada al instante; ejecutando → el runner se detiene entre páginas."""
         with self.conectar() as c:

@@ -103,7 +103,7 @@ de datos enviados por el cliente.
 | `POST/GET /api/v1/procesamiento-pendientes…` | ✖ | ✖ | ✔ | ✔ | ✖ | ✔ |
 | `POST/GET /api/v1/trabajos…` (lotes) | ✖ | ✖ | ✔ | ✔ | ✔ | ✔ |
 | `POST /api/v1/puente/solicitudes/…` | ✖ | ✖ | ✖ | ✖ | ✔ | ✖ |
-| `/api/v1/discord/historico/*` | ✖ | ✖ | ✔ (solo las suyas) | ✔ (todas) | ✖ | ✔ (las del token) |
+| `/api/v1/discord/historico/*` y `/api/v1/discord/canales/{id}/escucha` | ✖ | ✖ | ✔ (solo las suyas) | ✔ (todas) | ✖ | ✔ (las del token) |
 | `POST /api/v1/procesamientos`, `/upload` (mock obsoleto) | ✖ | ✖ | ✔ | ✔ | ✖ | ✔ |
 
 **Respuestas de error.**

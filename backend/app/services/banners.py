@@ -1,7 +1,10 @@
 """Banner 1200x630 (LinkedIn/X) de un activo APROBADO, renderizado como SVG determinista.
 
-Porta la plantilla de Fabián (generar_tarjeta.py, Tarea 1 del 15-10-26): mismo fondo, rejilla,
-marca, etiqueta y acento por formato. Diferencias deliberadas:
+Geometría y reglas de texto de la plantilla de Fabián (generar_tarjeta.py, 15-10-26); estética con la
+identidad vigente del panel (21-10-26): fondo negro, acento por formato con la paleta de CommunityLab
+(rosado #ff90e8 logros, azul #90a8ed FAQ, amarillo #f1f333 highlights, verde #b9e9c5 de detalle), el
+símbolo de tres figuras (frontend/public/brand/communitylab-logo-current.svg) y ABC Favorit con fuentes
+de respaldo. Diferencias deliberadas:
 - SVG en el servidor en lugar de captura con Edge en Windows: no depende de un navegador.
 - Sin emojis (dependen de fuentes del sistema y harían el resultado no determinista).
 - Solo usa texto del copy aprobado (titular, extracto, pregunta, viñetas y hashtags). No
@@ -16,8 +19,29 @@ import re
 from xml.sax.saxutils import escape
 
 PROVEEDOR = "plantilla-svg-v1"
-PLANTILLA = "fabian-tarjeta-1200x630"
-ACENTOS = {"logro": "#ff5a1f", "faq": "#4d8dff", "highlights": "#8b6cff"}
+PLANTILLA = "communitylab-2026-10-1200x630"
+ACENTOS = {"logro": "#ff90e8", "faq": "#90a8ed", "highlights": "#f1f333"}
+VERDE, NEGRO, BLANCO, GRIS, GRIS_CLARO, PANEL = "#b9e9c5", "#0b0b0b", "#ffffff", "#a3a3a3", "#d4d4d4", "#1a1a1a"
+FUENTES = "ABC Favorit, Inter, Segoe UI, system-ui, sans-serif"
+# Símbolo de CommunityLab (tres figuras), mismo trazado que frontend/public/brand/communitylab-logo-current.svg.
+SIMBOLO = (
+    '<defs><linearGradient id="cl-v" x1="585" y1="450" x2="628" y2="506" gradientUnits="userSpaceOnUse">'
+    '<stop offset="0" stop-color="#467756"/><stop offset=".45" stop-color="#639d73"/><stop offset="1" stop-color="#7eb78d"/>'
+    '</linearGradient><linearGradient id="cl-r" x1="358" y1="457" x2="395" y2="515" gradientUnits="userSpaceOnUse">'
+    '<stop offset="0" stop-color="#a74e91"/><stop offset=".45" stop-color="#c165ae"/><stop offset="1" stop-color="#d478c1"/>'
+    '</linearGradient><linearGradient id="cl-a" x1="459" y1="300" x2="459" y2="375" gradientUnits="userSpaceOnUse">'
+    '<stop offset="0" stop-color="#898b1e"/><stop offset=".45" stop-color="#a7aa25"/><stop offset="1" stop-color="#c0c32b"/>'
+    '</linearGradient></defs>'
+    '<circle cx="512" cy="208" r="36.5" fill="#f1f333"/><polygon points="428,280 491,321 491,383 428,342" fill="url(#cl-a)"/>'
+    '<polygon points="428,280 491,246 598,311 598,378 535,415 535,348 491,321" fill="#f1f333"/>'
+    '<circle cx="368.5" cy="319" r="36.5" fill="#ff90e8"/><polygon points="317,484 400,435 400,530" fill="url(#cl-r)"/>'
+    '<polygon points="317,402 428,342 491,383 400,435 317,484" fill="#ff90e8"/>'
+    '<polygon points="400,435 460,470 460,586 400,551" fill="#ff90e8"/>'
+    '<circle cx="655.5" cy="319" r="36.5" fill="#b9e9c5"/><polygon points="568,472 628,438.8 628,506" fill="url(#cl-v)"/>'
+    '<polygon points="535,415 638,355 707,395 638,433.2 568,472" fill="#b9e9c5"/>'
+    '<polygon points="638,433.2 707,395 707,490 638,530" fill="#7eb78d"/>'
+    '<polygon points="520,542 568,515 568,472 628,506 628,558 520,620" fill="#b9e9c5"/>'
+    '<polygon points="460,508 520,542 520,620 460,586" fill="#6fa57e"/>')
 TIPO_POR_FORMATO = {"linkedin": "logro", "faq": "faq", "newsletter": "highlights"}
 ETIQUETAS = {"logro": "LOGRO DE LA COMUNIDAD", "faq": "FAQ TÉCNICO", "highlights": "COMMUNITY HIGHLIGHTS"}
 EMOJI = re.compile("[\U0001F000-\U0001FAFF☀-➿️‍⬀-⯿]+")
@@ -117,53 +141,47 @@ def renderizar(formato: str, copy: str) -> str:
     d = contenido(formato, copy)
     acento = ACENTOS[d["tipo"]]
     titulo = _envolver(d["titulo"], 1072, 54, 3 if d["tipo"] == "logro" else 2, negrita=True)
-    y = 250 if d["tipo"] != "logro" else 230 - 30 * (len(titulo) - 2)
-    cuerpo = _texto(64, y, titulo, 54, 60, "#f3f5f8", 800, d.get("destacado"), acento)
+    # El contenido termina antes de la franja inferior (y=566).
+    y = 220 if d["tipo"] != "logro" else 230 - 30 * (len(titulo) - 2)
+    cuerpo = _texto(64, y, titulo, 54, 60, BLANCO, 800, d.get("destacado"), acento)
     y += 60 * len(titulo) + 20
     if d["tipo"] == "faq":
-        cuerpo += _texto(64, y, _envolver(d["texto"], 1072, 34, 3, negrita=True), 34, 43, "#f3f5f8", 700)
+        cuerpo += _texto(64, y, _envolver(d["texto"], 1072, 34, 3, negrita=True), 34, 43, GRIS_CLARO, 700)
     else:
         sub = _envolver(d["texto"], 1072, 26, 2 if d.get("items") else 3)
-        cuerpo += _texto(64, y, sub, 26, 35, "#c3cde0")
+        cuerpo += _texto(64, y, sub, 26, 35, GRIS_CLARO)
         y += 35 * len(sub) + 26
         items = d.get("items") or []
         if items:
             ancho = (1072 - 18 * (len(items) - 1)) // len(items)
             for i, item in enumerate(items):
                 x = 64 + i * (ancho + 18)
-                cuerpo += (f'<rect x="{x}" y="{y}" width="{ancho}" height="96" rx="18" fill="#ffffff" '
-                           f'fill-opacity=".07" stroke="#ffffff" stroke-opacity=".13"/>')
-                cuerpo += _texto(x + 20, y + 40, _envolver(item, ancho - 40, 20, 2, negrita=True), 20, 26, "#f3f5f8", 600)
+                cuerpo += (f'<rect x="{x}" y="{y}" width="{ancho}" height="96" rx="16" fill="{PANEL}" '
+                           f'stroke="{acento}" stroke-opacity=".7" stroke-width="2"/>')
+                cuerpo += _texto(x + 20, y + 40, _envolver(item, ancho - 40, 20, 2, negrita=True), 20, 26, BLANCO, 600)
     etiqueta = escape(d["etiqueta"])
     ancho_etiqueta = 36 + int(len(d["etiqueta"]) * 11.2)
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" '
-        'font-family="Segoe UI, Inter, system-ui, sans-serif" role="img" '
+        f'font-family="{FUENTES}" role="img" '
         f'aria-label="{escape(d["titulo"], {chr(34): "&quot;"})}">'
-        '<defs>'
-        f'<radialGradient id="g1" cx="105%" cy="-10%" r="75%"><stop offset="0" stop-color="{acento}" '
-        f'stop-opacity=".38"/><stop offset=".62" stop-color="{acento}" stop-opacity="0"/></radialGradient>'
-        '<radialGradient id="g2" cx="-10%" cy="115%" r="63%"><stop offset="0" stop-color="#d43008" '
-        'stop-opacity=".30"/><stop offset=".62" stop-color="#d43008" stop-opacity="0"/></radialGradient>'
-        '<linearGradient id="g0" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f1a2e"/>'
-        '<stop offset="1" stop-color="#132240"/></linearGradient>'
-        '<pattern id="rej" width="48" height="48" patternUnits="userSpaceOnUse">'
-        '<path d="M48 0H0V48" fill="none" stroke="#fff" stroke-opacity=".07"/></pattern>'
-        '</defs>'
-        '<rect width="1200" height="630" fill="url(#g0)"/><rect width="1200" height="630" fill="url(#g1)"/>'
-        '<rect width="1200" height="630" fill="url(#g2)"/><rect width="1200" height="630" fill="url(#rej)"/>'
-        '<g transform="translate(64 44)"><rect width="46" height="46" rx="10" fill="#d43008"/>'
-        '<g transform="translate(10 10) scale(1.08)" stroke="#fff" stroke-width="2" fill="none" '
-        'stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/>'
-        '<path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></g></g>'
-        '<text x="124" y="70" font-size="24" font-weight="700" fill="#f3f5f8">CommunityLab</text>'
-        '<text x="124" y="92" font-size="14" font-weight="600" fill="#c3cde0" letter-spacing="1.1">'
+        '<defs><pattern id="puntos" width="32" height="32" patternUnits="userSpaceOnUse">'
+        '<circle cx="2" cy="2" r="1.6" fill="#fff" fill-opacity=".07"/></pattern></defs>'
+        f'<rect width="1200" height="630" fill="{NEGRO}"/><rect width="1200" height="566" fill="url(#puntos)"/>'
+        # Formas de la marca: acento grande arriba a la derecha y un detalle verde fuera del área de texto (x>1136).
+        f'<circle cx="1150" cy="-30" r="210" fill="{acento}" fill-opacity=".16"/>'
+        f'<circle cx="1170" cy="132" r="18" fill="{VERDE}" fill-opacity=".9"/>'
+        f'<svg x="58" y="36" width="54" height="62" viewBox="305 160 414 472">{SIMBOLO}</svg>'
+        f'<text x="124" y="70" font-size="24" font-weight="700" fill="{BLANCO}">CommunityLab</text>'
+        f'<text x="124" y="92" font-size="14" font-weight="600" fill="{GRIS}" letter-spacing="1.1">'
         'G10 · EQUIPO 32</text>'
-        f'<rect x="{1136 - ancho_etiqueta}" y="50" width="{ancho_etiqueta}" height="38" rx="19" fill="{acento}"/>'
+        f'<rect x="{1136 - ancho_etiqueta}" y="50" width="{ancho_etiqueta}" height="38" rx="19" fill="{acento}" '
+        f'stroke="{NEGRO}" stroke-width="2"/>'
         f'<text x="{1136 - ancho_etiqueta / 2}" y="75" text-anchor="middle" font-size="17" font-weight="700" '
-        f'fill="#0f1a2e" letter-spacing="1">{etiqueta}</text>'
+        f'fill="{NEGRO}" letter-spacing="1">{etiqueta}</text>'
         f'{cuerpo}'
-        f'<text x="64" y="586" font-size="19" fill="#c3cde0">{escape(d["pie"])}</text>'
-        f'<text x="1136" y="586" text-anchor="end" font-size="19" font-weight="600" fill="{acento}">'
+        f'<rect y="566" width="1200" height="64" fill="{acento}"/>'
+        f'<text x="64" y="606" font-size="19" font-weight="700" fill="{NEGRO}">{escape(d["pie"])}</text>'
+        f'<text x="1136" y="606" text-anchor="end" font-size="19" font-weight="700" fill="{NEGRO}">'
         f'{escape(d["hashtags"])}</text>'
         '</svg>')
