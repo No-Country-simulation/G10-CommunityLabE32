@@ -19,6 +19,9 @@ class MensajeResponse(MensajeBase):
     id_mensaje: str
     sentimiento_origen: Optional[str] = None
     sentimiento_version: Optional[str] = None
+    # Categoría para el Resumen: alerta interna del análisis y estado del borrador que lo cita.
+    alerta_interna: bool = False
+    estado_borrador: Optional[str] = None   # aprobado | pendiente | rechazado | None
 
     # Configuración de Pydantic V2 para leer objetos de SQLAlchemy
     model_config = ConfigDict(from_attributes=True)

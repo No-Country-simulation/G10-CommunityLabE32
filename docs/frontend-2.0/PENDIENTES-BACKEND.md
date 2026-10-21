@@ -66,6 +66,8 @@ Se retiran de Resumen el checklist de lotes y los botones Actualizar, Ingresar d
 
 ## PRIORIDAD — Lógica funcional de las tarjetas del Resumen
 
+> **Resuelto en el backend (feat/resumen-tarjetas-alertas):** `GET /api/dashboard/alertas?skip&limit[&origen&periodo]` lista las alertas internas (una por mensaje, mismo total que el KPI `alertas_internas`) con texto, autor, motivo, lote, trabajo y `veces`. `GET /api/mensajes` devuelve en cada mensaje `alerta_interna` (bool) y `estado_borrador` (aprobado | pendiente | rechazado | null). `GET /api/curaduria/activos?estados=generado,revisado` da los pendientes en un solo listado paginado (mismo total que `borradores_pendientes`). Las alertas son históricas: todavía no existe el estado «atendida».
+
 El usuario confirma que el comportamiento actual todavía no funciona correctamente y pide documentarlo para verificación e implementación por Claude Code. La interfaz es una preparación local; no se debe considerar validada la integración completa.
 
 Comportamiento esperado:

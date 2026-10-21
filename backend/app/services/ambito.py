@@ -75,6 +75,53 @@ async def calcular_ambito(db: AsyncSession, origen: str | None = None, periodo: 
     return ambito
 
 
+async def alertas_internas(db: AsyncSession, origen: str | None = None, periodo: str | None = None):
+    """Una alerta por mensaje fuente (el mismo conjunto que cuenta el KPI `alertas_internas`).
+
+    Si el mismo mensaje se alertó en varios trabajos (reenvío o cierre), queda una sola entrada con la
+    primera detección y `veces` = cuántas alertas lo citan. Solo trabajos terminados del ámbito.
+    """
+    por_fuente = {}
+    for id_trabajo, estado, entrada, resultado, actualizado in await leer_trabajos(db):
+        if (origen and entrada.get("origen_comunidad") != origen) or \
+                (periodo and entrada.get("periodo_referencia") != periodo) or estado != "terminado":
+            continue
+        marca = actualizado.isoformat() if hasattr(actualizado, "isoformat") else str(actualizado)
+        for alerta in resultado.get("alertas_internas") or []:
+            if not isinstance(alerta, dict) or not isinstance(alerta.get("fuente"), str):
+                continue
+            previa = por_fuente.get(alerta["fuente"])
+            if previa is not None:
+                previa["veces"] += 1
+                if marca < previa["detectada"]:
+                    previa.update(detectada=marca, trabajo=id_trabajo, origen=entrada.get("origen_comunidad"),
+                                  periodo=entrada.get("periodo_referencia"))
+                continue
+            por_fuente[alerta["fuente"]] = {
+                "id_alerta": alerta.get("id_alerta"), "id_mensaje": alerta["fuente"],
+                "nivel": alerta.get("nivel"), "motivo": alerta.get("mensaje"), "trabajo": id_trabajo,
+                "origen": entrada.get("origen_comunidad"), "periodo": entrada.get("periodo_referencia"),
+                "detectada": marca, "veces": 1}
+    return por_fuente
+
+
+async def estados_borrador(db: AsyncSession, ids_mensajes) -> dict:
+    """Estado del borrador más avanzado que cita cada mensaje: aprobado > pendiente > rechazado."""
+    if not ids_mensajes:
+        return {}
+    filas = (await db.execute(text(
+        "SELECT estado, fuentes FROM activos WHERE jsonb_exists_any(CAST(fuentes AS jsonb), CAST(:ids AS text[]))"),
+        {"ids": list(ids_mensajes)})).all()
+    prioridad = {"aprobado": 3, "pendiente": 2, "rechazado": 1}
+    resultado = {}
+    for estado, fuentes in filas:
+        valor = "pendiente" if estado in ("generado", "revisado") else estado
+        for fuente in _json(fuentes) or []:
+            if fuente in ids_mensajes and prioridad.get(valor, 0) > prioridad.get(resultado.get(fuente), 0):
+                resultado[fuente] = valor
+    return resultado
+
+
 async def listar_ambitos(db: AsyncSession):
     grupos = {}
     for _, estado, entrada, _, actualizado in await leer_trabajos(db):

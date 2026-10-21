@@ -41,6 +41,8 @@ async def listar_activos(
     estado: Optional[EstadoActivoEnum] = Query(None),
     formato: Optional[FormatoActivoEnum] = Query(None),
     trabajo: Optional[str] = Query(None, max_length=64, description="Solo activos de este trabajo"),
+    estados: Optional[str] = Query(None, max_length=100,
+                                   description="Varios estados separados por comas, p. ej. generado,revisado"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -50,6 +52,15 @@ async def listar_activos(
     query = select(Activo)
     count_query = select(func.count(Activo.id_activo))
 
+    if estado and estados:
+        raise HTTPException(status_code=422, detail="Use `estado` o `estados`, no ambos.")
+    if estados:
+        lista = sorted({e.strip() for e in estados.split(",") if e.strip()})
+        validos = {e.value for e in EstadoActivoEnum}
+        if not lista or any(e not in validos for e in lista):
+            raise HTTPException(status_code=422, detail=f"Estados válidos: {', '.join(sorted(validos))}.")
+        query = query.where(Activo.estado.in_(lista))
+        count_query = count_query.where(Activo.estado.in_(lista))
     if estado:
         query = query.where(Activo.estado == estado.value)
         count_query = count_query.where(Activo.estado == estado.value)
