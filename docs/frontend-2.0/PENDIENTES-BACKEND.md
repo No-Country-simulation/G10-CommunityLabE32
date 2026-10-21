@@ -188,6 +188,8 @@ Integrar mensajes elegibles de Discord y de archivos de carga manual, actualizar
 
 ## Historial de Curaduría: pendientes, denegados y aprobados
 
+> **Resuelto en el backend (fix/curaduria-posts-historial):** `GET /api/curaduria/activos/{id}` devuelve `historial` (`evento`, `estado`, `version`, `fecha`, `actor`, `comentario`) en orden estable. Se registran desde ahora la creación por el worker, las ediciones, las generaciones con IA y los cambios de estado; los activos anteriores no tienen eventos reconstruidos. Aprobar desde `generado` está permitido (revisar y aprobar en una acción). Pendiente: `estados=` múltiple en el listado.
+
 Solo existen tres filtros visibles: Pendientes, Denegados y Aprobados. Se retiran Todos, Generados y Revisados como opciones independientes, así como la acción Marcar como revisado. Para compatibilidad, generado y revisado se agrupan en Pendientes; un registro revisado NO se convierte automáticamente en aprobado. Denegados corresponde a rechazado y Aprobados a aprobado. Claude Code debe revisar el modelo y acordar una migración explícita si corresponde, conservando la auditoría. El frontend propone estados=generado,revisado para pendientes en GET /api/curaduria/activos; verificar o adaptar el contrato existente. Filtrar elegibilidad y estados ANTES de paginar, devolver total real del mismo conjunto que usa la campanita. Mantener la regla de logros académicos positivos confirmados y conservar los denegados y aprobados.
 
 El listado muestra estado actual y fecha de actualización. El editor contempla historial opcional por activo con eventos {estado, fecha, comentario?}. Claude Code debe verificar la auditoría existente y reutilizar su esquema/endpoint; devolver el historial real en el detalle o adaptar el frontend al recurso existente. Registrar generación, revisión, denegación y aprobación con versión, fecha y actor autorizado; incluir regeneraciones y ediciones con trazabilidad cuando corresponda. No reconstruir falsamente transiciones pasadas a partir del estado actual ni guardar la auditoría solo en el navegador. Definir orden estable para los eventos y permisos de lectura.
@@ -195,6 +197,8 @@ El listado muestra estado actual y fecha de actualización. El editor contempla 
 Actualizar listas y conteos después de una transición, con filtros coherentes: un contenido que deja de cumplir el filtro activo debe salir del listado filtrado sin perder su historial. El frontend vuelve a consultar el listado tras cambiar estado. La generación de posts, las versiones LinkedIn/X y el banner deben vincularse al mismo contenido y conservar su revisión. Si la auditoría no está disponible, mostrar el estado actual como tal, sin inventar eventos.
 
 ## Curaduría — Generar post y enlaces a LinkedIn/X: especificación vigente
+
+> **Resuelto en el backend (fix/curaduria-posts-historial):** `POST /api/curaduria/activos/{id}/posts/generar` devuelve `{linkedin, x, generaciones_restantes}` con una sola llamada a Gemini y las mismas reglas editoriales del generador de logros; no guarda ni aprueba. Tope `CURADURIA_MAX_GENERACIONES` (3) por borrador; un fallo de la IA no consume el intento. `PATCH` acepta `posts_redes` (`x` hasta 280 caracteres) y lo devuelve; `copy` queda igual a la versión LinkedIn y cualquier cambio en LinkedIn o X crea una versión nueva e invalida la aprobación. Pendiente: elegibilidad de logro académico.
 
 El nombre exacto del botón es Generar post, sin con IA y en singular. La generación sí requiere la conexión del backend especificada en la sección de generación de textos.
 

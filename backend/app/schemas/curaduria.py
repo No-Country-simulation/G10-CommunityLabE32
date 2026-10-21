@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import List, Optional
+from typing import List, Literal, Optional
 from datetime import datetime
 from enum import Enum
 
@@ -23,6 +23,23 @@ class FuenteMensajeDetalle(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class PostsRedes(BaseModel):
+    # Mismos límites que los generadores: X hasta 280 caracteres.
+    linkedin: str = Field(min_length=5, max_length=6000)
+    x: str = Field(default="", max_length=280)
+
+class EventoHistorial(BaseModel):
+    evento: str            # generado | edicion | estado | posts_generados
+    estado: str
+    version: int
+    fecha: datetime
+    actor: Optional[str] = None
+    comentario: Optional[str] = None
+
+class SolicitudPosts(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    redes: List[Literal["linkedin", "x"]] = Field(default_factory=lambda: ["linkedin", "x"], min_length=1)
+
 class ActivoResponse(BaseModel):
     id_activo: str
     formato: str
@@ -34,6 +51,7 @@ class ActivoResponse(BaseModel):
     comentario_curador: Optional[str] = None
     # Controles automáticos de fidelidad; None en activos anteriores al control.
     advertencias_fidelidad: Optional[List[dict]] = None
+    posts_redes: Optional[PostsRedes] = None
     fecha_creacion: datetime
     fecha_actualizacion: datetime
 
@@ -41,11 +59,16 @@ class ActivoResponse(BaseModel):
 
 class ActivoDetalleResponse(ActivoResponse):
     fuentes_detalle: List[FuenteMensajeDetalle] = []
+    # Eventos registrados desde que existe la auditoría (sin reconstruir el pasado).
+    historial: List[EventoHistorial] = []
+    generaciones_restantes: Optional[int] = None
 
 class ActivoUpdateDTO(BaseModel):
     copy: Optional[str] = Field(None, min_length=5, description="Nuevo texto editado")
     estado: Optional[EstadoActivoEnum] = None
     comentario_curador: Optional[str] = Field(None, max_length=500)
+    # Versiones LinkedIn y X; si llega, `copy` pasa a ser la de LinkedIn.
+    posts_redes: Optional[PostsRedes] = None
 
 class PaginatedActivosResponse(BaseModel):
     items: List[ActivoResponse]

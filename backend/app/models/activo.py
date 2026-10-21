@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Text, DateTime, JSON
+from sqlalchemy import String, Text, DateTime, JSON, Integer
 from datetime import datetime
 from typing import Optional, List
 from backend.app.core.database import Base
@@ -20,5 +20,9 @@ class Activo(Base):
     comentario_curador: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     # Controles automáticos de fidelidad (ver pipelines/communitylab/generadores/fidelidad.py).
     advertencias_fidelidad: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    # Versiones por red ({"linkedin", "x"}); `copy` se mantiene igual a la de LinkedIn. NULL = solo copy.
+    posts_redes: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    # Veces que se pidió «Generar post» con IA (tope CURADURIA_MAX_GENERACIONES).
+    generaciones_ia: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     fecha_creacion: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     fecha_actualizacion: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

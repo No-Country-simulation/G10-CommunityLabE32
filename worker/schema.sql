@@ -20,6 +20,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS trabajos_worker_idempotencia
     ON trabajos_worker (clave_idempotencia);
 -- Advertencias de fidelidad editorial por activo (aditiva; NULL en activos anteriores).
 ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS advertencias_fidelidad jsonb;
+-- Curaduría (aditiva): versiones LinkedIn/X, contador de «Generar post» e historial de eventos.
+ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS posts_redes jsonb;
+ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS generaciones_ia integer NOT NULL DEFAULT 0;
+CREATE TABLE IF NOT EXISTS activos_historial (
+    id bigserial PRIMARY KEY,
+    id_activo text NOT NULL,
+    evento text NOT NULL CHECK (evento IN ('generado', 'edicion', 'estado', 'posts_generados')),
+    estado text NOT NULL,
+    version integer NOT NULL,
+    actor text,
+    comentario text,
+    fecha timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+CREATE INDEX IF NOT EXISTS activos_historial_activo ON activos_historial (id_activo, fecha, id);
 
 -- === Flujo híbrido, sentimiento y banners (aditiva; reversión en docs/flujo-hibrido-banners.md) ===
 -- Sentimiento por mensaje: NULL = sin analizar. Procedencia y versión del análisis.
