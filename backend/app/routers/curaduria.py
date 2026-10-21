@@ -22,6 +22,7 @@ from backend.app.schemas.curaduria import (
 )
 from backend.app.services.ambito import ids_activos_de_trabajo, ids_excluidos
 from backend.app.services.fidelidad import advertencias_de
+from backend.app.services.autores import visible
 from backend.app.services.oci import subir_activo_aprobado_oci
 
 router = APIRouter(prefix="/api/curaduria", tags=["Curaduría de Activos"])
@@ -124,7 +125,8 @@ async def obtener_detalle_activo(id_activo: str, db: AsyncSession = Depends(get_
         fuentes_detalle = [
             FuenteMensajeDetalle(
                 id_mensaje=m.id_mensaje,
-                autor=m.autor,
+                autor=visible(m.autor, m.autor_nombre),
+                autor_id=m.autor,
                 canal=m.canal,
                 fecha=m.fecha,
                 texto=m.texto
@@ -283,8 +285,8 @@ async def _peticion_post(db, mensajes):
             "origen_comunidad": (ambito or {}).get("origen") or "comunidad",
             "periodo_referencia": (ambito or {}).get("periodo") or "sin período",
             "fuentes": [m.id_mensaje for m in mensajes],
-            "interacciones": [{"id": m.id_mensaje, "autor": m.autor, "canal": m.canal, "fecha": str(m.fecha),
-                               "texto": m.texto[:4000]} for m in mensajes]}
+            "interacciones": [{"id": m.id_mensaje, "autor": visible(m.autor, m.autor_nombre), "canal": m.canal,
+                               "fecha": str(m.fecha), "texto": m.texto[:4000]} for m in mensajes]}
 
 
 def _error_ia(http, codigo, mensaje):

@@ -57,7 +57,7 @@ def capture(message, config):
         return None, "mensaje_de_sistema"
     if not message.content or not message.content.strip():
         return None, "sin_texto"
-    return {
+    evento = {
         "schema_version": "discord-source-v1",
         "message_id": str(message.id),
         "guild_id": str(message.guild.id),
@@ -65,4 +65,10 @@ def capture(message, config):
         "author_id": str(message.author.id),
         "created_at": message.created_at.astimezone(timezone.utc).isoformat(),
         "content": message.content,
-    }, "aceptado"
+    }
+    # Nombre que muestra Discord (apodo en el servidor, nombre global o usuario). Opcional y aditivo:
+    # el ID sigue siendo la identidad del autor.
+    nombre = " ".join(str(getattr(message.author, "display_name", "") or "").split())
+    if nombre:
+        evento["author_name"] = nombre
+    return evento, "aceptado"

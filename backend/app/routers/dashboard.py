@@ -10,6 +10,7 @@ from backend.app.core.dependencias import get_db
 from backend.app.models.activo import Activo
 from backend.app.models.mensaje import Mensaje
 from backend.app.services.ambito import alertas_internas, calcular_ambito, listar_ambitos, parsear_lotes
+from backend.app.services.autores import visible
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard KPIs"])
 
@@ -136,7 +137,8 @@ async def listar_alertas(
     items = []
     for id_mensaje, alerta in por_fuente.items():
         m = mensajes.get(id_mensaje)
-        items.append({**alerta, "autor": m.autor if m else None, "canal": m.canal if m else None,
+        items.append({**alerta, "autor": visible(m.autor, m.autor_nombre) if m else None,
+                      "autor_id": m.autor if m else None, "canal": m.canal if m else None,
                       "fecha": m.fecha if m else None, "texto": m.texto if m else None,
                       "sentimiento_ref": m.sentimiento_ref if m else None})
     items.sort(key=lambda a: (a["fecha"] or "", a["id_mensaje"]), reverse=True)

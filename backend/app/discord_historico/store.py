@@ -170,7 +170,7 @@ class Store:
         vacíos (sin MESSAGE_CONTENT o solo adjuntos) no se pueden analizar.
         """
         with self.conectar() as c:
-            filas = c.execute("""SELECT m.id_mensaje, m.autor_id, m.canal_id, m.fecha, m.texto, m.contenido_disponible,
+            filas = c.execute("""SELECT m.id_mensaje, m.autor_id, m.autor_nombre, m.canal_id, m.fecha, m.texto, m.contenido_disponible,
                     EXISTS (SELECT 1 FROM mensajes x WHERE x.id_mensaje = m.id_mensaje) en_mensajes
                 FROM discord_importacion_mensajes r JOIN discord_mensajes_historicos m USING (id_mensaje)
                 WHERE r.importacion_id=%s ORDER BY m.fecha, m.id_mensaje""", (identificador,)).fetchall()
@@ -190,7 +190,7 @@ class Store:
         """Mensajes de la importación. `estado_ia` se calcula AHORA (no queda obsoleto si el mensaje se
         procesó después por otra vía); `estado_ia_captura` es lo observado al importarlo."""
         with self.conectar() as c:
-            filas = c.execute(f"""SELECT m.id_mensaje, m.message_id, m.autor_id, m.fecha, m.editado_en, m.capturado_en,
+            filas = c.execute(f"""SELECT m.id_mensaje, m.message_id, m.autor_id, m.autor_nombre, m.fecha, m.editado_en, m.capturado_en,
                     m.texto, m.contenido_disponible, m.tipo_discord, m.adjuntos, m.referencia, m.texto_ultima_version,
                     m.en_ingesta_vivo, m.estado_ia_captura, {SQL_ESTADO_IA.format(col="m.id_mensaje")} estado_ia,
                     {SQL_TRABAJO_IA.format(col="m.id_mensaje")} estado_ia_trabajo, r.resultado
@@ -250,11 +250,12 @@ class Store:
                     FROM discord_mensajes_historicos WHERE id_mensaje=%s""", (m["id_mensaje"],)).fetchone()
                 if previo is None:
                     c.execute("""INSERT INTO discord_mensajes_historicos
-                        (id_mensaje, message_id, guild_id, canal_id, autor_id, fecha, editado_en, texto,
+                        (id_mensaje, message_id, guild_id, canal_id, autor_id, autor_nombre, fecha, editado_en, texto,
                          contenido_disponible, tipo_discord, adjuntos, referencia, importacion_inicial,
                          en_ingesta_vivo, estado_ia_captura, estado_ia_trabajo, procesado_ia)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                         (m["id_mensaje"], m["message_id"], trabajo["guild_id"], trabajo["canal_id"], m["autor_id"],
+                         m.get("autor_nombre"),
                          m["fecha"], m["editado_en"], m["texto"], m["contenido_disponible"], m["tipo_discord"],
                          Jsonb(m["adjuntos"]), m["referencia"], trabajo["id"], en_vivo, obs["estado_ia"],
                          obs["trabajo"], obs["estado_ia"] == "procesado"))

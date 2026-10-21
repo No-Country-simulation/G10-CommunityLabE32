@@ -25,7 +25,8 @@ class FormatoActivoEnum(str, Enum):
 
 class FuenteMensajeDetalle(BaseModel):
     id_mensaje: str
-    autor: str
+    autor: str                      # nombre visible
+    autor_id: Optional[str] = None  # identidad original (en Discord, el ID)
     canal: str
     fecha: str
     texto: str
