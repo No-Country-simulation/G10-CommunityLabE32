@@ -1,5 +1,7 @@
 'use client';
 
+
+import UiTree from '@/components/UiTree';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { obtenerSesion } from '@/services/api';
@@ -32,15 +34,15 @@ export default function RutaProtegida({ children }: { children: React.ReactNode 
   }, [router]);
 
   if (!autorizado) {
-    return (
+    return <UiTree>{(
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-3 text-muted-foreground text-sm">
           <Loader2 className="w-5 h-5 animate-spin text-primary" />
           Verificando sesión segura…
         </div>
       </div>
-    );
+    )}</UiTree>;
   }
 
-  return <>{children}</>;
+  return <UiTree>{<>{children}</>}</UiTree>;
 }

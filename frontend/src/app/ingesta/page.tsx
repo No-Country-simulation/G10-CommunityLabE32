@@ -1,8 +1,9 @@
 'use client';
 
+
+import UiTree from '@/components/UiTree';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import ImportarDiscordHistorico from '@/components/ImportarDiscordHistorico';
 import {
   UploadCloud, FileJson, CheckCircle2, AlertCircle, Loader2, Clock, XCircle, RefreshCw,
   ArrowRight, Info, AlertTriangle,
@@ -16,6 +17,7 @@ import Sidebar from '@/components/Sidebar';
 import ConectarDiscord from '@/components/ConectarDiscord';
 import PendientesDiscord from '@/components/PendientesDiscord';
 import RutaProtegida from '@/components/RutaProtegida';
+import { detectarMetadatosArchivo } from '@/utils/metadatosArchivo';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const EXTENSIONES = ['.json', '.jsonl', '.csv'];
@@ -42,20 +44,9 @@ const MENSAJE_ERROR_TRABAJO: Record<string, string> = {
   reserva_agotada: 'El trabajo se interrumpió varias veces y quedó detenido.',
 };
 
-// Semana ISO actual (p. ej. 2026-W43), el formato que usa el puente de Discord.
-const semanaIsoActual = () => {
-  const hoy = new Date();
-  const fecha = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()));
-  const dia = fecha.getUTCDay() || 7;
-  fecha.setUTCDate(fecha.getUTCDate() + 4 - dia);
-  const inicioAnio = new Date(Date.UTC(fecha.getUTCFullYear(), 0, 1));
-  const semana = Math.ceil(((fecha.getTime() - inicioAnio.getTime()) / 86_400_000 + 1) / 7);
-  return `${fecha.getUTCFullYear()}-W${String(semana).padStart(2, '0')}`;
-};
-
 export default function IngestaPage() {
-  const [origen, setOrigen] = useState('CommunityLab');
-  const [periodo, setPeriodo] = useState(semanaIsoActual);
+  const [origen, setOrigen] = useState('');
+  const [periodo, setPeriodo] = useState('');
   const [cierre, setCierre] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -68,6 +59,7 @@ export default function IngestaPage() {
   const [esperaProlongada, setEsperaProlongada] = useState(false);
   const [intentoConsulta, setIntentoConsulta] = useState(0);
   const enviandoRef = useRef(false);
+  const lecturaArchivo = useRef(0);
 
   const estado: EstadoTrabajo | null = trabajo?.estado ?? subida?.estado ?? null;
   const final = estado === 'terminado' || estado === 'error';
@@ -147,7 +139,10 @@ export default function IngestaPage() {
     setEsperaProlongada(false);
   };
 
-  const validarYGuardarArchivo = (archivo: File) => {
+  const validarYGuardarArchivo = async (archivo: File) => {
+    if (enviandoRef.current || (subida && !final)) return;
+    const lectura = ++lecturaArchivo.current;
+    setOrigen(''); setPeriodo(''); setFile(null);
     const nombre = archivo.name.toLowerCase();
     reiniciar();
     if (!EXTENSIONES.some((ext) => nombre.endsWith(ext))) {
@@ -161,7 +156,16 @@ export default function IngestaPage() {
       return;
     }
     setErrorArchivo(null);
-    setFile(archivo);
+    try {
+      const metadatos = detectarMetadatosArchivo(archivo.name, await archivo.text());
+      if (lectura !== lecturaArchivo.current) return;
+      setOrigen(metadatos.nombre.slice(0, 200));
+      setPeriodo(metadatos.periodo.slice(0, 100));
+      setFile(archivo);
+    } catch {
+      if (lectura !== lecturaArchivo.current) return;
+      setErrorArchivo('No se pudo leer el archivo. Revisa su estructura y formato.');
+    }
   };
 
   const procesarLote = async () => {
@@ -187,19 +191,31 @@ export default function IngestaPage() {
     : null;
   const botonDeshabilitado = !file || enviando || (!!subida && !final) || !origen.trim() || !periodo.trim();
 
-  return (
+  return <UiTree>{(
     <RutaProtegida>
       <div className="flex min-h-screen w-full">
         <Sidebar />
 
         <main className="dashboard-content flex-1 min-w-0 p-4 sm:p-6 md:p-10">
-          <header className="mb-8">
+          <header className="ingestion-heading mb-8 flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              Ingesta de lotes
+              Ingesta de datos
             </h1>
-            <p className="text-muted-foreground mt-1.5 text-[15px]">
-              Sube archivos JSON, JSONL o CSV para procesarlos mediante los agentes de IA.
-            </p>
+            <div className="ingestion-info">
+              <span className="ingestion-info-trigger" tabIndex={0} aria-label="Información sobre formatos y requisitos de ingesta" aria-describedby="ingestion-requisitos"><AlertCircle className="w-5 h-5" aria-hidden="true" /></span>
+              <div id="ingestion-requisitos" className="ingestion-info-content" role="tooltip">
+                <h2 className="font-bold mb-3">Formatos y requisitos</h2>
+                <ul className="list-disc pl-5 space-y-3 text-sm">
+                  <li><strong>Formatos:</strong> <code>.json</code> (lista o <code>{'{"interacciones": [...]}'}</code>), <code>.jsonl</code> o <code>.csv</code> con encabezado, en UTF-8.</li>
+                  <li><strong>Campos obligatorios:</strong> <code>id</code> (o <code>id_mensaje</code>), <code>autor</code>, <code>canal</code>, <code>fecha</code> y <code>texto</code>. <code>tipo</code> es opcional.</li>
+                  <li><strong>Fecha:</strong> ISO 8601 con hora y zona, por ejemplo, <code>2026-10-19T14:10:00Z</code>.</li>
+                  <li><strong>Límites:</strong> 5 MiB y 500 registros por archivo; <code>autor</code>, hasta 150 caracteres; <code>canal</code> y <code>tipo</code>, hasta 50.</li>
+                  <li><strong>Repetidos:</strong> los idénticos se omiten; el mismo <code>id</code> con otro contenido es un error.</li>
+                  <li><strong>Si hay un error, no se procesa nada:</strong> verás la lista de problemas para corregirlos.</li>
+                  <li><strong>Reenviar el mismo archivo</strong> con el mismo nombre y período no lo procesa dos veces.</li>
+                </ul>
+              </div>
+            </div>
           </header>
 
           <div className="ingestion-panels grid gap-6 items-stretch">
@@ -209,19 +225,19 @@ export default function IngestaPage() {
             <div className="ingestion-source card p-5 sm:p-7 min-w-0">
               <div className="mb-6">
                 <h2 className="text-[15px] font-semibold text-foreground">Fuente de datos</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Comunidad y período identifican el lote. Prevalecen sobre los metadatos que traiga el archivo.
+                <p className="ingestion-classifier-note mt-3">
+                  El nombre y el período se utilizan para clasificar el lote.
                 </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 mb-4">
                 <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
-                  Comunidad
+                  Nombre
                   <input className="input" value={origen} maxLength={200} onChange={(e) => setOrigen(e.target.value)} />
                 </label>
                 <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
                   Período
-                  <input className="input" value={periodo} maxLength={100} placeholder="2026-W43" onChange={(e) => setPeriodo(e.target.value)} />
+                  <input className="input" value={periodo} maxLength={100} placeholder="" onChange={(e) => setPeriodo(e.target.value)} />
                 </label>
               </div>
 
@@ -323,16 +339,31 @@ export default function IngestaPage() {
                 </div>
               )}
 
-              <div className="mt-7 pt-6 border-t border-border flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-2.5 text-sm min-w-0">
+              <div className="mt-7 pt-6 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5 text-sm min-w-0" role="status" aria-live="polite">
                   {enviando && (
                     <span className="flex items-center gap-2.5 text-primary">
                       <Loader2 className="w-4 h-4 animate-spin" /> Enviando archivo…
                     </span>
                   )}
+                  {!enviando && trabajo?.estado === 'terminado' && (
+                    <span className="flex items-center gap-2 text-foreground">
+                      <CheckCircle2 className="w-4 h-4 text-[#23a094] fill-none" aria-hidden="true" /> Ingesta completada
+                    </span>
+                  )}
+                  {!enviando && subida && !trabajoFinal && (
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> Procesando datos…
+                    </span>
+                  )}
+                  {!enviando && trabajo?.estado === 'error' && (
+                    <span className="flex items-center gap-2 text-danger">
+                      <XCircle className="w-4 h-4" aria-hidden="true" /> La ingesta no se completó
+                    </span>
+                  )}
                   {!enviando && !subida && !file && (
                     <span className="flex items-center gap-2 text-subtle-foreground">
-                      <AlertCircle className="w-4 h-4" /> Esperando archivo
+                      <AlertCircle className="w-4 h-4 text-[#f1f333] fill-none" aria-hidden="true" /> Esperando archivo
                     </span>
                   )}
                   {!enviando && !subida && file && !errorEnvio && (
@@ -375,7 +406,7 @@ export default function IngestaPage() {
                       const hecho = orden > indice || (estado === 'terminado' && paso === 'terminado');
                       const actual = orden === indice && !final;
                       const fallo = estado === 'error' && paso === 'terminado';
-                      return (
+                      return <UiTree key={paso}>{(
                         <li key={paso} className="flex items-center gap-2.5">
                           {fallo ? <XCircle className="w-4 h-4 text-danger" />
                             : hecho ? <CheckCircle2 className="w-4 h-4 text-success" />
@@ -385,7 +416,7 @@ export default function IngestaPage() {
                             {fallo ? 'Error' : ETIQUETA_ESTADO[paso]}
                           </span>
                         </li>
-                      );
+                      )}</UiTree>;
                     })}
                   </ol>
 
@@ -461,24 +492,11 @@ export default function IngestaPage() {
 
               <PendientesDiscord />
 
-              <ImportarDiscordHistorico />
 
-              <aside className="ingestion-file-guide card p-5 sm:p-6 text-sm min-w-0">
-                <h2 className="text-[15px] font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Info className="w-4 h-4 text-info" /> Formato del archivo
-                </h2>
-                <ul className="list-disc pl-5 space-y-1.5 text-muted-foreground">
-                  <li>JSON (lista o <code className="font-mono">{'{"interacciones": [...]}'}</code>), JSONL o CSV en UTF-8.</li>
-                  <li>Obligatorios: <code className="font-mono">id</code> (o <code className="font-mono">id_mensaje</code>), <code className="font-mono">autor</code>, <code className="font-mono">canal</code>, <code className="font-mono">fecha</code>, <code className="font-mono">texto</code>. <code className="font-mono">tipo</code> es opcional.</li>
-                  <li>Fecha ISO 8601 con hora y zona, p. ej. <code className="font-mono">2026-10-19T14:10:00Z</code>.</li>
-                  <li>Máximo 5 MiB y 500 registros distintos por archivo; los repetidos idénticos se omiten.</li>
-                  <li>Reenviar el mismo archivo con la misma comunidad y período devuelve el mismo trabajo.</li>
-                </ul>
-              </aside>
             </div>
           </div>
         </main>
       </div>
     </RutaProtegida>
-  );
+  )}</UiTree>;
 }

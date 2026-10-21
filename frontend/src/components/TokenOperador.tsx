@@ -1,5 +1,6 @@
 'use client';
 
+import UiTree from '@/components/UiTree';
 import React, { useEffect, useState } from 'react';
 import { EVENTO_SESION, esOperador, obtenerSesion, usuarioEnMemoria, type UsuarioAuth } from '@/services/api';
 

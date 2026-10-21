@@ -1,5 +1,7 @@
 'use client';
 
+
+import UiTree from '@/components/UiTree';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
@@ -78,7 +80,7 @@ export default function ProcesarPendientes() {
   const puente = estado?.puente ?? null;
   const terminados = solicitud?.lotes.filter(l => l.trabajo_estado === 'terminado' && l.activos > 0) ?? [];
 
-  return (
+  return <UiTree>{(
     <section aria-live="polite" className="discord-pending-card card p-5 sm:p-6 min-w-0">
       <h2 className="text-[15px] font-semibold text-foreground mb-1 flex items-center gap-2">
         <MessagesSquare className="w-4 h-4 text-primary" /> Procesar mensajes pendientes de Discord
@@ -167,8 +169,8 @@ export default function ProcesarPendientes() {
         {enviando ? 'Solicitando…' : abierta ? 'Procesamiento en curso…' : 'Procesar pendientes'}
       </button>
       <p className="mt-2 text-xs text-subtle-foreground">
-        Sin mensajes nuevos no se consume IA. Ningún borrador se publica sin revisión humana.
+        Sin mensajes nuevos no se consume IA. Ningún borrador se publica sin revisión.
       </p>
     </section>
-  );
+  )}</UiTree>;
 }
