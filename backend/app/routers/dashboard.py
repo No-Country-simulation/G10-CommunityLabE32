@@ -1,5 +1,5 @@
 """Indicadores del panel. Semántica documentada en docs/metricas-panel.md."""
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -9,24 +9,37 @@ from backend.app.core.acceso import requiere_operador, requiere_usuario
 from backend.app.core.dependencias import get_db
 from backend.app.models.activo import Activo
 from backend.app.models.mensaje import Mensaje
-from backend.app.services.ambito import alertas_internas, calcular_ambito, listar_ambitos
+from backend.app.services.ambito import alertas_internas, calcular_ambito, listar_ambitos, parsear_lotes
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard KPIs"])
 
 # "indeterminado" es un resultado explícito del análisis (tono no determinable), no una ausencia.
 SENTIMIENTOS = ("positivo", "negativo", "neutral", "indeterminado")
 PENDIENTES_REVISION = ("generado", "revisado")
+FuenteIngesta = Literal["discord", "manual"]
+DESCRIPCION_LOTES = ('JSON [{"origen","periodo","fuente_ingesta"}]: unión sin duplicados. '
+                     '"[]" = ningún lote (todo en cero). Prevalece sobre origen/periodo/fuente_ingesta.')
+
+
+def lotes_o_422(valor):
+    try:
+        return parsear_lotes(valor)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
 
 
 @router.get("/kpis", response_model=Dict[str, Any], dependencies=[Depends(requiere_usuario)])
 async def obtener_kpis(
     origen: Optional[str] = Query(None, max_length=200, description="origen_comunidad de los lotes"),
     periodo: Optional[str] = Query(None, max_length=100, description="periodo_referencia de los lotes"),
+    fuente_ingesta: Optional[FuenteIngesta] = Query(None, description="discord o manual"),
+    lotes: Optional[str] = Query(None, max_length=8000, description=DESCRIPCION_LOTES),
     db: AsyncSession = Depends(get_db),
 ):
     """Indicadores sin doble conteo; con origen/período se limitan a los lotes de ese ámbito."""
+    seleccion = lotes_o_422(lotes)
     try:
-        ambito = await calcular_ambito(db, origen, periodo)
+        ambito = await calcular_ambito(db, origen, periodo, fuente_ingesta, seleccion)
 
         consulta_mensajes = select(Mensaje.tipo, Mensaje.sentimiento_ref, func.count(Mensaje.id_mensaje))
         consulta_activos = select(Activo.estado, func.count(Activo.id_activo))
@@ -52,7 +65,7 @@ async def obtener_kpis(
 
         por_estado = {estado: n for estado, n in filas_activos}
         return {
-            "filtro": {"origen": origen, "periodo": periodo},
+            "filtro": {"origen": origen, "periodo": periodo, "fuente_ingesta": fuente_ingesta, "lotes": seleccion},
             "total_mensajes": total_mensajes,
             "mensajes_por_tipo": por_tipo,
             # Solo mensajes con sentimiento clasificado; los ceros no significan "analizado".
@@ -87,6 +100,8 @@ async def listar_alertas(
     limit: int = Query(9, ge=1, le=100),
     origen: Optional[str] = Query(None, max_length=200),
     periodo: Optional[str] = Query(None, max_length=100),
+    fuente_ingesta: Optional[FuenteIngesta] = Query(None),
+    lotes: Optional[str] = Query(None, max_length=8000, description=DESCRIPCION_LOTES),
     db: AsyncSession = Depends(get_db),
 ):
     """Detalle de las alertas internas: mismo conjunto y total que el KPI `alertas_internas`.
@@ -94,7 +109,7 @@ async def listar_alertas(
     Incluye el mensaje que la originó (texto y autor: solo operadores), el motivo, el lote y el trabajo.
     Ordenadas por fecha del mensaje, de la más reciente a la más antigua.
     """
-    por_fuente = await alertas_internas(db, origen, periodo)
+    por_fuente = await alertas_internas(db, origen, periodo, fuente_ingesta, lotes_o_422(lotes))
     mensajes = {}
     if por_fuente:
         filas = (await db.execute(select(Mensaje).where(Mensaje.id_mensaje.in_(sorted(por_fuente))))).scalars().all()

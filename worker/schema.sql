@@ -18,6 +18,9 @@ CREATE INDEX IF NOT EXISTS trabajos_worker_pendientes ON trabajos_worker (estado
 ALTER TABLE trabajos_worker ADD COLUMN IF NOT EXISTS clave_idempotencia text;
 CREATE UNIQUE INDEX IF NOT EXISTS trabajos_worker_idempotencia
     ON trabajos_worker (clave_idempotencia);
+-- Vía de entrada del lote (aditiva): 'discord' (puente o histórico) o 'manual' (archivo u operador).
+-- NULL en trabajos anteriores: la API la deduce del origen (ver backend/app/services/ambito.py).
+ALTER TABLE trabajos_worker ADD COLUMN IF NOT EXISTS fuente text CHECK (fuente IN ('discord', 'manual'));
 -- Advertencias de fidelidad editorial por activo (aditiva; NULL en activos anteriores).
 ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS advertencias_fidelidad jsonb;
 -- Curaduría (aditiva): versiones LinkedIn/X, contador de «Generar post» e historial de eventos.

@@ -6,7 +6,7 @@ import json
 import os
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, Header
 
-from backend.app.core.acceso import requiere_puente_u_operador
+from backend.app.core.acceso import Principal, requiere_puente_u_operador
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from worker.store_postgres import ColaPostgres, ConflictoIdempotencia, ConflictoMensaje
 from pipelines.communitylab.diagnostico import normalizar_diagnostico
@@ -85,11 +85,17 @@ def cola():
 
 
 @router.post("", status_code=202)
-async def crear_trabajo(lote: LoteTrabajo, idempotency_key: str | None = Header(default=None, max_length=128)):
+async def crear_trabajo(lote: LoteTrabajo, principal: Principal = Depends(requiere_puente_u_operador),
+                        idempotency_key: str | None = Header(default=None, max_length=128)):
+    # El puente de Discord entrega con su Bearer; una persona operadora carga a mano.
+    return await encolar_lote(lote, idempotency_key, "discord" if principal.tipo == "puente" else "manual")
+
+
+async def encolar_lote(lote: LoteTrabajo, idempotency_key: str | None, fuente: str):
     try:
         almacen = cola()
         identificador, nuevo = await asyncio.to_thread(
-            almacen.encolar_detalle, lote.model_dump(exclude_none=True), idempotency_key)
+            almacen.encolar_detalle, lote.model_dump(exclude_none=True), idempotency_key, fuente)
         trabajo = await asyncio.to_thread(almacen.obtener, identificador)
     except ConflictoIdempotencia:
         raise error_api(409, "conflicto_idempotencia",
@@ -200,7 +206,7 @@ async def encolar_archivo(file: UploadFile, origen: str, periodo: str, cierre: b
         raise error_api(422, "archivo_invalido",
                         f"{len(errores)} problema(s) en el archivo; no se encoló ningún registro.", errores)
 
-    respuesta = await crear_trabajo(lote, None)
+    respuesta = await encolar_lote(lote, None, "manual")
     # Precedencia documentada: los campos del formulario prevalecen sobre metadatos del archivo.
     formulario = {"origen_comunidad": origen, "periodo_referencia": periodo, "cierre_periodo": cierre}
     ignorados = [k for k, v in metadatos.items() if v != formulario[k]]

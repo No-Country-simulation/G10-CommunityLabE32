@@ -4,6 +4,8 @@ Este registro reúne necesidades detectadas durante los cambios del frontend loc
 
 ## 1. Distinguir lotes de Discord y de carga manual
 
+> **Resuelto en el backend (feat/lotes-fuente-analitica):** `trabajos_worker.fuente` guarda la vía de entrada (`discord`: puente o histórico; `manual`: archivo u operador). Los trabajos anteriores la deducen del origen (`discord`, `discord-historico` → discord; el resto → manual). `GET /api/dashboard/ambitos` devuelve `fuente_ingesta` y separa lotes de igual origen y período por vía. KPI, sentimiento, mensajes y alertas aceptan `fuente_ingesta`.
+
 Estado: pendiente de verificar en el backend. El contrato que tenía el frontend solo declaraba origen (comunidad) y periodo.
 
 Comportamiento esperado: el selector Todos los lotes agrupa los lotes por Discord o Carga manual · Ingesta de datos. Mantiene separados los lotes de igual comunidad y período que ingresaron por vías diferentes.
@@ -33,6 +35,8 @@ Ver la especificación vigente Una sola caja Discord con cuatro conexiones al fi
 El selector de Analítica también agrupa por fuente_ingesta y utiliza la misma combinación origen, periodo y fuente_ingesta que el Resumen. Verificar que el filtro se aplique tanto a los KPI como al resumen de sentimientos. No se modifica el backend en esta sesión.
 
 ## Selección múltiple en Analítica
+
+> **Resuelto en el backend (feat/lotes-fuente-analitica):** `lotes` (JSON `[{origen, periodo, fuente_ingesta}]`) en `/dashboard/kpis`, `/dashboard/alertas`, `/mensajes` y `/mensajes/sentimiento/resumen`: unión sin duplicados con porcentajes recalculados. `lotes=[]` = ningún lote: todo en cero (no el global). Un `lotes` inválido responde 422.
 
 El selector permite marcar uno o varios lotes y aplica la selección solo al pulsar Actualizar. Un lote conserva los parámetros individuales existentes. Para varios lotes, el frontend prepara el parámetro lotes como JSON de objetos origen, periodo y fuente_ingesta en los endpoints de KPI y resumen de sentimientos. Claude Code debe verificar/implementar este contrato o coordinar el contrato equivalente existente. El backend debe agregar sobre la unión de mensajes sin duplicados y recalcular porcentajes desde los conteos; no sumar porcentajes ni ignorar filtros desconocidos devolviendo el global. Si falla la consulta, el frontend conserva los últimos datos aplicados y muestra un error. No hay lotes individuales en la muestra actual para demostrar agregación real.
 
