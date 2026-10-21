@@ -1,5 +1,7 @@
 'use client';
 
+
+import UiTree from '@/components/UiTree';
 import { useEffect, useState } from 'react';
 import {
   obtenerKPIs,
@@ -15,20 +17,24 @@ import {
   TrendingUp,
   Layers,
   ShieldAlert,
-  Sparkles,
+  AlertTriangle,
   Loader2,
   RefreshCw,
   Info,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
+import SelectorLotes from '@/components/SelectorLotes';
 import RutaProtegida from '@/components/RutaProtegida';
 
 export default function AnaliticaPage() {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [resumen, setResumen] = useState<ResumenSentimiento | null>(null);
   const [ambitos, setAmbitos] = useState<Ambito[]>([]);
-  const [ambito, setAmbito] = useState<Ambito | null>(null);
+  const [seleccion, setSeleccion] = useState<Ambito[] | null>(null);
+  const [consulta, setConsulta] = useState<{ lotes: Ambito[] | null; version: number }>({ lotes: null, version: 0 });
+  const [aplicados, setAplicados] = useState<Ambito[] | null>(null);
+  const [errorCarga, setErrorCarga] = useState('');
   const [cargando, setCargando] = useState(true);
 
   // Estado para interactividad de la dona (hover en segmentos o leyendas)
@@ -42,16 +48,20 @@ export default function AnaliticaPage() {
     let montado = true;
     const ejecutarCarga = async () => {
       setCargando(true);
+      setErrorCarga('');
       try {
         const [kpiData, resData] = await Promise.all([
-          obtenerKPIs(ambito),
-          obtenerResumenSentimiento(undefined, ambito),
+          obtenerKPIs(consulta.lotes),
+          obtenerResumenSentimiento(undefined, consulta.lotes),
         ]);
         if (!montado) return;
         setKpis(kpiData);
         setResumen(resData);
+        setAplicados(consulta.lotes);
       } catch (err) {
+        if (!montado) return;
         console.error('Error cargando analítica:', err);
+        setErrorCarga('No se pudieron actualizar los lotes seleccionados. Se mantienen los últimos resultados cargados.');
       } finally {
         if (montado) setCargando(false);
       }
@@ -61,21 +71,12 @@ export default function AnaliticaPage() {
     return () => {
       montado = false;
     };
-  }, [ambito]);
+  }, [consulta]);
 
-  // Función auxiliar por si se presiona el botón "Actualizar" de la interfaz
   const cargarDatos = () => {
+    if (seleccion?.length === 0) return;
     setCargando(true);
-    Promise.all([obtenerKPIs(ambito), obtenerResumenSentimiento(undefined, ambito)])
-      .then(([kpiData, resData]) => {
-        setKpis(kpiData);
-        setResumen(resData);
-        setCargando(false);
-      })
-      .catch((err) => {
-        console.error('Error cargando analítica:', err);
-        setCargando(false);
-      });
+    setConsulta((anterior) => ({ lotes: seleccion ? [...seleccion] : null, version: anterior.version + 1 }));
   };
 
   // Cálculos seguros para la Gráfica de Anillo
@@ -88,7 +89,7 @@ export default function AnaliticaPage() {
   const pctPos = analizados > 0 ? Math.round((pos / analizados) * 100) : 0;
   const pctNeu = analizados > 0 ? Math.round((neu / analizados) * 100) : 0;
   const pctNeg = analizados > 0 ? Math.round((neg / analizados) * 100) : 0;
-  const pctInd = analizados > 0 ? Math.max(0, 100 - pctPos - pctNeu - pctNeg) : 0;
+  const pctInd = analizados > 0 ? Math.round((ind / analizados) * 100) : 0;
 
   // Embudo de Curaduría
   const estadosActivos = [
@@ -115,16 +116,20 @@ export default function AnaliticaPage() {
   ];
   const totalActivos = Math.max(1, kpis?.activos_generados ?? 1);
 
-  // Tipos de mensajes
-  const tiposEntries = Object.entries(kpis?.mensajes_por_tipo ?? {}).sort((a, b) => b[1] - a[1]);
-  const etiquetasTipo: Record<string, string> = {
-    PREGUNTA_TECNICA: 'Pregunta técnica',
-    CONSULTA_NEGOCIO: 'Consulta de negocio',
+  const nombresTipo: Record<string, string> = {
+    PREGUNTA_TECNICA: 'Preguntas técnicas',
+    CONSULTA_NEGOCIO: 'Consultas de negocio',
+    LOGRO: 'Logros compartidos',
+    BLOQUEO: 'Situaciones de bloqueo',
+    COMENTARIO: 'Comentarios',
     SIN_CLASIFICAR: 'Sin clasificar',
-    LOGRO: 'Logro',
   };
-  const coloresCategoria = ['#ff90e8', '#f1f333', '#90a8ed', '#b9e9c5'];
-  const maxTipo = Math.max(1, ...tiposEntries.map(([, v]) => v));
+  const coloresTema = ['#ff90e8', '#f1f333', '#90a8ed', '#b9e9c5'];
+  const temas = Object.entries(kpis?.mensajes_por_tipo ?? {})
+    .filter(([tipo]) => tipo.toUpperCase() !== 'SIN_CLASIFICAR')
+    .sort((a, b) => b[1] - a[1])
+    .map(([tipo, cantidad], indice) => ({ id: tipo, nombre: nombresTipo[tipo.toUpperCase()] ?? tipo.replaceAll('_', ' ').toLowerCase(), cantidad, color: coloresTema[indice % coloresTema.length] }));
+  const maxTema = Math.max(1, ...temas.map((item) => item.cantidad));
 
   // Tasas operativas
   const totalMsgs = kpis?.total_mensajes ?? 0;
@@ -149,7 +154,7 @@ export default function AnaliticaPage() {
   // Segmento actualmente seleccionado en el hover
   const infoSeleccionada = segmentos.find((s) => s.id === segmentoActivo);
 
-  return (
+  return <UiTree>{(
     <RutaProtegida>
       <div className="flex min-h-screen w-full">
         <Sidebar />
@@ -157,47 +162,26 @@ export default function AnaliticaPage() {
         <main className="dashboard-content analytics-page flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
           <header className="mb-8 flex flex-wrap justify-between items-end gap-4">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-soft text-primary text-xs font-bold mb-2 shadow-sm">
-                <Sparkles className="w-3.5 h-3.5" /> Equipo 32
-              </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
                 Analítica y gráficas
               </h1>
               <p className="text-muted-foreground text-sm mt-1">
-                Visualización interactiva de sentimiento, embudo editorial y clasificación de mensajes con IA
-                {ambito ? ` · ${ambito.origen} (${ambito.periodo})` : ' · histórico global'}.
+                Visualización interactiva del sentimiento, del embudo editorial y de la clasificación de mensajes con IA
+                {aplicados ? ' · ' + aplicados.length + (aplicados.length === 1 ? ' lote aplicado' : ' lotes aplicados') : ''}.
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <select
-                aria-label="Filtrar por ámbito de lotes"
-                className="input py-2! w-auto"
-                value={ambito ? `${ambito.origen}\u0000${ambito.periodo}` : ''}
-                onChange={(e) => {
-                  const elegido =
-                    ambitos.find((a) => `${a.origen}\u0000${a.periodo}` === e.target.value) ?? null;
-                  setAmbito(elegido);
-                }}
-              >
-                <option value="">Todos los lotes (global)</option>
-                {ambitos.map((a) => (
-                  <option
-                    key={`${a.origen}\u0000${a.periodo}`}
-                    value={`${a.origen}\u0000${a.periodo}`}
-                  >
-                    {a.origen} · {a.periodo}
-                  </option>
-                ))}
-              </select>
+              <SelectorLotes ambitos={ambitos} seleccion={seleccion} setSeleccion={setSeleccion} />
 
-              <button onClick={cargarDatos} className="analytics-refresh btn-secondary" title="Actualizar datos" disabled={cargando} aria-busy={cargando}>
+              <button onClick={cargarDatos} className="analytics-refresh btn-secondary" title="Actualizar datos" disabled={cargando || seleccion?.length === 0} aria-busy={cargando}>
                 <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin' : ''}`} />
                 Actualizar
               </button>
             </div>
           </header>
 
+          {errorCarga && <p role="alert" className="card p-4 mb-5 text-sm text-danger">{errorCarga}</p>}
           {cargando ? (
             <div className="card flex items-center justify-center h-80">
               <div className="flex items-center gap-3 text-muted-foreground text-sm">
@@ -208,11 +192,11 @@ export default function AnaliticaPage() {
           ) : (
             <div className="space-y-6">
               {/* Tarjetas Superiores de Rendimiento */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="analytics-summary-grid grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="card p-5 relative overflow-hidden group hover:border-primary/50 transition-all">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Cobertura del análisis con IA
+                      Cobertura de análisis
                     </span>
                     <TrendingUp className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
                   </div>
@@ -220,9 +204,7 @@ export default function AnaliticaPage() {
                     <span className="text-3xl font-extrabold text-foreground tabular-nums">
                       {tasaCoberturaIA}%
                     </span>
-                    <span className="text-xs text-subtle-foreground">
-                      ({analizados} de {totalMsgs} mensajes)
-                    </span>
+
                   </div>
                   <div className="w-full h-2.5 bg-surface-muted rounded-full overflow-hidden mt-3 p-0.5 border border-border/50">
                     <motion.div
@@ -237,7 +219,7 @@ export default function AnaliticaPage() {
                 <div className="card p-5 relative overflow-hidden group hover:border-success/50 transition-all">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Tasa de aprobación editorial
+                      Tasa de aprobación
                     </span>
                     <Layers className="w-4 h-4 text-[#b9e9c5] group-hover:scale-110 transition-transform" />
                   </div>
@@ -245,9 +227,7 @@ export default function AnaliticaPage() {
                     <span className="text-3xl font-extrabold text-foreground tabular-nums">
                       {tasaAprobacion}%
                     </span>
-                    <span className="text-xs text-subtle-foreground">
-                      ({kpis?.activos_aprobados ?? 0} de {kpis?.activos_generados ?? 0} activos)
-                    </span>
+
                   </div>
                   <div className="w-full h-2.5 bg-surface-muted rounded-full overflow-hidden mt-3 p-0.5 border border-border/50">
                     <motion.div
@@ -261,22 +241,19 @@ export default function AnaliticaPage() {
 
                 <div className="card p-5 relative overflow-hidden group hover:border-danger/50 transition-all">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Bloqueos y alertas internas
-                    </span>
+                    <h2 className="text-lg font-bold text-foreground">Bloqueos</h2>
                     <ShieldAlert className="w-4 h-4 text-[#ff90e8] group-hover:scale-110 transition-transform" />
                   </div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-extrabold text-foreground tabular-nums">
                       {kpis?.alertas_internas ?? 0}
                     </span>
-                    <span className="text-xs text-subtle-foreground">
-                      alertas registradas
-                    </span>
+
                   </div>
-                  <p className="text-xs text-muted-foreground mt-3">
+                  {(kpis?.alertas_internas ?? 0) > 0 && <p className="text-xs text-muted-foreground mt-3 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-[#f1f333]" aria-hidden="true" />
                     Revisa las alertas internas antes de continuar con la publicación.
-                  </p>
+                  </p>}
                 </div>
               </div>
 
@@ -293,7 +270,7 @@ export default function AnaliticaPage() {
                       <PieChart className="w-5 h-5 text-primary" /> Distribución del sentimiento comunitario
                     </h2>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Pasa el cursor sobre los segmentos o las leyendas para explorar el desglose detallado.
+                      Pasa el cursor sobre los segmentos o la leyenda para explorar el desglose detallado.
                     </p>
                   </div>
 
@@ -322,7 +299,7 @@ export default function AnaliticaPage() {
                             acumulado += seg.valor;
                             const isHovered = segmentoActivo === seg.id;
 
-                            return (
+                            return <UiTree key={seg.id}>{(
                               <circle
                                 key={seg.id}
                                 cx="80"
@@ -338,7 +315,7 @@ export default function AnaliticaPage() {
                                 onMouseEnter={() => setSegmentoActivo(seg.id)}
                                 onMouseLeave={() => setSegmentoActivo(null)}
                               />
-                            );
+                            )}</UiTree>;
                           })}
                         </svg>
 
@@ -376,7 +353,7 @@ export default function AnaliticaPage() {
                       <div className="space-y-2.5 w-full sm:w-auto min-w-[210px]">
                         {segmentos.map((seg) => {
                           const isHovered = segmentoActivo === seg.id;
-                          return (
+                          return <UiTree key={seg.id}>{(
                             <div
                               key={seg.id}
                               onMouseEnter={() => setSegmentoActivo(seg.id)}
@@ -401,7 +378,7 @@ export default function AnaliticaPage() {
                                 {seg.cantidad} <span className="text-xs text-subtle-foreground font-normal">({seg.valor}%)</span>
                               </span>
                             </div>
-                          );
+                          )}</UiTree>;
                         })}
                       </div>
                     </div>
@@ -409,7 +386,7 @@ export default function AnaliticaPage() {
 
                   <div className="pt-3 border-t border-border flex justify-between items-center text-xs text-subtle-foreground">
                     <span className="flex items-center gap-1.5">
-                      <Info className="w-3.5 h-3.5 text-primary" /> Gráfica SVG interactiva
+                      <Info className="w-3.5 h-3.5 text-primary" /> Gráfica interactiva
                     </span>
                     <span>Sin analizar: {resumen?.sin_analizar ?? 0}</span>
                   </div>
@@ -427,14 +404,14 @@ export default function AnaliticaPage() {
                       <BarChart3 className="w-5 h-5 text-primary" /> Embudo de curaduría de contenidos
                     </h2>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Progreso editorial de los {kpis?.activos_generados ?? 0} borradores generados (LinkedIn, preguntas frecuentes y boletines).
+                      Progreso editorial de los borradores generados: {kpis?.activos_generados ?? 0} en total (LinkedIn, preguntas frecuentes y boletines).
                     </p>
                   </div>
 
                   <div className="space-y-4 my-6">
                     {estadosActivos.map((item) => {
                       const porcentajeBarra = Math.round((item.cantidad / totalActivos) * 100);
-                      return (
+                      return <UiTree key={item.etiqueta}>{(
                         <div key={item.etiqueta} className="space-y-1.5 group">
                           <div className="flex justify-between text-xs font-semibold">
                             <span className="text-foreground group-hover:text-primary transition-colors">
@@ -454,7 +431,7 @@ export default function AnaliticaPage() {
                             />
                           </div>
                         </div>
-                      );
+                      )}</UiTree>;
                     })}
                   </div>
 
@@ -473,31 +450,31 @@ export default function AnaliticaPage() {
                 className="card p-6"
               >
                 <h2 className="text-base font-bold text-foreground mb-1">
-                  Volumen de interacciones por categoría o tipo
+                  Temas recurrentes de la comunidad
                 </h2>
                 <p className="text-xs text-muted-foreground mb-5">
-                  Cantidad de mensajes importados según su categoría.
+                  Temas y tipos de participación más frecuentes en la comunidad: preguntas, consultas, comentarios, situaciones, palabras, etc.
                 </p>
 
-                {tiposEntries.length === 0 ? (
+                {temas.length === 0 ? (
                   <p className="text-sm text-subtle-foreground py-8 text-center">
-                    No hay interacciones registradas en este ámbito todavía.
+                    Aún no hay tipos de participación registrados para los lotes aplicados.
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {tiposEntries.map(([tipo, cantidad], indice) => {
-                      const pct = Math.round((cantidad / maxTipo) * 100);
-                      return (
+                    {temas.map(({ id, nombre, cantidad, color }) => {
+                      const pct = Math.round((cantidad / maxTema) * 100);
+                      return <UiTree key={id}>{(
                         <div
-                          key={etiquetasTipo[tipo.toUpperCase()] ?? tipo.replaceAll('_', ' ')}
+                          key={id}
                           className="p-4 rounded-2xl border border-border bg-surface-muted/30 hover:bg-surface-hover/80 hover:border-border-strong transition-all duration-200 group"
                         >
                           <div className="flex justify-between items-center mb-2.5">
                             <span className="badge-neutral font-bold">
-                              {tipo}
+                              {nombre}
                             </span>
                             <span className="text-sm font-extrabold text-foreground tabular-nums">
-                              {cantidad} <span className="text-xs font-normal text-muted-foreground">mensajes</span>
+                              {cantidad} <span className="text-xs font-normal text-muted-foreground">{cantidad === 1 ? 'mensaje' : 'mensajes'}</span>
                             </span>
                           </div>
                           <div className="w-full h-3 bg-surface-muted rounded-full overflow-hidden p-0.5 border border-border/50">
@@ -506,11 +483,11 @@ export default function AnaliticaPage() {
                               animate={{ width: `${Math.max(pct > 0 ? 6 : 0, pct)}%` }}
                               transition={{ duration: 0.8, ease: 'easeOut' }}
                               className="h-full rounded-full group-hover:brightness-110 transition-all"
-                              style={{ backgroundColor: coloresCategoria[indice % coloresCategoria.length] }}
+                              style={{ backgroundColor: color }}
                             />
                           </div>
                         </div>
-                      );
+                      )}</UiTree>;
                     })}
                   </div>
                 )}
@@ -520,5 +497,5 @@ export default function AnaliticaPage() {
         </main>
       </div>
     </RutaProtegida>
-  );
+  )}</UiTree>;
 }

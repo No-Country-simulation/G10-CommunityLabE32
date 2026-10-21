@@ -1,13 +1,16 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+
+import UiTree from '@/components/UiTree';
+import { translateCurrent } from '@/i18n/translate';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  MessageSquare, Edit3, CheckCircle2, XCircle, Clock, BookOpen,
-  Layers, Loader2, Save, ChevronLeft, ChevronRight, X, AlertTriangle, ArrowLeft,
+  MessageSquare, Edit3, CheckCircle2, XCircle, BookOpen,
+  Layers, Loader2, Save, FileText, ChevronLeft, ChevronRight, X, AlertTriangle, ArrowLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { listarActivos, obtenerDetalleActivo, actualizarActivo, describirError, Activo, EstadoActivo } from '@/services/api';
+import { listarLogrosCuraduria, generarPostsLogro, esLogroAcademicoElegible, obtenerDetalleActivo, actualizarActivo, describirError, Activo, EstadoActivo } from '@/services/api';
 import Sidebar from '@/components/Sidebar';
 import { esReferenciaPublicada } from '@/services/referenciaPublicada';
 import PanelBanner from '@/components/PanelBanner';
@@ -24,6 +27,13 @@ const ETIQUETA_ADVERTENCIA: Record<string, string> = {
   posible_atribucion_individual: 'Logro colectivo presentado como individual',
 };
 
+const ETIQUETA_ESTADO: Record<string, string> = { generado: 'Pendiente', revisado: 'Pendiente', rechazado: 'Denegado', aprobado: 'Aprobado' };
+const FILTROS_HISTORIAL = [
+  { valor: 'pendientes', etiqueta: 'Pendientes' },
+  { valor: 'rechazado', etiqueta: 'Denegados' },
+  { valor: 'aprobado', etiqueta: 'Aprobados' },
+];
+
 const estadoBadge = (estado: string) => {
   switch (estado) {
     case 'aprobado': return 'badge-success';
@@ -35,11 +45,11 @@ const estadoBadge = (estado: string) => {
 
 // useSearchParams requiere un límite Suspense para no bloquear el prerender (docs de Next 16).
 export default function Page() {
-  return (
+  return <UiTree>{(
     <Suspense fallback={null}>
       <CuraduriaPage />
     </Suspense>
-  );
+  )}</UiTree>;
 }
 
 function CuraduriaPage() {
@@ -51,7 +61,8 @@ function CuraduriaPage() {
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [filtroEstado, setFiltroEstado] = useState<string>('');
+  const [filtroEstado, setFiltroEstado] = useState<string>('pendientes');
+  const [revisionHistorial, setRevisionHistorial] = useState(0);
 
   const [loadingList, setLoadingList] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -62,13 +73,19 @@ function CuraduriaPage() {
   const [trabajo, setTrabajo] = useState<string | null>(() => parametros.get('trabajo'));
 
   const [editCopy, setEditCopy] = useState('');
+  const [postX, setPostX] = useState('');
+  const [generandoPosts, setGenerandoPosts] = useState(false);
+  const [errorPosts, setErrorPosts] = useState('');
+  const generandoRef = useRef(false);
+  const activoVigente = useRef<string | null>(null);
+  useEffect(() => { activoVigente.current = selectedId; }, [selectedId]);
   const [comentario, setComentario] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [tieneConsentimiento, setTieneConsentimiento] = useState(false);
 
   useEffect(() => {
     let vigente = true;
-    listarActivos(page, 10, filtroEstado, trabajo).then(res => {
+    listarLogrosCuraduria(page, 10, filtroEstado, trabajo).then(res => {
       if (!vigente) return;
       setActivos(res.items);
       setTotalPages(res.total_pages || 1);
@@ -79,7 +96,7 @@ function CuraduriaPage() {
       console.error('Error al cargar activos:', error);
     });
     return () => { vigente = false; };
-  }, [page, filtroEstado, trabajo]);
+  }, [page, filtroEstado, trabajo, revisionHistorial]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -88,8 +105,11 @@ function CuraduriaPage() {
       try {
         const res = await obtenerDetalleActivo(selectedId);
         if (!vigente) return;
+        if (!esLogroAcademicoElegible(res)) { setSelectedActivo(null); return; }
         setSelectedActivo(res);
-        setEditCopy(res.copy);
+        setEditCopy(res.posts_redes?.linkedin ?? res.copy);
+        setPostX(res.posts_redes?.x ?? '');
+        setErrorPosts('');
         setComentario(res.comentario_curador || '');
         setTieneConsentimiento(false);
         setIsDirty(false);
@@ -102,26 +122,26 @@ function CuraduriaPage() {
   }, [selectedId]);
 
   const handleUpdate = async (nuevoEstado?: EstadoActivo) => {
-    if (!selectedId || selectedActivo?.id_activo !== selectedId) return;
+    if (!selectedId || selectedActivo?.id_activo !== selectedId || !esLogroAcademicoElegible(selectedActivo) || generandoRef.current) return;
 
     const pendientes = selectedActivo?.advertencias_fidelidad?.length ?? 0;
     if (nuevoEstado === 'aprobado' && pendientes > 0 && !window.confirm(
-      `Este contenido tiene ${pendientes} advertencia(s) de fidelidad. ¿Confirmas que revisaste el texto frente a las fuentes?`,
+      translateCurrent(`Este contenido tiene ${pendientes} advertencia(s) de fidelidad. ¿Confirmas que revisaste el texto frente a las fuentes?`),
     )) {
       return;
     }
 
     if (nuevoEstado === 'aprobado' && tieneConsentimiento) {
       if (!editCopy.toLowerCase().includes('aprobación de demostración')) {
-        alert('Política ética: Como tienes consentimiento, debes incluir la frase «aprobación de demostración» dentro del texto.');
+        alert(translateCurrent('Política ética: Como tienes consentimiento, debes incluir la frase «aprobación de demostración» dentro del texto.'));
         return;
       }
     }
 
     setSaving(true);
     try {
-      const payload: { copy?: string; estado?: EstadoActivo; comentario_curador?: string } = {};
-      if (isDirty) payload.copy = editCopy;
+      const payload: { copy?: string; estado?: EstadoActivo; comentario_curador?: string; posts_redes?: { linkedin: string; x: string } } = {};
+      if (isDirty) { payload.copy = editCopy; payload.posts_redes = { linkedin: editCopy, x: postX }; }
       if (comentario !== (selectedActivo?.comentario_curador || '')) payload.comentario_curador = comentario;
       if (nuevoEstado) payload.estado = nuevoEstado;
 
@@ -129,15 +149,29 @@ function CuraduriaPage() {
       setSelectedActivo(prev => prev ? { ...prev, ...res } : null);
       setActivos(prev => prev.map(a => a.id_activo === selectedId ? { ...a, ...res } : a));
       setIsDirty(false);
+      if (nuevoEstado) { setLoadingList(true); setRevisionHistorial(actual => actual + 1); }
     } catch (error: unknown) {
       const legible = describirError(error);
-      alert(legible.tipo === 'acceso' ? `${legible.titulo}: ${legible.mensaje}` : legible.mensaje || 'Error guardando los cambios.');
+      alert(translateCurrent(legible.tipo === 'acceso' ? `${legible.titulo}: ${legible.mensaje}` : legible.mensaje || 'Error guardando los cambios.'));
     } finally {
       setSaving(false);
     }
   };
 
-  return (
+  const generarPosts = async () => {
+    if (!selectedActivo || !esLogroAcademicoElegible(selectedActivo) || soloReferencia || generandoRef.current) return;
+    if (isDirty && !window.confirm(translateCurrent('La generación reemplazará los textos sin guardar. ¿Deseas continuar?'))) return;
+    const id = selectedActivo.id_activo;
+    generandoRef.current = true; setGenerandoPosts(true); setErrorPosts('');
+    try {
+      const textos = await generarPostsLogro(id);
+      if (activoVigente.current !== id) return;
+      setEditCopy(textos.linkedin); setPostX(textos.x); setIsDirty(true);
+    } catch (error) { if (activoVigente.current === id) setErrorPosts(describirError(error).mensaje); }
+    finally { generandoRef.current = false; setGenerandoPosts(false); }
+  };
+
+  return <UiTree>{(
     <RutaProtegida>
       <div className="flex min-h-screen w-full md:overflow-hidden relative">
         <Sidebar />
@@ -146,8 +180,9 @@ function CuraduriaPage() {
         <div className={`${vistaMovil === 'lista' ? 'flex' : 'hidden'} md:flex w-full md:w-80 shrink-0 flex-col min-h-[60dvh] md:h-[calc(100dvh-var(--topbar-h))] bg-surface border-r border-border`}>
           <div className="p-5 border-b border-border">
             <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
-              <Layers className="w-5 h-5 text-primary" /> Borradores
+              <Layers className="w-5 h-5 text-primary" /> Curaduría
             </h2>
+            <p className="text-xs text-muted-foreground mt-2">Logros de cursos, diplomados y certificaciones completados.</p>
             {trabajo && (
               <p className="mt-3 badge-info max-w-full">
                 <span className="truncate">Trabajo {trabajo.slice(0, 8)}…</span>
@@ -159,15 +194,16 @@ function CuraduriaPage() {
                 </button>
               </p>
             )}
-            <div className="flex flex-wrap gap-2 mt-4">
-              {['', 'generado', 'revisado', 'aprobado'].map(st => (
+            <h3 className="text-xs font-bold text-foreground mt-4 mb-2">Historial de curaduría</h3>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar historial por estado">
+              {FILTROS_HISTORIAL.map(({ valor: st, etiqueta }) => (
                 <button
                   key={st}
                   onClick={() => { setFiltroEstado(st); setPage(1); setLoadingList(true); }}
                   aria-pressed={filtroEstado === st}
                   className="filtro-borrador"
                 >
-                  {st === '' ? 'Todos' : st.charAt(0).toUpperCase() + st.slice(1)}
+                  {etiqueta}
                 </button>
               ))}
             </div>
@@ -179,7 +215,7 @@ function CuraduriaPage() {
                 <Loader2 className="w-5 h-5 animate-spin mx-auto text-primary" />
               </div>
             ) : activos.length === 0 ? (
-              <p className="p-8 text-center text-sm text-subtle-foreground">Sin borradores en este estado.</p>
+              <p className="p-8 text-center text-sm text-subtle-foreground">No hay logros académicos verificados en este estado.</p>
             ) : activos.map(a => (
               <div
                 key={a.id_activo}
@@ -198,11 +234,12 @@ function CuraduriaPage() {
                         <AlertTriangle className="w-3 h-3" /> {a.advertencias_fidelidad.length}
                       </span>
                     )}
-                    <span className={estadoBadge(a.estado)}>{a.estado}</span>
+                    <span className={estadoBadge(a.estado)}>{ETIQUETA_ESTADO[a.estado] ?? a.estado}</span>
                   </span>
                 </div>
-                <h3 className="text-sm font-medium text-foreground truncate">{a.titulo}</h3>
-                <p className="text-xs text-subtle-foreground truncate mt-0.5 font-mono">{a.id_activo}</p>
+                <h3 className="text-sm font-medium text-foreground truncate" translate="no">{a.titulo}</h3>
+                <p className="text-xs text-subtle-foreground truncate mt-0.5 font-mono" translate="no">{a.id_activo}</p>
+                <p className="text-xs text-muted-foreground mt-1">{new Date(a.fecha_actualizacion).toLocaleString('es')}</p>
               </div>
             ))}
           </div>
@@ -216,7 +253,7 @@ function CuraduriaPage() {
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-xs text-subtle-foreground tabular-nums">Pág {page} / {totalPages}</span>
+            <span className="text-xs text-subtle-foreground tabular-nums">Página {page} de {totalPages}</span>
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
@@ -237,7 +274,7 @@ function CuraduriaPage() {
                   <ArrowLeft className="w-4 h-4" /> Listado
                 </button>
                 <div className="min-w-0 flex-1 basis-full order-last md:order-none md:basis-0">
-                  <h1 className="text-xl font-bold text-foreground mb-1 truncate">{selectedActivo.titulo}</h1>
+                  <h1 className="text-xl font-bold text-foreground mb-1 truncate" translate="no">{selectedActivo.titulo}</h1>
                   <p className="text-xs text-muted-foreground">
                     Versión {selectedActivo.version} · Actualizado {new Date(selectedActivo.fecha_actualizacion).toLocaleString()}
                   </p>
@@ -265,19 +302,30 @@ function CuraduriaPage() {
                   </div>
                 )}
                 <div className="card flex-1 flex flex-col p-5 min-h-[250px]">
-                  <div className="flex justify-between items-center mb-3">
+                  <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
                     <label className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider">
                       Cuerpo del contenido
                     </label>
+                    <button type="button" className="btn-secondary" disabled={soloReferencia || generandoPosts || saving || !esLogroAcademicoElegible(selectedActivo)} onClick={generarPosts}>{generandoPosts ? <Loader2 className="w-4 h-4 animate-spin"/> : <FileText className="w-4 h-4"/>}Generar post</button>
                     {isDirty && <span className="badge-warning">Cambios sin guardar</span>}
                   </div>
+                  <div className="flex gap-2 mb-4">
+                    <button type="button" className="btn-secondary" disabled title="Próximamente: abrir LinkedIn" onClick={() => window.location.assign('https://www.linkedin.com/')}>LinkedIn</button>
+                    <button type="button" className="btn-secondary" disabled title="Próximamente: abrir X" onClick={() => window.location.assign('https://x.com/')}>X</button>
+                  </div>
+                  {errorPosts && <p role="alert" className="text-sm text-danger mb-3">{errorPosts}</p>}
+                  <p className="text-xs font-bold mb-2">Texto para LinkedIn</p>
                   <textarea
-                    readOnly={soloReferencia}
+                    aria-label="Texto para LinkedIn"
+                    readOnly={soloReferencia || generandoPosts}
                     value={editCopy}
                     onChange={(e) => { setEditCopy(e.target.value); setIsDirty(true); }}
                     className="w-full flex-1 bg-transparent border-none outline-none text-sm text-foreground resize-none leading-relaxed placeholder:text-subtle-foreground"
                     placeholder="Redacta el contenido…"
                   />
+                  <p className="text-xs font-bold mt-4 mb-2">Texto para X</p>
+                  <textarea aria-label="Texto para X" readOnly={soloReferencia || generandoPosts} value={postX} onChange={e => { setPostX(e.target.value); setIsDirty(true); }} className="input min-h-28 resize-y" placeholder="Texto de la publicación para X…" />
+
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -334,7 +382,12 @@ function CuraduriaPage() {
                   </div>
                 </div>
 
-                {soloReferencia ? <section className="card p-5"><h2 className="text-sm font-semibold">Banner del contenido</h2><p className="text-xs text-muted-foreground mt-2">El flujo publicado permite generar y revisar banners después de aprobar el texto. Esta muestra local es de solo lectura y no incluye los archivos de imagen.</p></section> : <PanelBanner
+                <section className="card p-5" aria-labelledby="historial-contenido">
+                  <h2 id="historial-contenido" className="text-sm font-bold mb-3">Historial del contenido</h2>
+                  {selectedActivo.historial?.length ? <ol className="space-y-3">{selectedActivo.historial.map((evento, indice) => <li key={indice} className="border-l-2 border-border pl-3"><div className="flex flex-wrap gap-2 items-center"><span className={estadoBadge(evento.estado)}>{ETIQUETA_ESTADO[evento.estado] ?? evento.estado}</span><time className="text-xs text-muted-foreground" dateTime={evento.fecha}>{new Date(evento.fecha).toLocaleString('es')}</time></div>{evento.comentario && <p className="text-xs text-muted-foreground mt-1" translate="no">{evento.comentario}</p>}</li>)}</ol> : <p className="text-xs text-muted-foreground">Estado actual: {ETIQUETA_ESTADO[selectedActivo.estado] ?? selectedActivo.estado}. El historial de cambios aún no está disponible.</p>}
+                </section>
+
+                {soloReferencia ? <section className="card p-5"><h2 className="text-sm font-semibold">Banner del contenido</h2><p className="text-xs text-muted-foreground mt-2">Aprueba el texto para generar el banner. La aprobación del banner no lo publica. Esta muestra local es de solo lectura y no incluye los archivos de imagen.</p></section> : <PanelBanner
                   idActivo={selectedActivo.id_activo}
                   estadoActivo={selectedActivo.estado}
                   version={selectedActivo.version}
@@ -344,7 +397,7 @@ function CuraduriaPage() {
               {/* Barra de acciones */}
               <div className="px-4 sm:px-6 py-4 border-t border-border bg-surface flex justify-between items-center shrink-0 gap-3 flex-wrap">
                 <div className="flex flex-wrap items-center gap-3">
-                  <button disabled={soloReferencia || saving || !isDirty} onClick={() => handleUpdate()} className="btn-secondary">
+                  <button disabled={soloReferencia || saving || generandoPosts || !isDirty} onClick={() => handleUpdate()} className="btn-secondary">
                     <Save className="w-4 h-4" /> Guardar texto
                   </button>
                   {/* AQUÍ ESTABA TokenOperador, ya lo quitamos para usar JWT automático */}
@@ -353,18 +406,19 @@ function CuraduriaPage() {
                   <button disabled={soloReferencia || saving || selectedActivo.estado === 'rechazado'} onClick={() => handleUpdate('rechazado')} className="btn-danger-soft">
                     <XCircle className="w-4 h-4" /> Rechazar
                   </button>
-                  <button disabled={soloReferencia || saving || selectedActivo.estado === 'revisado'} onClick={() => handleUpdate('revisado')} className="btn-info-soft">
-                    <Clock className="w-4 h-4" /> Marcar revisado
-                  </button>
                   <button disabled={soloReferencia || saving || selectedActivo.estado === 'aprobado'} onClick={() => handleUpdate('aprobado')} className="btn-success">
-                    <CheckCircle2 className="w-4 h-4" /> Aprobar definitivo
+                    <CheckCircle2 className="w-4 h-4" /> Aprobar como definitivo
                   </button>
                 </div>
               </div>
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-subtle-foreground text-sm">
-              <span className="inline-flex items-center gap-2"><Edit3 className="w-4 h-4" /> Selecciona un borrador del panel lateral para comenzar.</span>
+              <div className="card p-6 w-full max-w-2xl text-left">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4"><h2 className="font-bold text-foreground">Cuerpo del contenido</h2><button className="btn-secondary" disabled><FileText className="w-4 h-4"/>Generar post</button></div>
+                <div className="flex gap-2 mb-5"><button className="btn-secondary" disabled>LinkedIn</button><button className="btn-secondary" disabled>X</button></div>
+                <p className="text-sm text-muted-foreground flex gap-2"><Edit3 className="w-4 h-4 shrink-0"/>Selecciona un logro académico verificado para revisar el banner y generar los textos de LinkedIn y X.</p>
+              </div>
             </div>
           )}
         </div>
@@ -395,10 +449,10 @@ function CuraduriaPage() {
                   {selectedActivo?.fuentes_detalle?.map(f => (
                     <div key={f.id_mensaje} className="card p-4">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-semibold text-foreground">{f.autor}</span>
+                        <span className="text-xs font-semibold text-foreground" translate="no">{f.autor}</span>
                         <span className="badge-neutral">{f.canal}</span>
                       </div>
-                      <p className="text-sm text-muted-foreground italic leading-relaxed">&quot;{f.texto}&quot;</p>
+                      <p className="text-sm text-muted-foreground italic leading-relaxed" translate="no">&quot;{f.texto}&quot;</p>
                     </div>
                   ))}
                   {(!selectedActivo?.fuentes_detalle || selectedActivo.fuentes_detalle.length === 0) && (
@@ -413,5 +467,5 @@ function CuraduriaPage() {
         </AnimatePresence>
       </div>
     </RutaProtegida>
-  );
+  )}</UiTree>;
 }

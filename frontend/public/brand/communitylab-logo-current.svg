@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="414" height="472" viewBox="305 160 414 472" role="img" aria-labelledby="title desc">
+  <title id="title">Community Lab</title>
+  <desc id="desc">Símbolo de tres figuras con los colores amarillo, rosado y verde de Community Lab.</desc>
+
+  <defs>
+    <linearGradient id="green-fold-depth" x1="585" y1="450" x2="628" y2="506" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#467756" />
+      <stop offset="45%" stop-color="#639d73" />
+      <stop offset="100%" stop-color="#7eb78d" />
+    </linearGradient>
+    <linearGradient id="pink-fold-depth" x1="358" y1="457" x2="395" y2="515" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a74e91" />
+      <stop offset="45%" stop-color="#c165ae" />
+      <stop offset="100%" stop-color="#d478c1" />
+    </linearGradient>
+    <linearGradient id="yellow-fold-depth" x1="459" y1="300" x2="459" y2="375" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#898b1e" />
+      <stop offset="45%" stop-color="#a7aa25" />
+      <stop offset="100%" stop-color="#c0c32b" />
+    </linearGradient>
+  </defs>
+
+  
+  <g id="emblem">
+    
+    <g id="figure-top">
+      <circle id="head-top" cx="512" cy="208" r="36.5" fill="#f1f333" />
+      <polygon id="body-top-dark" points="428,280 491,321 491,383 428,342" fill="url(#yellow-fold-depth)" />
+      <polygon id="body-top-light" points="428,280 491,246 598,311 598,378 535,415 535,348 491,321" fill="#f1f333" />
+    </g>
+
+    
+    <g id="figure-left">
+      <circle id="head-left" cx="368.5" cy="319" r="36.5" fill="#ff90e8" />
+      <polygon id="body-left-dark" points="317,484 400,435 400,530" fill="url(#pink-fold-depth)" />
+      <polygon id="body-left-upper" points="317,402 428,342 491,383 400,435 317,484" fill="#ff90e8" />
+      <polygon id="body-left-lower" points="400,435 460,470 460,586 400,551" fill="#ff90e8" />
+    </g>
+
+    
+    <g id="figure-right">
+      <circle id="head-right" cx="655.5" cy="319" r="36.5" fill="#b9e9c5" />
+      <polygon id="body-right-inner-fold" points="568,472 628,438.8 628,506" fill="url(#green-fold-depth)" />
+      <polygon id="body-right-upper" points="535,415 638,355 707,395 638,433.2 568,472" fill="#b9e9c5" />
+      <polygon id="body-right-dark" points="638,433.2 707,395 707,490 638,530" fill="#7eb78d" />
+      <polygon id="body-bottom-light" points="520,542 568,515 568,472 628,506 628,558 520,620" fill="#b9e9c5" />
+      <polygon id="body-bottom-dark" points="460,508 520,542 520,620 460,586" fill="#6fa57e" />
+    </g>
+  </g>
+
+  
+  </svg>

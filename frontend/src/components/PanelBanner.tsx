@@ -1,5 +1,7 @@
 'use client';
 
+
+import UiTree from '@/components/UiTree';
 import { useEffect, useRef, useState } from 'react';
 import { ImageIcon, Loader2, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Info } from 'lucide-react';
 import {
@@ -51,7 +53,7 @@ export default function PanelBanner({ idActivo, estadoActivo, version }: {
   const anterior = datos?.banners.find(b => b.desactualizado && b.estado === 'generado') ?? null;
   const mostrado = vigente ?? anterior;
 
-  return (
+  return <UiTree>{(
     <div className="card p-5">
       <div className="flex justify-between items-center mb-3 gap-2">
         <label className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider flex items-center gap-2">
@@ -97,7 +99,7 @@ export default function PanelBanner({ idActivo, estadoActivo, version }: {
             <p className="mt-3 text-xs text-muted-foreground flex items-start gap-2">
               <Info className="w-4 h-4 shrink-0" />
               {anterior ? 'El texto cambió o dejó de estar aprobado: aprueba el texto de nuevo para generar un banner actualizado.'
-                : 'Aprueba el texto para poder generar su banner.'}
+                : 'Aprueba el texto para generar el banner.'}
             </p>
           )}
           {error && (
@@ -127,10 +129,10 @@ export default function PanelBanner({ idActivo, estadoActivo, version }: {
             )}
           </div>
           <p className="mt-3 text-xs text-subtle-foreground">
-            Plantilla CommunityLab ({datos?.generacion_ia ? 'IA' : 'sin IA'}) con el texto aprobado. Aprobar el banner no lo publica.
+            Plantilla CommunityLab ({datos?.generacion_ia ? 'IA' : 'sin IA'}) con el texto aprobado. La aprobación del banner no lo publica.
           </p>
         </>
       )}
     </div>
-  );
+  )}</UiTree>;
 }

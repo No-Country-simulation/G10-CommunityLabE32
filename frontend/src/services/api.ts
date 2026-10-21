@@ -189,10 +189,10 @@ export interface ResumenSentimiento {
   estado: 'sin_datos' | 'parcial' | 'completo';
 }
 
-export const obtenerResumenSentimiento = async (canal?: string, ambito?: Ambito | null): Promise<ResumenSentimiento> => {
+export const obtenerResumenSentimiento = async (canal?: string, ambito?: Ambito | Ambito[] | null): Promise<ResumenSentimiento> => {
   if (esReferenciaPublicada() && !canal && !ambito) return structuredClone(resumenReferencia);
   const response = await apiClient.get('/mensajes/sentimiento/resumen', {
-    params: { canal, origen: ambito?.origen, periodo: ambito?.periodo },
+    params: { canal, ...parametrosLotes(ambito) },
   });
   return response.data;
 };
@@ -206,15 +206,18 @@ export const obtenerMensajes = async (
   skip: number = 0,
   limit: number = 10,
   canal?: string,
-  ambito?: Ambito | null,
+  ambito?: Ambito | Ambito[] | null,
   sentimiento?: FiltroSentimiento,
+  busqueda?: string,
 ): Promise<PaginatedMensajes> => {
   if (esReferenciaPublicada() && !ambito) {
     const muestra = mensajesReferencia.filter(m => (!canal || m.canal === canal) && (!sentimiento || (sentimiento === 'sin_analizar' ? !m.sentimiento_ref : m.sentimiento_ref === sentimiento)));
-    return { items: structuredClone(muestra.slice(skip, skip + limit)), total: muestra.length };
+    const q = busqueda?.trim().toLocaleLowerCase('es');
+    const encontrados = q ? muestra.filter(m => [m.texto, m.autor, m.canal].some(v => v?.toLocaleLowerCase('es').includes(q))) : muestra;
+    return { items: structuredClone(encontrados.slice(skip, skip + limit)), total: encontrados.length };
   }
   const response = await apiClient.get('/mensajes', {
-    params: { skip, limit, canal, origen: ambito?.origen, periodo: ambito?.periodo, sentimiento },
+    params: { skip, limit, canal, ...parametrosLotes(ambito), sentimiento, q: busqueda?.trim() || undefined },
   });
   return response.data;
 };
@@ -248,7 +251,7 @@ export const subirLote = async (
 
 // --- Interfaces de Curaduría ---
 export type EstadoActivo = 'generado' | 'revisado' | 'aprobado' | 'rechazado';
-export type FormatoActivo = 'linkedin' | 'faq' | 'newsletter';
+export type FormatoActivo = 'linkedin' | 'x' | 'faq' | 'newsletter';
 
 export interface FuenteMensajeDetalle {
   id_mensaje: string;
@@ -259,6 +262,9 @@ export interface FuenteMensajeDetalle {
 }
 
 export interface Activo {
+  historial?: { estado: EstadoActivo; fecha: string; comentario?: string }[];
+  posts_redes?: { linkedin: string; x: string };
+  elegibilidad_curaduria?: { sentimiento: string; logro_completado: boolean; tipo_logro: string };
   id_activo: string;
   formato: FormatoActivo;
   titulo: string;
@@ -311,7 +317,7 @@ export const obtenerDetalleActivo = async (id_activo: string): Promise<Activo> =
 
 export const actualizarActivo = async (
   id_activo: string,
-  payload: { copy?: string; estado?: string; comentario_curador?: string }
+  payload: { copy?: string; estado?: string; comentario_curador?: string; posts_redes?: { linkedin: string; x: string } }
 ): Promise<Activo> => {
   if (id_activo.startsWith('referencia-')) throw new Error('Esta muestra es de solo lectura; no modifica el sitio publicado.');
   const response = await apiClient.patch(`/curaduria/activos/${id_activo}`, payload);
@@ -320,6 +326,12 @@ export const actualizarActivo = async (
 
 // Semántica documentada en docs/metricas-panel.md.
 export interface DashboardKPIs {
+  recurrencia?: {
+    preguntas: { texto: string; cantidad: number }[];
+    palabras: { texto: string; cantidad: number }[];
+  };
+  /** Número de mensajes sin responder; lo proporciona el backend cuando esté disponible. */
+  mensajes_sin_responder?: number;
   total_mensajes: number;
   mensajes_por_tipo: Record<string, number>;
   distribucion_sentimiento: Record<Sentimiento, number>;
@@ -335,11 +347,23 @@ export interface DashboardKPIs {
 }
 
 export interface Ambito {
+  fuente_ingesta?: 'discord' | 'manual' | null;
   origen: string;
   periodo: string;
   trabajos?: number;
   terminados?: number;
   ultimo?: string | null;
+}
+
+function parametrosLotes(ambito?: Ambito | Ambito[] | null) {
+  if (Array.isArray(ambito)) {
+    if (ambito.length === 1) return parametrosLote(ambito[0]);
+    return { lotes: JSON.stringify(ambito.map(({ origen, periodo, fuente_ingesta }) => ({ origen, periodo, fuente_ingesta: fuente_ingesta ?? null }))) };
+  }
+  return parametrosLote(ambito);
+}
+function parametrosLote(ambito?: Ambito | null) {
+  return { origen: ambito?.origen, periodo: ambito?.periodo, fuente_ingesta: ambito?.fuente_ingesta ?? undefined };
 }
 
 // Campana: mensajes con alerta interna real del análisis (frustración, bloqueo, etc.). El backend no
@@ -349,10 +373,10 @@ export const obtenerAlertasInternas = async (): Promise<number> => {
   return response.data.alertas_internas;
 };
 
-export const obtenerKPIs = async (ambito?: Ambito | null): Promise<DashboardKPIs> => {
+export const obtenerKPIs = async (ambito?: Ambito | Ambito[] | null): Promise<DashboardKPIs> => {
   if (esReferenciaPublicada() && !ambito) return structuredClone(kpisReferencia);
   const response = await apiClient.get('/dashboard/kpis', {
-    params: { origen: ambito?.origen, periodo: ambito?.periodo },
+    params: parametrosLotes(ambito),
   });
   return response.data;
 };
@@ -778,4 +802,57 @@ export const actualizarUsuarioAdmin = async (
   return response.data;
 };
 
-export default apiClient;
+export default apiClient;// Contrato preparado para verificación con Claude Code; requiere soporte del backend.
+export interface EstadoEscuchaDiscord { canal_id: string; conectado: boolean; escuchando: boolean }
+function validarEstadoEscucha(datos: EstadoEscuchaDiscord, canalId: string) {
+  if (datos.canal_id !== canalId || typeof datos.conectado !== 'boolean' || typeof datos.escuchando !== 'boolean') throw new Error('Respuesta de estado de Discord no válida.');
+  return datos;
+}
+export async function obtenerEscuchaDiscord(canalId: string, signal?: AbortSignal): Promise<EstadoEscuchaDiscord> {
+  const response = await apiClient.get('/v1/discord/canales/' + encodeURIComponent(canalId) + '/escucha', { signal, timeout: 10000 });
+  return validarEstadoEscucha(response.data, canalId);
+}
+export async function cambiarEscuchaDiscord(canalId: string, escuchando: boolean): Promise<EstadoEscuchaDiscord> {
+  const response = await apiClient.patch('/v1/discord/canales/' + encodeURIComponent(canalId) + '/escucha', { escuchando }, { timeout: 10000 });
+  return validarEstadoEscucha(response.data, canalId);
+}
+
+export function esLogroAcademicoElegible(activo: Activo): boolean {
+  const validacion = activo.elegibilidad_curaduria;
+  // Sin el dato (el backend actual aún no lo envía) no se descarta: se activa la regla estricta cuando exista.
+  if (validacion === undefined) return true;
+  return validacion?.sentimiento === 'positivo' && validacion.logro_completado === true && ['curso', 'diplomado', 'certificacion'].includes(validacion.tipo_logro);
+}
+export async function listarLogrosCuraduria(page = 1, limit = 10, estado?: string, trabajo?: string | null): Promise<PaginatedActivosResponse> {
+  if (esReferenciaPublicada() && !trabajo) {
+    const items = borradoresReferencia.filter(a => esLogroAcademicoElegible(a) && (!estado || (estado === 'pendientes' ? ['generado', 'revisado'].includes(a.estado) : a.estado === estado)));
+    return { items: structuredClone(items.slice((page - 1) * limit, page * limit)), total: items.length, page, limit, total_pages: Math.max(1, Math.ceil(items.length / limit)) };
+  }
+  // Compatibilidad con el backend actual (ver PENDIENTES-BACKEND.md): /curaduria/activos acepta un solo
+  // `estado` e ignora `estados`, `tipo_revision`, `sentimiento` y `logro_completado`. Pendientes = generado +
+  // revisado se piden por separado y se suman (el total es exacto). El filtro de logro académico solo se
+  // aplica cuando el servidor ya envía `elegibilidad_curaduria`; mientras tanto se muestran todos.
+  const base = { page, limit, trabajo: trabajo || undefined, tipo_revision: 'logro_academico', sentimiento: 'positivo', logro_completado: true };
+  const pedir = (e?: string) => apiClient.get<PaginatedActivosResponse>('/curaduria/activos', { params: { ...base, estado: e } }).then(r => r.data);
+  const partes = estado === 'pendientes' ? await Promise.all([pedir('generado'), pedir('revisado')]) : [await pedir(estado)];
+  const items = partes.flatMap(p => p.items);
+  return {
+    items: items.filter(esLogroAcademicoElegible),
+    total: partes.reduce((n, p) => n + p.total, 0), page, limit,
+    total_pages: Math.max(1, ...partes.map(p => p.total_pages)),
+  };
+}
+export async function generarPostsLogro(idActivo: string): Promise<{ linkedin: string; x: string }> {
+  if (idActivo.startsWith('referencia-')) throw new Error('La muestra local no admite generación real.');
+  const response = await apiClient.post('/curaduria/activos/' + encodeURIComponent(idActivo) + '/posts/generar', { redes: ['linkedin', 'x'] });
+  if (typeof response.data.linkedin !== 'string' || typeof response.data.x !== 'string') throw new Error('El servidor no devolvió ambos textos de publicación.');
+  return { linkedin: response.data.linkedin, x: response.data.x };
+}
+
+
+// Comparte el mismo conjunto y total filtrado que la pestaña Pendientes.
+export async function obtenerPendientesCuraduria(): Promise<number> {
+  const resultado = await listarLogrosCuraduria(1, 1, 'pendientes');
+  if (!Number.isSafeInteger(resultado.total) || resultado.total < 0) throw new Error('Conteo de pendientes no disponible.');
+  return resultado.total;
+}
