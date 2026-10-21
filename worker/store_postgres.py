@@ -195,12 +195,15 @@ class ColaPostgres:
                 id_activo = "act-" + sha256((trabajo.id + activo["id_activo"]).encode()).hexdigest()[:40]
                 titulo = ("[SIMULADO] " if resultado["simulado"] else "") + titulos[formato]
                 advertencias = activo.get("advertencias_fidelidad") or []
-                c.execute("""INSERT INTO activos
+                nuevo = c.execute("""INSERT INTO activos
                     (id_activo,formato,titulo,copy,estado,fuentes,version,fecha_creacion,fecha_actualizacion,
                      advertencias_fidelidad)
                     VALUES (%s,%s,%s,%s,'generado',%s,1,clock_timestamp(),clock_timestamp(),%s)
-                    ON CONFLICT (id_activo) DO NOTHING""",
+                    ON CONFLICT (id_activo) DO NOTHING RETURNING id_activo""",
                     (id_activo, formato, titulo, activo["copy"], Jsonb(activo["fuentes"]), Jsonb(advertencias)))
+                if nuevo.fetchone():   # solo el primer INSERT: un reintento no duplica el evento
+                    c.execute("""INSERT INTO activos_historial (id_activo, evento, estado, version, actor, comentario)
+                        VALUES (%s, 'generado', 'generado', 1, 'ia', %s)""", (id_activo, f"Trabajo {trabajo.id}"))
                 activo["id_activo_curaduria"] = id_activo
             sentimientos = guardar_sentimientos(c, trabajo, resultado)
             # Persistencia real (PostgreSQL); "almacenamiento" del grafo describe solo la copia externa.
