@@ -20,7 +20,10 @@ export default function Notificaciones() {
       finally { if (vigente) timer = setTimeout(consultar, 30000); }
     };
     void consultar();
-    return () => { vigente = false; clearTimeout(timer); };
+    // Curaduría avisa al aprobar o denegar: se vuelve a consultar sin esperar el siguiente ciclo.
+    const alCambiar = () => { clearTimeout(timer); void consultar(); };
+    window.addEventListener('communitylab-curaduria-cambio', alCambiar);
+    return () => { vigente = false; clearTimeout(timer); window.removeEventListener('communitylab-curaduria-cambio', alCambiar); };
   }, []);
   const etiqueta = pendientes === null ? 'Pendientes de Curaduría: pendiente de conexión' : pendientes === 0 ? 'No hay pendientes de Curaduría' : `${pendientes} ${pendientes === 1 ? 'pendiente' : 'pendientes'} de Curaduría`;
   return <UiTree>{<div className="header-notifications"><Link href="/curaduria?estado=pendientes" onClick={() => window.dispatchEvent(new Event('communitylab-curaduria-pendientes'))} className="notification-bell" aria-label={`${etiqueta}. Ver pendientes de Curaduría`} title={etiqueta}><Bell size={20} aria-hidden="true"/>{pendientes !== null && pendientes > 0 && <span className="notification-count" aria-hidden="true">{pendientes > 99 ? '99+' : pendientes}</span>}</Link><span className="sr-only" role="status" aria-live="polite">{etiqueta}</span></div>}</UiTree>;

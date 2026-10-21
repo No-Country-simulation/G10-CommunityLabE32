@@ -2,7 +2,7 @@
 
 
 import UiTree from '@/components/UiTree';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { esVistaLocal } from '@/services/vistaLocal';
 import {
@@ -12,7 +12,7 @@ import {
 import {
   Loader2, MessageSquare, Layers, CheckCircle2, AlertTriangle,
 } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import CommunityIntro from '@/components/CommunityIntro';
 import ResultadosResumen, { type FiltroResumen } from '@/components/ResultadosResumen';
@@ -32,6 +32,7 @@ export default function CommunityDashboard() {
   const [filtro, setFiltro] = useState<FiltroResumen>('mensajes');
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState('');
+  const resultadosRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // La sesión la decide el servidor (cookie HttpOnly); la vista sin sesión solo existe en `npm run dev` local.
@@ -69,6 +70,16 @@ export default function CommunityDashboard() {
   const actualizarTotal = useCallback((total: number) => {
     setTotales(actual => ({ ...actual, [filtro]: total }));
   }, [filtro]);
+
+  // Elegir una tarjeta cambia los resultados sin desmontarlos (sin saltos) y, si quedan fuera de la
+  // vista, se desplaza hacia ellos con suavidad.
+  const elegirFiltro = (nuevo: FiltroResumen) => {
+    setFiltro(nuevo);
+    const resultados = resultadosRef.current;
+    if (!resultados) return;
+    const { top } = resultados.getBoundingClientRect();
+    if (top < 0 || top > window.innerHeight - 160) resultados.scrollIntoView({ behavior: reducirMovimiento ? 'auto' : 'smooth', block: 'start' });
+  };
 
   if (!autorizado) {
     return <UiTree>{(
@@ -151,7 +162,7 @@ export default function CommunityDashboard() {
                 {tarjetas.map((t) => {
                   const Icono = t.icono;
                   return <UiTree key={t.titulo}>{(
-                    <button type="button" key={t.titulo} className="metric-card card p-5 text-left" aria-pressed={filtro === t.filtro} onClick={() => setFiltro(t.filtro)}>
+                    <button type="button" key={t.titulo} className="metric-card card p-5 text-left" aria-pressed={filtro === t.filtro} onClick={() => elegirFiltro(t.filtro)}>
                       <div className="flex items-center gap-3 mb-3">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${t.tono.fondo}`}>
                           <Icono className={`w-5 h-5 ${t.tono.texto}`} />
@@ -165,17 +176,9 @@ export default function CommunityDashboard() {
               </div>
             )}
 
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={filtro}
-                initial={{ opacity: 0, y: reducirMovimiento ? 0 : 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: reducirMovimiento ? 0 : -4 }}
-                transition={{ duration: reducirMovimiento ? 0 : 0.3, ease: 'easeInOut' }}
-              >
-                <ResultadosResumen filtro={filtro} onTotal={actualizarTotal} />
-              </motion.div>
-            </AnimatePresence>
+            <div ref={resultadosRef} className="scroll-mt-6">
+              <ResultadosResumen filtro={filtro} onTotal={actualizarTotal} />
+            </div>
           </motion.div>
         )}
       </main>

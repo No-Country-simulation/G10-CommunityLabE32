@@ -18,7 +18,7 @@ function etiquetaTipo(tipo: string | null | undefined): string {
   const etiquetas: Record<string, string> = {
     PREGUNTA_TECNICA: 'Duda', PREGUNTA: 'Duda', DUDA: 'Duda',
     CONSULTA_NEGOCIO: 'Consulta', CONSULTA: 'Consulta',
-    LOGRO: 'Éxito', EXITO: 'Éxito', CASO_DE_EXITO: 'Éxito',
+    LOGRO: 'Logro', EXITO: 'Éxito', CASO_DE_EXITO: 'Éxito', TESTIMONIO: 'Testimonio',
     BLOQUEO: 'Bloqueo', PROBLEMA: 'Problema',
     COMENTARIO: 'Comentario', SUGERENCIA: 'Sugerencia',
     SIN_CLASIFICAR: 'Sin clasificar',

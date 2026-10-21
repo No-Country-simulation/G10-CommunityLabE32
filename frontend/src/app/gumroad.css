@@ -734,9 +734,9 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 .discord-date-tabs button[aria-pressed="true"] { box-shadow: none; }
 
 .discord-connect-footer { min-width: 0; }
-.discord-connect-footer .discord-auto-connect-note { display: flex; align-items: center; gap: 7px; max-width: none; min-width: 0; white-space: nowrap; overflow-x: auto; }
+.discord-connect-footer .discord-auto-connect-note { display: flex; align-items: center; gap: 7px; max-width: none; min-width: 0; }
 .discord-auto-connect-note > svg { color: #f1f333; fill: none; flex-shrink: 0; }
-.discord-auto-connect-note > span { white-space: nowrap; }
+.discord-auto-connect-note > span { white-space: normal; }
 
 .discord-channel-row .discord-connect-footer { min-height: 72px; padding-top: 26px; padding-bottom: 10px; align-items: center; }
 .discord-channel-row .discord-auto-connect-note { margin: 0; }

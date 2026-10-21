@@ -69,6 +69,12 @@ function CuraduriaPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [saving, setSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const alTeclear = (evento: KeyboardEvent) => { if (evento.key === 'Escape') setDrawerOpen(false); };
+    window.addEventListener('keydown', alTeclear);
+    return () => window.removeEventListener('keydown', alTeclear);
+  }, [drawerOpen]);
   // Móvil: se alterna entre listado y detalle; en escritorio se ven ambos.
   const [vistaMovil, setVistaMovil] = useState<'lista' | 'detalle'>('lista');
   // Filtro opcional por trabajo, desde el enlace "Ver resultados" de la ingesta.
@@ -153,18 +159,31 @@ function CuraduriaPage() {
       }
     }
 
+    // El motivo queda en el historial y se muestra en Denegados: se pide si las notas están vacías.
+    let notas = comentario;
+    if (nuevoEstado === 'rechazado' && !notas.trim()) {
+      const motivo = window.prompt(translateCurrent('¿Por qué se deniega este contenido? El motivo se mostrará en Denegados.'));
+      if (motivo === null) return;
+      if (!motivo.trim()) { alert(translateCurrent('Escribe el motivo de la denegación.')); return; }
+      notas = motivo.trim();
+      setComentario(notas);
+    }
+
     setSaving(true);
     try {
       const payload: { copy?: string; estado?: EstadoActivo; comentario_curador?: string; posts_redes?: { linkedin: string; x: string } } = {};
       if (isDirty) { payload.copy = editCopy; payload.posts_redes = { linkedin: editCopy, x: postX }; }
-      if (comentario !== (selectedActivo?.comentario_curador || '')) payload.comentario_curador = comentario;
+      if (notas !== (selectedActivo?.comentario_curador || '')) payload.comentario_curador = notas;
       if (nuevoEstado) payload.estado = nuevoEstado;
 
       const res = await actualizarActivo(selectedId, payload);
       setSelectedActivo(prev => prev ? { ...prev, ...res } : null);
       setActivos(prev => prev.map(a => a.id_activo === selectedId ? { ...a, ...res } : a));
       setIsDirty(false);
-      if (nuevoEstado) { setLoadingList(true); setRevisionHistorial(actual => actual + 1); }
+      if (nuevoEstado) {
+        setLoadingList(true); setRevisionHistorial(actual => actual + 1);
+        window.dispatchEvent(new Event('communitylab-curaduria-cambio'));   // la campanita se actualiza al momento
+      }
     } catch (error: unknown) {
       const legible = describirError(error);
       alert(translateCurrent(legible.tipo === 'acceso' ? `${legible.titulo}: ${legible.mensaje}` : legible.mensaje || 'Error guardando los cambios.'));
@@ -450,6 +469,7 @@ function CuraduriaPage() {
               <motion.div
                 initial={{ x: 450 }} animate={{ x: 0 }} exit={{ x: 450 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                role="dialog" aria-modal="true" aria-label="Mensajes fuente originales"
                 className="absolute right-0 top-0 h-full w-[400px] max-w-full bg-surface border-l border-border z-50 flex flex-col shadow-lg"
               >
                 <div className="p-5 border-b border-border flex justify-between items-center">
