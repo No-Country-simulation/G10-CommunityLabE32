@@ -900,3 +900,64 @@ def test_enviar_a_analisis_por_semana_sin_duplicar_ni_llamar_a_gemini(entorno):
     assert otra["pendientes"] == 0 and otra["trabajos"] == [] and otra["ya_en_analisis"] == 10
     assert fila(entorno, "SELECT count(*) n FROM trabajos_worker")["n"] == 3
     assert api.get(f"{BASE}/importaciones/imp-inexistente/analisis", headers=H).status_code == 404
+
+
+
+# ---------------------------------------------------------------- Escucha por canal (interruptor)
+RUTA_ESCUCHA = f"/api/v1/discord/canales/{CANAL}/escucha"
+
+
+def test_escucha_sin_importacion_y_validaciones(entorno):
+    api = entorno["api"]
+    assert api.get(RUTA_ESCUCHA).status_code == 401
+    assert api.get("/api/v1/discord/canales/no-es-id/escucha", headers=H).status_code == 422
+    assert api.patch(RUTA_ESCUCHA, json={"escuchando": False, "extra": 1}, headers=H).status_code == 422
+    assert api.get(RUTA_ESCUCHA, headers=H).json() == {
+        "canal_id": CANAL, "conectado": True, "escuchando": False, "deteniendo": False, "importacion": None}
+    assert api.get(f"/api/v1/discord/canales/{OTRO}/escucha", headers=H).json()["conectado"] is False
+    # Sin importación no se «enciende»: se inicia sola al completar ID, fechas y zona.
+    r = api.patch(RUTA_ESCUCHA, json={"escuchando": True}, headers=H)
+    assert r.status_code == 409 and r.json()["detail"]["codigo"] == "sin_importacion"
+    assert api.patch(RUTA_ESCUCHA, json={"escuchando": False}, headers=H).json()["escuchando"] is False
+    assert entorno["d"].peticiones == []          # el estado no consulta Discord
+
+
+def test_escucha_pendiente_se_apaga_cancelando(entorno):
+    api = entorno["api"]
+    imp = crear(entorno).json()["importacion"]
+    estado = api.get(RUTA_ESCUCHA, headers=H).json()
+    assert (estado["escuchando"], estado["importacion"]) == (True, {"id": imp["id"], "estado": "pendiente"})
+    assert api.patch(RUTA_ESCUCHA, json={"escuchando": True}, headers=H).json()["escuchando"] is True
+    apagado = api.patch(RUTA_ESCUCHA, json={"escuchando": False}, headers=H).json()
+    assert (apagado["escuchando"], apagado["deteniendo"]) == (False, False)
+    assert entorno["store"].obtener(imp["id"])["estado"] == "cancelada"
+    assert api.patch(RUTA_ESCUCHA, json={"escuchando": False}, headers=H).status_code == 200   # idempotente
+
+
+def test_escucha_en_ejecucion_queda_deteniendose(entorno):
+    imp = crear(entorno).json()["importacion"]
+    assert entorno["store"].reservar()["id"] == imp["id"]          # el runner la tomó
+    r = entorno["api"].patch(RUTA_ESCUCHA, json={"escuchando": False}, headers=H).json()
+    assert (r["escuchando"], r["deteniendo"]) == (False, True)
+    assert entorno["store"].obtener(imp["id"])["cancelacion_solicitada"] is True
+
+
+def test_escucha_se_apaga_sola_al_terminar(entorno):
+    sembrar(entorno["d"], datetime(2026, 9, 5, tzinfo=UTC), 5)
+    imp = crear(entorno).json()["importacion"]
+    assert entorno["api"].get(RUTA_ESCUCHA, headers=H).json()["escuchando"] is True
+    correr_runner(entorno)                                          # sin navegador
+    assert entorno["store"].obtener(imp["id"])["estado"] in ("completada", "completada_con_limite")
+    assert entorno["api"].get(RUTA_ESCUCHA, headers=H).json()["escuchando"] is False
+
+
+def test_escucha_de_importacion_ajena_no_se_puede_apagar(entorno):
+    api = entorno["api"]
+    imp = crear(entorno).json()["importacion"]
+    with entorno["cola"].conectar() as c:
+        c.execute("UPDATE discord_importaciones SET solicitante='usuario:999' WHERE id=%s", (imp["id"],))
+    estado = api.get(RUTA_ESCUCHA, headers=H).json()
+    assert (estado["escuchando"], estado["importacion"]) == (True, None)        # no expone la ajena
+    r = api.patch(RUTA_ESCUCHA, json={"escuchando": False}, headers=H)
+    assert r.status_code == 403 and r.json()["detail"]["codigo"] == "importacion_ajena"
+    assert entorno["store"].obtener(imp["id"])["estado"] == "pendiente"
