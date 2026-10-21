@@ -97,22 +97,22 @@ export default function AnaliticaPage() {
   // Embudo de Curaduría
   const estadosActivos = [
     {
-      etiqueta: 'Indeterminados',
+      etiqueta: 'Generados',
       cantidad: kpis?.activos_por_estado?.generado ?? 0,
       color: '#f1f333',
     },
     {
-      etiqueta: 'Neutrales',
+      etiqueta: 'Revisados',
       cantidad: kpis?.activos_por_estado?.revisado ?? 0,
-      color: '#90a8ed',
+      color: '#f1f333',
     },
     {
-      etiqueta: 'Positivos',
+      etiqueta: 'Aprobados',
       cantidad: kpis?.activos_por_estado?.aprobado ?? 0,
       color: '#b9e9c5',
     },
     {
-      etiqueta: 'Negativos',
+      etiqueta: 'Denegados',
       cantidad: kpis?.activos_por_estado?.rechazado ?? 0,
       color: '#ff90e8',
     },
@@ -133,6 +133,9 @@ export default function AnaliticaPage() {
     .sort((a, b) => b[1] - a[1])
     .map(([tipo, cantidad], indice) => ({ id: tipo, nombre: nombresTipo[tipo.toUpperCase()] ?? tipo.replaceAll('_', ' ').toLowerCase(), cantidad, color: coloresTema[indice % coloresTema.length] }));
   const maxTema = Math.max(1, ...temas.map((item) => item.cantidad));
+  const temasIA = (kpis?.temas_principales ?? [])
+    .map(({ tema, cantidad }, indice) => ({ id: tema, nombre: tema.charAt(0).toLocaleUpperCase('es') + tema.slice(1), cantidad, color: coloresTema[indice % coloresTema.length] }));
+  const maxTemaIA = Math.max(1, ...temasIA.map((item) => item.cantidad));
 
   // Tasas operativas
   const totalMsgs = kpis?.total_mensajes ?? 0;
@@ -145,8 +148,8 @@ export default function AnaliticaPage() {
   // Segmentos de la Dona con colores y metadatos
   const segmentos = [
     { id: 'positivo', nombre: 'Positivos', valor: pctPos, cantidad: pos, stroke: '#b9e9c5', bgHex: '#b9e9c5' },
-    { id: 'neutral', nombre: 'Neutrales', valor: pctNeu, cantidad: neu, stroke: '#90a8ed', bgHex: '#90a8ed' },
-    { id: 'negativo', nombre: 'Negativos', valor: pctNeg, cantidad: neg, stroke: '#ff90e8', bgHex: '#ff90e8' },
+    { id: 'neutral', nombre: 'Neutrales', valor: pctNeu, cantidad: neu, stroke: '#a7a79f', bgHex: '#a7a79f' },
+    { id: 'negativo', nombre: 'Negativos', valor: pctNeg, cantidad: neg, stroke: '#90a8ed', bgHex: '#90a8ed' },
     { id: 'indeterminado', nombre: 'Indeterminados', valor: pctInd, cantidad: ind, stroke: '#f1f333', bgHex: '#f1f333' },
   ];
 
@@ -464,14 +467,19 @@ export default function AnaliticaPage() {
                   Temas y tipos de participación más frecuentes en la comunidad: preguntas, consultas, comentarios, situaciones, palabras, etc.
                 </p>
 
-                {temas.length === 0 ? (
+                {temas.length === 0 && temasIA.length === 0 ? (
                   <p className="text-sm text-subtle-foreground py-8 text-center">
-                    Aún no hay tipos de participación registrados para los lotes aplicados.
+                    Aún no hay temas ni tipos de participación registrados para los lotes aplicados.
                   </p>
-                ) : (
+                ) : [
+                  { titulo: 'Temas detectados', items: temasIA, maximo: maxTemaIA },
+                  { titulo: 'Tipos de participación', items: temas, maximo: maxTema },
+                ].filter((grupo) => grupo.items.length > 0).map((grupo) => (
+                  <div key={grupo.titulo} className="mb-5 last:mb-0">
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-3">{grupo.titulo}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {temas.map(({ id, nombre, cantidad, color }) => {
-                      const pct = Math.round((cantidad / maxTema) * 100);
+                    {grupo.items.map(({ id, nombre, cantidad, color }) => {
+                      const pct = Math.round((cantidad / grupo.maximo) * 100);
                       return <UiTree key={id}>{(
                         <div
                           key={id}
@@ -498,7 +506,8 @@ export default function AnaliticaPage() {
                       )}</UiTree>;
                     })}
                   </div>
-                )}
+                  </div>
+                ))}
               </motion.div>
             </div>
           )}

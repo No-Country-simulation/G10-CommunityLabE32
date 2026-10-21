@@ -229,3 +229,36 @@ Español es el idioma base en todo el dashboard, inicio de sesión y registro. S
 ## Banner SVG de Curaduría: revisión profesional para Claude Code
 
 Revisar el generador y la plantilla SVG existentes, mantener el flujo SVG actual y renovar su diseño conforme al producto vigente. Usar la paleta documentada, tipografía ABC Favorit con alternativa compatible y jerarquía clara; cuidar márgenes, contraste, alineación y legibilidad. Probar felicitaciones, nombres largos, acentos, distintas dimensiones y conversión a imagen. Evitar recortes y texto desbordado. No incorporar los logos rechazados; el nuevo símbolo adaptado está en public/brand/communitylab-logo-current.svg. Verificar licencias y disponibilidad de fuentes en el renderizador. Este trabajo está pendiente para Claude Code en backend; aquí solo se documenta, sin modificar el backend ni el repositorio remoto.
+
+Actualización de interfaz del 21/10/2026: LinkedIn y X están habilitados como enlaces. Su único propósito es abrir https://www.linkedin.com/ y https://x.com/, respectivamente. No necesitan endpoint de preparación de publicación, OAuth, cuentas asociadas, tokens ni publicación automática desde CommunityLab para este alcance. Se retiró del frontend la propuesta prepararPublicacionLogro y su endpoint. Esta decisión sustituye la propuesta anterior de publicación mediante cuentas asociadas.
+
+Si existe una sesión en esa red en el dispositivo/navegador, la propia red la utilizará; si no existe, la red decidirá si pide iniciar sesión. CommunityLab no puede comprobar directamente sesiones externas ni debe prometer que abrir una página equivale a publicar. El usuario redactará/confirmará la publicación en la red. No adjuntar, copiar ni publicar automáticamente texto o banner por el simple enlace.
+
+EXCEPCIÓN EXPLÍCITA PARA EL TRABAJO FUTURO EN BACKEND: verificar y actualizar el SVG/plantilla de los banners de felicitación, que el usuario indica desactualizado y con otra colorimetría. Adaptar a la paleta vigente: rosado #ff90e8, amarillo #f1f333, azul #90a8ed, verde #b9e9c5, negro y grises de interfaz; tipografía ABC Favorit cuando corresponda y sea compatible con el renderizador. Mantener geometría, legibilidad, dimensiones y fuentes de datos del banner. No reutilizar los dos logos descartados por el usuario. El nuevo símbolo entregado el 20 de octubre está adaptado en public/brand/communitylab-logo-current.svg; usar esta versión de referencia visual y no los logos descartados. Revisar la ubicación real de la plantilla y probar el SVG y su conversión a imagen con textos largos y acentos. Esta excepción documenta autorización para la tarea futura de Claude Code; no se modifica el backend durante esta sesión.
+
+## Idioma predeterminado y revisión editorial
+
+Español es el idioma base en todo el dashboard, inicio de sesión y registro. Se eliminan los selectores español/inglés y se ignora la antigua preferencia de idioma almacenada. El frontend declara html lang="es" y translate="yes". El navegador (por ejemplo, Chrome/Google Translate) decide si ofrece traducción a inglés según las preferencias del usuario; la aplicación no puede forzar ese aviso ni necesita un endpoint de idioma. Conservar sin traducir los mensajes originales, nombres propios y datos de usuarios. Verificar que el backend no fuerce inglés ni inyecte etiquetas notranslate globales; no modificar datos persistidos para traducir la interfaz.
+
+## Banner SVG de Curaduría: revisión profesional para Claude Code
+
+Revisar el generador y la plantilla SVG existentes, mantener el flujo SVG actual y renovar su diseño conforme al producto vigente. Usar la paleta documentada, tipografía ABC Favorit con alternativa compatible y jerarquía clara; cuidar márgenes, contraste, alineación y legibilidad. Probar felicitaciones, nombres largos, acentos, distintas dimensiones y conversión a imagen. Evitar recortes y texto desbordado. No incorporar los logos rechazados; el nuevo símbolo adaptado está en public/brand/communitylab-logo-current.svg. Verificar licencias y disponibilidad de fuentes en el renderizador. Este trabajo está pendiente para Claude Code en backend; aquí solo se documenta, sin modificar el backend ni el repositorio remoto.
+
+
+## Ajustes del frontend aplicados el 21/10/2026 tras la revisión publicada
+
+- Campanita: conserva el conteo de pendientes de Curaduría. Enlaza a /curaduria?estado=pendientes y reinicia el filtro, la página, la vista móvil de listado y el alcance de trabajo, incluso estando ya dentro de Curaduría.
+- Denegados: vista de tabla sin editor. Usa GET /curaduria/activos?estado=rechazado y el detalle existente por activo. Nombre procede de fuentes_detalle; contenido de titulo y fuente/copy; motivo del último evento rechazado con comentario o comentario_curador. Si falta, muestra Motivo no disponible. No inventar un campo de curso: el contrato actual no lo expone por separado. No se modificó la lógica de rechazo ni de aprobación.
+- LinkedIn y X: enlaces habilitados a las páginas de las redes, con target=_blank y rel=noopener noreferrer. No publican, no adjuntan datos y no requieren endpoint nuevo. Esto sustituye el requisito histórico de dejarlos apagados.
+- Alertas del Resumen: Ver mensaje muestra un diálogo con el texto, autor, canal e identificador ya disponibles. No se añadió resolución, asignación ni cierre de alertas: esos estados requieren contrato de backend.
+- Búsqueda: se conserva el parámetro q existente y la paginación del servidor. Se verificó con servidor de prueba que la interfaz usa los resultados y totales devueltos; no se filtra solo la página actual para ocultar un servidor que ignore q. Revisar ese problema en el backend publicado.
+- Sin clasificación por tipo se etiqueta Sin clasificar. No calcular tipo a partir de sentimiento ni inferirlo con reglas del navegador.
+- No se implementó recuperación de contraseña sin endpoint conocido; la interfaz remite al administrador. Los controles de visibilidad y requisitos de contraseña son de presentación; la validación definitiva sigue en el servidor.
+- Los errores de fidelidad, la zona horaria de eventos, los nombres reales de Discord, la plantilla SVG del banner y la persistencia OCI siguen siendo tareas de verificación del backend. No fueron alterados por estos ajustes.
+- La copia local Frontend 2.0 no contiene la ruta /usuarios que aparece en la web publicada. No se añadió un enlace roto ni una administración ficticia; integrar el módulo real desde la rama del equipo antes de distribuir un frontend que deba incluir esa administración. El menú móvil incorpora las rutas que sí existen en esta copia, incluido Equipo y Cuenta.
+
+> Resuelto en backend (PRs #46, #47, #48, #49 y #50, desplegados el 21-10): búsqueda `q`, advertencias de
+> fidelidad recalculadas, fechas en UTC, plantilla del banner, tipo y tema por mensaje (`temas_principales`
+> en `/dashboard/kpis`, que Analítica ya muestra como «Temas detectados») y nombres visibles de Discord
+> (`autor` = nombre, `autor_id` = identidad). La ruta `/usuarios` sí existe en `main` y se conserva. Sigue
+> pendiente: persistencia en OCI Object Storage.

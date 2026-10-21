@@ -10,8 +10,9 @@ import {
   Layers, Loader2, Save, FileText, ChevronLeft, ChevronRight, X, AlertTriangle, ArrowLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { listarLogrosCuraduria, generarPostsLogro, esLogroAcademicoElegible, obtenerDetalleActivo, actualizarActivo, describirError, Activo, EstadoActivo } from '@/services/api';
+import { listarActivos, listarLogrosCuraduria, generarPostsLogro, esLogroAcademicoElegible, obtenerDetalleActivo, actualizarActivo, describirError, Activo, EstadoActivo } from '@/services/api';
 import Sidebar from '@/components/Sidebar';
+import TablaDenegados from '@/components/TablaDenegados';
 import { esReferenciaPublicada } from '@/services/referenciaPublicada';
 import PanelBanner from '@/components/PanelBanner';
 import RutaProtegida from '@/components/RutaProtegida';
@@ -61,7 +62,8 @@ function CuraduriaPage() {
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [filtroEstado, setFiltroEstado] = useState<string>('pendientes');
+  const [filtroEstado, setFiltroEstado] = useState<string>(() => ['rechazado', 'aprobado'].includes(parametros.get('estado') ?? '') ? parametros.get('estado')! : 'pendientes');
+  const [errorLista, setErrorLista] = useState('');
   const [revisionHistorial, setRevisionHistorial] = useState(0);
 
   const [loadingList, setLoadingList] = useState(true);
@@ -84,17 +86,30 @@ function CuraduriaPage() {
   const [tieneConsentimiento, setTieneConsentimiento] = useState(false);
 
   useEffect(() => {
+    const abrirPendientes = () => { setFiltroEstado('pendientes'); setPage(1); setTrabajo(null); setVistaMovil('lista'); setDrawerOpen(false); setLoadingList(true); setRevisionHistorial(v => v + 1); };
+    window.addEventListener('communitylab-curaduria-pendientes', abrirPendientes);
+    return () => window.removeEventListener('communitylab-curaduria-pendientes', abrirPendientes);
+  }, []);
+
+  useEffect(() => {
     let vigente = true;
-    listarLogrosCuraduria(page, 10, filtroEstado, trabajo).then(res => {
-      if (!vigente) return;
-      setActivos(res.items);
-      setTotalPages(res.total_pages || 1);
-      setSelectedId(actual => res.items.some(a => a.id_activo === actual) ? actual : res.items[0]?.id_activo ?? null);
-      setLoadingList(false);
-    }).catch(error => {
-      if (vigente) setLoadingList(false);
-      console.error('Error al cargar activos:', error);
-    });
+    const cargar = async () => {
+      try {
+        const res = filtroEstado === 'rechazado'
+          ? await listarActivos(page, 10, 'rechazado', trabajo)
+          : await listarLogrosCuraduria(page, 10, filtroEstado, trabajo);
+        let items = res.items;
+        if (filtroEstado === 'rechazado') {
+          const detalles = await Promise.allSettled(items.map(a => obtenerDetalleActivo(a.id_activo)));
+          items = items.map((item, i) => detalles[i].status === 'fulfilled' ? detalles[i].value : item);
+        }
+        if (!vigente) return;
+        setErrorLista(''); setActivos(items); setTotalPages(res.total_pages || 1);
+        setSelectedId(actual => filtroEstado === 'rechazado' ? null : items.some(a => a.id_activo === actual) ? actual : items[0]?.id_activo ?? null);
+      } catch { if (vigente) { setActivos([]); setSelectedId(null); setErrorLista('No se pudo cargar el historial de curaduría.'); } }
+      finally { if (vigente) setLoadingList(false); }
+    };
+    void cargar();
     return () => { vigente = false; };
   }, [page, filtroEstado, trabajo, revisionHistorial]);
 
@@ -177,12 +192,12 @@ function CuraduriaPage() {
         <Sidebar />
 
         {/* Panel izquierdo: lista de borradores (en móvil, solo en la vista de listado) */}
-        <div className={`${vistaMovil === 'lista' ? 'flex' : 'hidden'} md:flex w-full md:w-80 shrink-0 flex-col min-h-[60dvh] md:h-[calc(100dvh-var(--topbar-h))] bg-surface border-r border-border`}>
+        <div className={`${vistaMovil === 'lista' ? 'flex' : 'hidden'} md:flex w-full md:w-80 shrink-0 flex-col ${filtroEstado === 'rechazado' ? '' : 'min-h-[60dvh]'} md:h-[calc(100dvh-var(--topbar-h))] bg-surface border-r border-border`}>
           <div className="p-5 border-b border-border">
             <h2 className="text-lg font-bold flex items-center gap-2 text-foreground">
               <Layers className="w-5 h-5 text-primary" /> Curaduría
             </h2>
-            <p className="text-xs text-muted-foreground mt-2">Logros de cursos, diplomados y certificaciones completados.</p>
+            <p className="text-xs text-muted-foreground mt-2">Logros de la comunidad y contenidos para revisión.</p>
             {trabajo && (
               <p className="mt-3 badge-info max-w-full">
                 <span className="truncate">Trabajo {trabajo.slice(0, 8)}…</span>
@@ -199,7 +214,7 @@ function CuraduriaPage() {
               {FILTROS_HISTORIAL.map(({ valor: st, etiqueta }) => (
                 <button
                   key={st}
-                  onClick={() => { setFiltroEstado(st); setPage(1); setLoadingList(true); }}
+                  onClick={() => { setFiltroEstado(st); setPage(1); setLoadingList(true); setVistaMovil('lista'); setDrawerOpen(false); }}
                   aria-pressed={filtroEstado === st}
                   className="filtro-borrador"
                 >
@@ -210,17 +225,17 @@ function CuraduriaPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {loadingList ? (
+            {filtroEstado === 'rechazado' ? <p className="p-5 text-sm text-muted-foreground">Las denegaciones se muestran en la tabla, con su mensaje y motivo.</p> : errorLista ? <p role="alert" className="p-5 text-sm">{errorLista}</p> : loadingList ? (
               <div className="p-8 text-center text-subtle-foreground">
                 <Loader2 className="w-5 h-5 animate-spin mx-auto text-primary" />
               </div>
             ) : activos.length === 0 ? (
               <p className="p-8 text-center text-sm text-subtle-foreground">No hay logros académicos verificados en este estado.</p>
             ) : activos.map(a => (
-              <div
+              <button type="button"
                 key={a.id_activo}
                 onClick={() => { setSelectedId(a.id_activo); setVistaMovil('detalle'); }}
-                className={`px-4 py-3.5 cursor-pointer border-b border-border border-l-2 transition-colors ${
+                className={`w-full text-left px-4 py-3.5 cursor-pointer border-b border-border border-l-2 transition-colors ${
                   selectedId === a.id_activo
                     ? 'bg-primary-soft border-l-primary'
                     : 'border-l-transparent hover:bg-surface-hover'
@@ -238,9 +253,9 @@ function CuraduriaPage() {
                   </span>
                 </div>
                 <h3 className="text-sm font-medium text-foreground truncate" translate="no">{a.titulo}</h3>
-                <p className="text-xs text-subtle-foreground truncate mt-0.5 font-mono" translate="no">{a.id_activo}</p>
+                <p className="text-xs text-muted-foreground mt-1" translate="no">{a.fuentes_detalle?.[0]?.autor && !/^\d{16,22}$/.test(a.fuentes_detalle[0].autor) ? a.fuentes_detalle[0].autor : 'Autor no disponible'}</p><p className="text-xs text-muted-foreground line-clamp-2 mt-1" translate="no">{a.copy}</p>
                 <p className="text-xs text-muted-foreground mt-1">{new Date(a.fecha_actualizacion).toLocaleString('es')}</p>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -266,8 +281,8 @@ function CuraduriaPage() {
         </div>
 
         {/* Editor principal (en móvil, solo en la vista de detalle) */}
-        <div className={`${vistaMovil === 'detalle' ? 'flex' : 'hidden'} md:flex flex-1 min-w-0 min-h-0 flex-col md:h-[calc(100dvh-var(--topbar-h))] relative`}>
-          {selectedActivo && selectedActivo.id_activo === selectedId ? (
+        <div className={`${vistaMovil === 'detalle' || filtroEstado === 'rechazado' ? 'flex' : 'hidden'} md:flex flex-1 min-w-0 min-h-0 flex-col md:h-[calc(100dvh-var(--topbar-h))] relative`}>
+          {filtroEstado === 'rechazado' ? <div className="flex-1 min-h-0 overflow-y-auto"><TablaDenegados activos={activos} cargando={loadingList} error={errorLista} reintentar={() => { setLoadingList(true); setRevisionHistorial(v => v + 1); }} /></div> : selectedActivo && selectedActivo.id_activo === selectedId ? (
             <>
               <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border bg-surface flex flex-wrap justify-between items-center gap-3">
                 <button onClick={() => setVistaMovil('lista')} className="btn-ghost px-2! py-2! md:hidden" aria-label="Volver al listado">
@@ -310,8 +325,8 @@ function CuraduriaPage() {
                     {isDirty && <span className="badge-warning">Cambios sin guardar</span>}
                   </div>
                   <div className="flex gap-2 mb-4">
-                    <button type="button" className="btn-secondary" disabled title="Próximamente: abrir LinkedIn" onClick={() => window.location.assign('https://www.linkedin.com/')}>LinkedIn</button>
-                    <button type="button" className="btn-secondary" disabled title="Próximamente: abrir X" onClick={() => window.location.assign('https://x.com/')}>X</button>
+                    <a className="btn-secondary" href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer" title="Abrir LinkedIn; no publica automáticamente">LinkedIn</a>
+                    <a className="btn-secondary" href="https://x.com/" target="_blank" rel="noopener noreferrer" title="Abrir X; no publica automáticamente">X</a>
                   </div>
                   {errorPosts && <p role="alert" className="text-sm text-danger mb-3">{errorPosts}</p>}
                   <p className="text-xs font-bold mb-2">Texto para LinkedIn</p>
@@ -416,7 +431,7 @@ function CuraduriaPage() {
             <div className="flex-1 flex items-center justify-center text-subtle-foreground text-sm">
               <div className="card p-6 w-full max-w-2xl text-left">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4"><h2 className="font-bold text-foreground">Cuerpo del contenido</h2><button className="btn-secondary" disabled><FileText className="w-4 h-4"/>Generar post</button></div>
-                <div className="flex gap-2 mb-5"><button className="btn-secondary" disabled>LinkedIn</button><button className="btn-secondary" disabled>X</button></div>
+                <div className="flex gap-2 mb-5"><a className="btn-secondary" href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer">LinkedIn</a><a className="btn-secondary" href="https://x.com/" target="_blank" rel="noopener noreferrer">X</a></div>
                 <p className="text-sm text-muted-foreground flex gap-2"><Edit3 className="w-4 h-4 shrink-0"/>Selecciona un logro académico verificado para revisar el banner y generar los textos de LinkedIn y X.</p>
               </div>
             </div>
