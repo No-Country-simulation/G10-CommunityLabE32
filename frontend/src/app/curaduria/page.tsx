@@ -266,7 +266,7 @@ function CuraduriaPage() {
         </div>
 
         {/* Editor principal (en móvil, solo en la vista de detalle) */}
-        <div className={`${vistaMovil === 'detalle' ? 'flex' : 'hidden'} md:flex flex-1 min-w-0 flex-col md:h-[calc(100dvh-var(--topbar-h))] relative`}>
+        <div className={`${vistaMovil === 'detalle' ? 'flex' : 'hidden'} md:flex flex-1 min-w-0 min-h-0 flex-col md:h-[calc(100dvh-var(--topbar-h))] relative`}>
           {selectedActivo && selectedActivo.id_activo === selectedId ? (
             <>
               <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border bg-surface flex flex-wrap justify-between items-center gap-3">
@@ -285,7 +285,7 @@ function CuraduriaPage() {
                 </button>
               </div>
 
-              <div className="flex-1 p-4 sm:p-6 flex flex-col gap-4 md:overflow-y-auto">
+              <div className="flex-1 min-h-0 min-w-0 p-4 sm:p-6 flex flex-col gap-4 md:overflow-y-auto [&>*]:shrink-0">
                 {!!selectedActivo.advertencias_fidelidad?.length && (
                   <div className="rounded-xl border border-warning/30 bg-warning-soft p-4 text-sm">
                     <p className="font-semibold text-warning flex items-center gap-2">
@@ -301,7 +301,7 @@ function CuraduriaPage() {
                     </p>
                   </div>
                 )}
-                <div className="card flex-1 flex flex-col p-5 min-h-[250px]">
+                <div className="card flex flex-col min-w-0 shrink-0 p-5">
                   <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
                     <label className="text-xs font-semibold text-subtle-foreground uppercase tracking-wider">
                       Cuerpo del contenido
@@ -320,7 +320,7 @@ function CuraduriaPage() {
                     readOnly={soloReferencia || generandoPosts}
                     value={editCopy}
                     onChange={(e) => { setEditCopy(e.target.value); setIsDirty(true); }}
-                    className="w-full flex-1 bg-transparent border-none outline-none text-sm text-foreground resize-none leading-relaxed placeholder:text-subtle-foreground"
+                    className="input min-h-40 resize-y"
                     placeholder="Redacta el contenido…"
                   />
                   <p className="text-xs font-bold mt-4 mb-2">Texto para X</p>

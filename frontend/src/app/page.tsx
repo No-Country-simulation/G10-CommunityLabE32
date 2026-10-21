@@ -2,13 +2,12 @@
 
 
 import UiTree from '@/components/UiTree';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { esVistaLocal } from '@/services/vistaLocal';
 import {
-  obtenerKPIs,
+  obtenerMensajes, listarActivos, listarAlertasInternas,
   leerTokenOperador,
-  DashboardKPIs,
 } from '@/services/api';
 import {
   Loader2, MessageSquare, Layers, CheckCircle2, AlertTriangle,
@@ -28,7 +27,7 @@ const tonos = {
 export default function CommunityDashboard() {
   const router = useRouter();
   const [autorizado, setAutorizado] = useState(false);
-  const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
+  const [totales, setTotales] = useState<Record<FiltroResumen, number | null>>({ mensajes: null, pendientes: null, aprobados: null, alertas: null });
   const [filtro, setFiltro] = useState<FiltroResumen>('mensajes');
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState('');
@@ -49,11 +48,26 @@ export default function CommunityDashboard() {
   useEffect(() => {
     if (!autorizado) return;
     let vigente = true;
-    obtenerKPIs().then(datos => { if (vigente) setKpis(datos); })
-      .catch(() => { if (vigente) setErrorCarga('No se pudieron cargar las métricas.'); })
-      .finally(() => { if (vigente) setCargando(false); });
+    const filtros: FiltroResumen[] = ['mensajes', 'pendientes', 'aprobados', 'alertas'];
+    Promise.allSettled([
+      obtenerMensajes(0, 1),
+      listarActivos(1, 1, undefined, undefined, 'generado,revisado'),
+      listarActivos(1, 1, 'aprobado'),
+      listarAlertasInternas(0, 1),
+    ]).then(resultados => {
+      if (!vigente) return;
+      const datos: Record<FiltroResumen, number | null> = { mensajes: null, pendientes: null, aprobados: null, alertas: null };
+      resultados.forEach((resultado, indice) => { if (resultado.status === 'fulfilled') datos[filtros[indice]] = resultado.value.total; });
+      setTotales(datos);
+      if (resultados.some(resultado => resultado.status === 'rejected')) setErrorCarga('No se pudieron cargar algunas métricas. Puedes seleccionar su tarjeta para reintentar.');
+      setCargando(false);
+    });
     return () => { vigente = false; };
   }, [autorizado]);
+
+  const actualizarTotal = useCallback((total: number) => {
+    setTotales(actual => ({ ...actual, [filtro]: total }));
+  }, [filtro]);
 
   if (!autorizado) {
     return <UiTree>{(
@@ -66,38 +80,37 @@ export default function CommunityDashboard() {
     )}</UiTree>;
   }
 
-  const tarjetas = kpis
-    ? [
+  const tarjetas = [
         {
           titulo: 'Total de mensajes',
           filtro: 'mensajes' as FiltroResumen,
-          valor: kpis.total_mensajes,
+          valor: totales.mensajes,
           icono: MessageSquare,
           tono: tonos.info,
         },
         {
           titulo: 'Borradores pendientes',
           filtro: 'pendientes' as FiltroResumen,
-          valor: kpis.borradores_pendientes,
+          valor: totales.pendientes,
           icono: Layers,
           tono: tonos.info,
         },
         {
           titulo: 'Aprobados',
           filtro: 'aprobados' as FiltroResumen,
-          valor: kpis.activos_aprobados,
+          valor: totales.aprobados,
           icono: CheckCircle2,
           tono: tonos.success,
         },
         {
           titulo: 'Alertas internas',
           filtro: 'alertas' as FiltroResumen,
-          valor: kpis.alertas_internas,
+          valor: totales.alertas,
           icono: AlertTriangle,
-          tono: kpis.alertas_internas > 0 ? tonos.danger : tonos.warning,
+          tono: tonos.danger,
         },
       ]
-    : [];
+;
 
   return <UiTree>{(
     <div className="flex min-h-screen w-full">
@@ -132,7 +145,7 @@ export default function CommunityDashboard() {
             variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
             className="space-y-8"
           >
-            {kpis && (
+            {(
               <div className="dashboard-metrics grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 {tarjetas.map((t) => {
                   const Icono = t.icono;
@@ -144,14 +157,14 @@ export default function CommunityDashboard() {
                         </div>
                         <span className="text-sm font-medium text-muted-foreground">{t.titulo}</span>
                       </div>
-                      <h3 className="text-3xl font-bold text-foreground tabular-nums">{t.valor}</h3>
+                      <h3 className="text-3xl font-bold text-foreground tabular-nums">{t.valor ?? '—'}</h3>
                     </button>
                   )}</UiTree>;
                 })}
               </div>
             )}
 
-            <ResultadosResumen key={filtro} filtro={filtro} />
+            <ResultadosResumen key={filtro} filtro={filtro} onTotal={actualizarTotal} />
           </motion.div>
         )}
       </main>
