@@ -35,13 +35,16 @@ export default function AnaliticaPage() {
   const [consulta, setConsulta] = useState<{ lotes: Ambito[] | null; version: number }>({ lotes: null, version: 0 });
   const [aplicados, setAplicados] = useState<Ambito[] | null>(null);
   const [errorCarga, setErrorCarga] = useState('');
+  const [errorLotes, setErrorLotes] = useState('');
   const [cargando, setCargando] = useState(true);
 
   // Estado para interactividad de la dona (hover en segmentos o leyendas)
   const [segmentoActivo, setSegmentoActivo] = useState<string | null>(null);
 
   useEffect(() => {
-    obtenerAmbitos().then(setAmbitos).catch(() => setAmbitos([]));
+    let vigente = true;
+    obtenerAmbitos().then(datos => { if (vigente) setAmbitos(datos); }).catch(() => { if (vigente) setErrorLotes('No se pudo cargar la lista de lotes.'); });
+    return () => { vigente = false; };
   }, []);
 
   useEffect(() => {
@@ -74,7 +77,7 @@ export default function AnaliticaPage() {
   }, [consulta]);
 
   const cargarDatos = () => {
-    if (seleccion?.length === 0) return;
+    if (cargando) return;
     setCargando(true);
     setConsulta((anterior) => ({ lotes: seleccion ? [...seleccion] : null, version: anterior.version + 1 }));
   };
@@ -174,23 +177,28 @@ export default function AnaliticaPage() {
             <div className="flex flex-wrap items-center gap-3">
               <SelectorLotes ambitos={ambitos} seleccion={seleccion} setSeleccion={setSeleccion} />
 
-              <button onClick={cargarDatos} className="analytics-refresh btn-secondary" title="Actualizar datos" disabled={cargando || seleccion?.length === 0} aria-busy={cargando}>
+              <button onClick={cargarDatos} className="analytics-refresh btn-secondary" title="Actualizar datos" disabled={cargando} aria-busy={cargando}>
                 <RefreshCw className={`w-4 h-4 ${cargando ? 'animate-spin' : ''}`} />
                 Actualizar
               </button>
             </div>
           </header>
 
+          {errorLotes && <p role="alert" className="card p-4 mb-5 text-sm text-danger">{errorLotes}</p>}
           {errorCarga && <p role="alert" className="card p-4 mb-5 text-sm text-danger">{errorCarga}</p>}
-          {cargando ? (
+          {cargando && !kpis ? (
             <div className="card flex items-center justify-center h-80">
               <div className="flex items-center gap-3 text-muted-foreground text-sm">
                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
                 Cargando datos de analítica…
               </div>
             </div>
+          ) : !kpis || !resumen ? (
+            <p className="card p-6 text-sm text-muted-foreground">Los datos de analítica no están disponibles. Pulsa Actualizar para reintentar.</p>
+          ) : aplicados?.length === 0 ? (
+            <div className="card p-8 text-center" role="status"><h2 className="text-lg font-bold mb-2">No hay lotes seleccionados</h2><p className="text-sm text-muted-foreground">Selecciona uno o varios lotes y pulsa Actualizar para ver sus gráficas.</p></div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-6" aria-busy={cargando}>
               {/* Tarjetas Superiores de Rendimiento */}
               <div className="analytics-summary-grid grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="card p-5 relative overflow-hidden group hover:border-primary/50 transition-all">
