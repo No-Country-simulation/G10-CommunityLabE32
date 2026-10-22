@@ -1,1023 +1,384 @@
-Configuración HTTP local y HTTPS para VM: [guía de operación](docs/http-local-https-vm.md).
+# CommunityLab
 
-## Compose de cinco servicios
+**Motor inteligente de transformación y distribución para comunidades digitales.**
+Hackathon ONE G10 (Oracle Next Education + Alura) · No Country · Equipo 32.
 
-Configuración y pruebas locales sobre el backend modular: [guía](docs/compose-cinco-servicios.md). El worker incluido es una sonda; la API conserva la respuesta mock.
+CommunityLab escucha lo que pasa en una comunidad (Discord o lotes JSON/CSV), lo analiza con Gemini y lo
+convierte en contenido listo para revisar y publicar: posts para LinkedIn y X, FAQ y tips, resúmenes
+semanales (*Community Highlights*) y alertas internas cuando alguien está bloqueado. Cada contenido
+conserva sus mensajes fuente, pasa por curaduría humana y, al aprobarse, se guarda en **OCI Object Storage**.
 
-# G10 CommunityLab E32
-
-## Community Radar — Hackathon No Country
-
-Sistema para transformar la actividad de una comunidad de Discord en información estructurada y activos de contenido para comunicación y marketing.
-
-El proyecto forma parte de la simulación de hackathon **No Country — G10 CommunityLab E32**.
-
----
-
-# 1. Objetivo del proyecto
-
-El objetivo de G10 CommunityLab E32 es construir un sistema capaz de:
-
-1. Recibir datos provenientes de una comunidad.
-2. Ingerir lotes de mensajes en formato JSON/CSV.
-3. Validar, limpiar, normalizar y deduplicar la información.
-4. Analizar los mensajes mediante inteligencia artificial.
-5. Identificar sentimientos, temas, relevancia, preguntas frecuentes y testimonios.
-6. Generar activos de contenido a partir de la información analizada.
-7. Mantener las fuentes de los mensajes utilizados.
-8. Guardar los paquetes generados en OCI Object Storage.
-9. Exponer el procesamiento mediante una API.
-10. Mostrar los resultados mediante una interfaz web.
-
-Flujo general previsto:
-
-```text
-Discord
-   │
-   ▼
-Ingesta
-   │
-   ▼
-Limpieza y normalización
-   │
-   ▼
-Análisis / IA
-   │
-   ▼
-Generación de activos
-   │
-   ├── LinkedIn / X
-   ├── FAQ / Tip
-   └── Community Highlights
-   │
-   ▼
-PostgreSQL
-   │
-   ▼
-OCI Object Storage
-   │
-   ▼
-FastAPI
-   │
-   ▼
-Frontend Web
-```
+- **Producción:** https://communitylab.alyntai.com (VM ARM Always Free en OCI, con HTTPS).
+- **Repositorio:** https://github.com/No-Country-simulation/G10-CommunityLabE32
 
 ---
 
-# 2. Estado actual del proyecto
+## Contenido
 
-El proyecto se encuentra en fase de construcción del MVP.
-
-## Actualmente implementado
-
-* Repositorio monorepo creado.
-* Estructura inicial del proyecto creada.
-* Flujo de trabajo mediante Git y GitHub.
-* Backend inicializado con FastAPI.
-* Endpoint de salud `GET /health`.
-* Endpoint mock `POST /api/v1/procesamientos`.
-* Documentación automática mediante Swagger/OpenAPI.
-* Entorno virtual Python local.
-* `.gitignore` configurado para archivos de Python y entornos virtuales.
-* Primer commit funcional del backend publicado en GitHub.
-
-## En desarrollo / pendientes
-
-* Docker Compose completo ARM64.
-* Frontend Next.js + React + TypeScript + Tailwind.
-* Módulo de ingestión JSON/CSV.
-* Limpieza, normalización y deduplicación.
-* Integración de Gemini.
-* Procesamiento mediante worker.
-* PostgreSQL para estados y procesamiento.
-* Generación de activos.
-* Almacenamiento en OCI Object Storage.
-* Endpoint real de procesamiento.
-* Pruebas End-to-End.
-* Despliegue completo en OCI.
+1. [Qué resuelve](#1-qué-resuelve)
+2. [Cómo cumple el MVP de la hackathon](#2-cómo-cumple-el-mvp-de-la-hackathon)
+3. [Funcionalidades](#3-funcionalidades)
+4. [Arquitectura](#4-arquitectura)
+5. [Pipeline de IA (LangGraph + Gemini)](#5-pipeline-de-ia-langgraph--gemini)
+6. [Stack](#6-stack)
+7. [Estructura del repositorio](#7-estructura-del-repositorio)
+8. [Ejecutar en local](#8-ejecutar-en-local)
+9. [Despliegue en OCI paso a paso](#9-despliegue-en-oci-paso-a-paso)
+10. [API](#10-api)
+11. [Seguridad](#11-seguridad)
+12. [Pruebas](#12-pruebas)
+13. [Datos de demostración](#13-datos-de-demostración)
+14. [Documentación detallada](#14-documentación-detallada)
+15. [Equipo](#15-equipo)
 
 ---
 
-# 3. Repositorio
+## 1. Qué resuelve
 
-Repositorio oficial:
+Las comunidades activas generan a diario logros, dudas repetidas y testimonios, pero ese valor se pierde
+en el historial de los canales: revisar mensajes y escribir contenido a mano consume horas del equipo de
+comunidad y marketing.
 
-```text
-https://github.com/No-Country-simulation/G10-CommunityLabE32
+CommunityLab automatiza la parte repetitiva y deja la decisión en manos de una persona:
+
+| La comunidad produce… | CommunityLab entrega… |
+|---|---|
+| «¡Me contrataron como desarrolladora junior!» | Un post para LinkedIn y X que celebra el logro, con su fuente |
+| La misma duda de varias personas | Una FAQ o tip técnico de la semana |
+| Toda la actividad del período | Un *Community Highlights* semanal |
+| «Llevo tres días sin poder avanzar» | Una alerta interna para el equipo (nunca se publica) |
+| Cientos de mensajes | Sentimiento, tipos de participación y temas en un panel |
+
+## 2. Cómo cumple el MVP de la hackathon
+
+| Requisito del documento | Cómo se cumple |
+|---|---|
+| Procesar interacciones de una comunidad (datos reales o simulados) | Ingesta de lotes JSON/JSONL/CSV desde el panel, captura en vivo de Discord e importación histórica de canales |
+| Sentimiento, temas e historias relevantes con LLMs | Gemini analiza cada mensaje (sentimiento, tipo, tema, logro, duda, bloqueo) y puntúa su relevancia |
+| Al menos dos formatos de activos | Post LinkedIn/X, FAQ/Tip técnico y Community Highlights, más banners SVG |
+| Automatización con LangGraph o equivalente | Grafo LangGraph con nodos condicionales (sección 5), ejecutado por un worker en segundo plano |
+| Bifurcación de condiciones | Router: bloqueo → alerta interna; duda de ≥ 2 autores → FAQ; logro relevante → post; cierre de período → highlights |
+| Interfaz de visualización y aprobación | Panel Next.js con Resumen, Interacciones, Curaduría (aprobar, editar, denegar con motivo) y Analítica |
+| **OCI Object Storage (obligatorio)** | Cada versión aprobada se guarda en el bucket privado `communitylab-activos-marketing` (`aprobados/<id>/v<versión>/activo.json` y `banner.svg`), con la identidad de la VM y sin llaves |
+| OCI Compute (diferencial) | Toda la aplicación corre en una VM ARM Always Free con Docker Compose y HTTPS |
+| README con diagrama y guía de despliegue | Este archivo (secciones 4 y 9) |
+
+## 3. Funcionalidades
+
+| Pantalla | Qué permite |
+|---|---|
+| **Resumen** | Totales de mensajes, borradores pendientes, aprobados y alertas internas; cada tarjeta abre su listado |
+| **Ingesta de datos** | Conectar canales de Discord (hasta cuatro, con período y zona horaria); subir lotes JSON/JSONL/CSV; «Procesar pendientes» de Discord sin cerrar la semana; **Datos cargados**: ocultar o eliminar lotes (solo administradores) |
+| **Interacciones** | Todos los mensajes con autor, tipo, tema y sentimiento; búsqueda en el servidor y filtros |
+| **Curaduría** | Revisar cada borrador frente a sus fuentes, ver advertencias de fidelidad, editar versiones LinkedIn y X, regenerar con IA, generar el banner, aprobar o denegar con motivo. Cada aprobado muestra si ya se guardó en OCI |
+| **Analítica** | Sentimiento, embudo de curaduría, temas detectados y tipos de participación, filtrables por lotes |
+| **Usuarios** | Alta de cuentas, roles (usuario, operador, administrador) y restablecimiento de contraseñas |
+
+Además, un **bot de Discord** responde dudas en tiempo real y avisa al equipo cuando detecta a alguien bloqueado.
+
+## 4. Arquitectura
+
+### Pipeline de punta a punta
+
+```mermaid
+flowchart LR
+    subgraph Entradas
+        D[Discord<br/>canales autorizados]
+        H[Historial de Discord<br/>importación por rango]
+        F[Lote JSON / JSONL / CSV<br/>desde el panel]
+    end
+
+    D --> R[discord-reader<br/>captura]
+    R --> B[discord-bridge<br/>agrupa por período]
+    B --> API
+    H --> API
+    F --> API
+
+    API[FastAPI<br/>validar · normalizar · deduplicar] --> Q[(PostgreSQL<br/>cola de trabajos)]
+    Q --> W[Worker<br/>grafo LangGraph]
+    W <--> G[Gemini API]
+    W --> PG[(PostgreSQL<br/>mensajes · activos · alertas)]
+
+    PG --> UI[Panel Next.js<br/>curaduría humana]
+    UI -->|aprobar| API
+    API -->|versión aprobada| OCI[(OCI Object Storage<br/>communitylab-activos-marketing)]
+
+    D -.-> BOT[discord-bot<br/>respuestas y alertas en vivo]
+    BOT <--> G
 ```
 
-La rama utilizada actualmente para el trabajo del backend es:
+### Despliegue en OCI
 
-```text
-chore/github-workflow
+```mermaid
+flowchart TB
+    U[Navegador] -->|HTTPS 443| PX
+    subgraph VM[VM OCI Ampere A1 · Always Free · Docker Compose]
+        PX[proxy · nginx + Let's Encrypt] --> WEB[web · Next.js]
+        PX -->|/api| API[api · FastAPI]
+        API --> PG[(postgres 16)]
+        WK[worker · LangGraph] --> PG
+        HIS[discord-historico] --> PG
+        RD[discord-reader] --> BR[discord-bridge] --> API
+        BOT[discord-bot]
+    end
+    WK --> GEM[Gemini API]
+    BOT --> GEM
+    RD & BOT & HIS --> DIS[Discord]
+    API -->|instance principal| OS[(OCI Object Storage<br/>bucket privado)]
 ```
 
-Los cambios deben realizarse mediante commits claros y posteriormente sincronizarse con GitHub.
+| Servicio | Función |
+|---|---|
+| `proxy` | nginx: HTTPS, redirección HTTP → HTTPS, cabeceras de seguridad, `/api` hacia la API |
+| `web` | Panel Next.js |
+| `api` | FastAPI: ingesta, curaduría, métricas, cuentas y sesiones, copia en OCI |
+| `worker` | Ejecuta el grafo LangGraph de cada lote con Gemini (o en modo simulado, sin red) |
+| `postgres` / `db-init` | Base de datos y migraciones aditivas |
+| `discord-reader` | Captura mensajes de los canales autorizados |
+| `discord-bridge` | Agrupa por período y entrega los lotes a la API |
+| `discord-bot` | Responde dudas y envía alertas internas en vivo |
+| `discord-historico` | Importa el historial de un canal en un rango de fechas |
 
----
+## 5. Pipeline de IA (LangGraph + Gemini)
 
-# 4. Estructura del proyecto
+Cada lote recorre este grafo (`pipelines/communitylab/grafo.py`). Cualquier error lleva directo a la
+consolidación: el lote falla entero y no deja borradores a medias.
 
-La estructura principal del monorepo es:
-
-```text
-G10-CommunityLabE32/
-│
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   │
-│   │   ├── api/
-│   │   │   ├── __init__.py
-│   │   │   └── routes/
-│   │   │       ├── __init__.py
-│   │   │       └── procesamientos.py
-│   │   │
-│   │   ├── schemas/
-│   │   │   └── __init__.py
-│   │   │
-│   │   └── main.py
-│   │
-│   └── tests/
-│
-├── frontend/
-│
-├── data/
-│
-├── docs/
-│
-├── infrastructure/
-│
-├── pipelines/
-│   ├── ingestion/
-│   ├── cleaning/
-│   ├── analysis/
-│   └── embeddings/
-│
-├── .env.example
-├── .gitignore
-├── docker-compose.yml
-├── LICENSE
-└── README.md
+```mermaid
+flowchart TD
+    I[inicializar] --> IN[ingesta<br/>normaliza y deduplica]
+    IN --> AN[analizar · Gemini<br/>sentimiento, tipo, tema,<br/>logro, duda, bloqueo]
+    AN --> PU[puntuar · Gemini<br/>relevancia 0-1]
+    PU --> RO{router}
+    RO --> DE[despachar]
+    DE -->|bloqueo| AL[alerta interna]
+    DE -->|duda de ≥ 2 autores| FAQ[generador FAQ / Tip]
+    DE -->|logro relevante| POST[generador post LinkedIn / X]
+    DE -->|cierre del período| HL[generador Community Highlights]
+    AL & FAQ & POST & HL --> DE
+    DE -->|sin pendientes| CO[consolidación]
 ```
 
-La estructura se irá completando a medida que cada módulo del MVP sea implementado.
+**Reglas del router** (`router_base.py`), por mensaje y con esta precedencia: **bloqueo > duda recurrente > logro**.
 
----
+| Condición | Ruta | Resultado |
+|---|---|---|
+| El análisis marca bloqueo | `bloqueo` | Alerta interna; el mensaje queda fuera de todo contenido público |
+| Relevancia < 0,6 | — | Se descarta con motivo registrado |
+| Duda sobre el mismo tema de ≥ 2 autores distintos | `dudas` | FAQ / Tip técnico |
+| Logro relevante sin otra ruta | `logro` | Post LinkedIn / X |
+| `cierre_periodo = true` | `periodo` | Community Highlights con todos los mensajes relevantes |
 
-# 5. Backend
+**Controles sobre lo que genera la IA**
+- **Fidelidad** (`generadores/fidelidad.py`): marca cifras, archivos, detalles o causas que no aparecen en
+  las fuentes, y logros colectivos presentados como individuales. Curaduría pide confirmar antes de aprobar.
+- **Trazabilidad:** cada activo guarda los IDs de sus mensajes fuente; el modelo nunca los elige.
+- **Salida estructurada:** JSON con esquema y validación local estricta; una respuesta inválida escala al
+  siguiente modelo o falla, nunca se usa a medias.
+- **Presupuesto por lote:** tope de llamadas, tiempo y tokens. Ante un 429 por ritmo, espera lo que indica
+  Gemini (configuración en `docs/gemini-grafo-worker.md`).
 
-El backend utiliza:
+## 6. Stack
 
-* Python
-* FastAPI
-* Uvicorn
-* Pydantic
-* PostgreSQL como base de datos prevista
-* Docker como mecanismo de ejecución previsto
+| Capa | Tecnología |
+|---|---|
+| Frontend | Next.js 16, React, TypeScript, Tailwind CSS, Framer Motion |
+| API | FastAPI, SQLAlchemy async, Pydantic |
+| Orquestación | LangGraph, worker propio con cola en PostgreSQL (reintentos, *lease*, idempotencia) |
+| IA | Google Gemini (`flash-lite` y escalamiento a un modelo mayor), cliente HTTP propio |
+| Datos | PostgreSQL 16 |
+| Integraciones | Discord (gateway y API REST), bot con Gemini |
+| Nube | OCI Compute (Ampere A1, Always Free) y OCI Object Storage (SDK `oci`, instance principal) |
+| Operación | Docker Compose, nginx, Let's Encrypt, scripts `cl-*` con respaldo y reversión |
 
-Actualmente FastAPI está funcionando localmente.
-
-## Estructura actual
+## 7. Estructura del repositorio
 
 ```text
-backend/
-└── app/
-    ├── main.py
-    ├── api/
-    │   └── routes/
-    │       └── procesamientos.py
-    └── schemas/
+backend/                 API FastAPI
+  app/routers/           autenticación, mensajes, curaduría, métricas
+  app/api/routes/        trabajos, Discord (histórico y escucha), datos cargados, banners, puente
+  app/services/          ámbito de lotes, fidelidad, banners, OCI, autenticación
+  scripts/               crear_usuario, recalcular_fidelidad, reclasificar_mensajes, oci_almacenamiento…
+frontend/                Panel Next.js
+pipelines/communitylab/  grafo LangGraph, router, cliente Gemini, generadores, puente de Discord
+worker/                  cola en PostgreSQL, esquema (schema.sql) y pruebas de integración
+integrations/discord/    lector, bot y procesador de Discord
+ops/vm/                  despliegue, respaldo, restauración y reversión en la VM
+infrastructure/          notas de OCI, Docker y Gemini
+docs/                    documentación detallada (sección 14)
+docker-compose.yml       servicios base · compose.https.yml (VM) · compose.discord.yml (Discord)
 ```
 
----
+## 8. Ejecutar en local
 
-# 6. Endpoint de salud
+Requisitos: Docker con Compose 2.24.4 o posterior.
 
-Actualmente existe:
+1. **Configurar el entorno.**
+   ```bash
+   cp .env.example .env
+   ```
+   En `.env`:
+   - `POSTGRES_PASSWORD`: una contraseña propia.
+   - `DOCKER_PLATFORM`: `linux/amd64` en PC Intel/AMD, `linux/arm64` en ARM.
+   - `JWT_SECRET_KEY`: 32 bytes aleatorios o más, por ejemplo con
+     `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`.
+   - Deja `WORKER_MODE=simulado` para probar sin IA ni red. Con `WORKER_MODE=gemini`, define
+     `GEMINI_API_KEY` y `GEMINI_MODELOS`.
+2. **Levantar los servicios base** (proxy, web, api, worker y postgres):
+   ```bash
+   docker compose -f docker-compose.yml up -d --build
+   ```
+3. **Crear el primer administrador.** La contraseña se escribe sin eco:
+   ```bash
+   docker compose -f docker-compose.yml exec api python -m backend.scripts.crear_usuario --email tu@correo.com --rol administrador
+   ```
+4. **Entrar** en http://127.0.0.1:8080 y subir un lote desde **Ingesta de datos**. Formato mínimo:
+   ```json
+   {"interacciones": [{"id": "m-1", "autor": "Ana", "canal": "logros",
+     "fecha": "2026-10-19T14:10:00Z", "texto": "¡Aprobé la certificación OCI!"}]}
+   ```
 
-```text
-GET /health
-```
+Los servicios de Discord se agregan con `compose.discord.yml` y su configuración privada
+(`integrations/discord/config-servicios.example/`).
 
-Su objetivo es verificar que la API está funcionando.
+## 9. Despliegue en OCI paso a paso
 
-Respuesta actual:
+Todo usa recursos **Always Free**. Detalle completo en `docs/operacion-vm.md`.
+
+### 9.1 Infraestructura en la consola de OCI
+
+1. **VM:** instancia Ampere A1 (ARM) con Ubuntu, IP pública y los puertos 80 y 443 abiertos en la lista
+   de seguridad. Instalar Docker y Compose.
+2. **Dominio:** un registro A hacia la IP de la VM y certificados de Let's Encrypt en
+   `/etc/letsencrypt/live/<dominio>/`.
+3. **Bucket:** en *Storage → Buckets*, un bucket **privado** y estándar
+   (`communitylab-activos-marketing`).
+4. **Acceso sin llaves (instance principal):**
+   - Grupo dinámico (*Identity → Domains → Default → Dynamic groups*):
+     ```text
+     instance.id = '<OCID de la VM>'
+     ```
+   - Política en el compartimento raíz (crear, sobrescribir y leer objetos; no borrar):
+     ```text
+     Allow dynamic-group 'Default'/'<grupo>' to read objectstorage-namespaces in tenancy
+     Allow dynamic-group 'Default'/'<grupo>' to read buckets in tenancy where target.bucket.name = '<bucket>'
+     Allow dynamic-group 'Default'/'<grupo>' to manage objects in tenancy where all {target.bucket.name = '<bucket>', request.permission != 'OBJECT_DELETE'}
+     ```
+
+### 9.2 Aplicación en la VM
+
+1. **Código** clonado en `/srv/communitylab`, propiedad del usuario de servicio `communitylab` (sin
+   login), y los comandos `ops/vm/cl-*` instalados en `/usr/local/sbin`. En esta VM lo hizo
+   `ops/vm/migrar-a-srv.sh` al mudar la aplicación desde su ruta anterior.
+2. **`.env` privado** (permisos 600, fuera de Git), a partir de `.env.example`:
+   - `COMPOSE_FILE=docker-compose.yml:compose.https.yml:compose.discord.yml`
+   - `WORKER_MODE=gemini`, `GEMINI_API_KEY`, `GEMINI_MODELOS`
+   - `JWT_SECRET_KEY`, `POSTGRES_PASSWORD`, `OPERADOR_TOKEN`, `PUENTE_TOKEN`
+   - `OCI_ALMACENAMIENTO=instance_principal` (bucket en `OCI_BUCKET_NAME`)
+   - Tokens y canales de Discord (`docs/operacion-vm.md`, «Variables privadas»)
+3. **Desplegar un commit:**
+   ```bash
+   sudo cl-actualizar <sha> <ruta-al-.env-nuevo>
+   ```
+   Ejecuta seis puertas; si una falla, las siguientes no corren:
+   1. guarda el estado actual para poder revertir;
+   2. construye y prueba las imágenes en un worktree aislado;
+   3. respalda la base y comprueba que el respaldo se restaura;
+   4. aplica la migración (aditiva) con la versión anterior aún en servicio;
+   5. hace el corte (única interrupción);
+   6. verifica los servicios y HTTPS; si falla, revierte solo.
+4. **Primer administrador:**
+   ```bash
+   sudo docker compose exec api python -m backend.scripts.crear_usuario --email <correo> --rol administrador
+   ```
+5. **Verificar OCI:**
+   ```bash
+   sudo docker compose exec api python -m backend.scripts.oci_almacenamiento --verificar
+   ```
+   Debe imprimir `escritura=ok lectura=ok`.
+6. **Revertir** si hace falta: `sudo cl-revertir <estado>` (la carpeta la indica el despliegue).
+
+## 10. API
+
+Documentación interactiva en `/docs` (Swagger). Principales rutas:
+
+| Área | Rutas |
+|---|---|
+| Ingesta | `POST /api/mensajes/procesamientos` (archivo), `POST /api/v1/trabajos`, `GET /api/v1/trabajos/{id}` |
+| Mensajes y métricas | `GET /api/mensajes` (búsqueda `q`, lotes, sentimiento), `GET /api/dashboard/kpis`, `/alertas`, `/ambitos` |
+| Curaduría | `GET/PATCH /api/curaduria/activos/{id}`, `POST .../posts/generar`, `GET/POST .../banners` |
+| Datos cargados | `GET /api/v1/datos/lotes`, `PATCH .../visibilidad`, `POST .../eliminacion/vista-previa`, `POST .../eliminacion` |
+| Discord | `/api/v1/discord/historico/*` (importar por rango), `/api/v1/discord/canales/{id}/escucha`, `/api/v1/procesamiento-pendientes` |
+| Cuentas | `POST /api/auth/login`, `/logout`, `GET /api/auth/sesion`, `GET/POST/PATCH /api/auth/usuarios` |
+
+Ejemplo de lote (formato del documento de la hackathon):
 
 ```json
 {
-  "estado": "ok",
-  "servicio": "communitylab-api"
+  "origen_comunidad": "Discord_Grupo_ONE_G10",
+  "periodo_referencia": "2026-W43",
+  "cierre_periodo": true,
+  "interacciones": [
+    {"id": "m-01", "autor": "Mariana Souza", "canal": "#logros-y-empleos", "tipo": "testimonio",
+     "fecha": "2026-10-19T14:10:00Z",
+     "texto": "¡Quedé seleccionada como Desarrolladora Junior de IA gracias al proyecto de LangChain y OCI!"}
+  ]
 }
 ```
 
----
-
-# 7. Endpoint mock de procesamiento
-
-Como parte de la inicialización del backend se implementó:
-
-```text
-POST /api/v1/procesamientos
-```
-
-Actualmente es un **endpoint mock**.
-
-Su función es permitir que frontend y backend puedan comenzar a trabajar en paralelo antes de que esté terminado el procesamiento real.
-
-Respuesta actual:
-
-```json
-{
-  "procesamiento_id": "mock-001",
-  "estado": "recibido",
-  "mensaje": "Procesamiento recibido correctamente"
-}
-```
-
-Este contrato es provisional para la etapa mock.
-
-El contrato completo del procesamiento real deberá respetar los campos acordados para el MVP.
-
-Entre los campos previstos para la respuesta real están:
-
-```text
-procesamiento_id
-resumen
-activos
-alertas
-almacenamiento_oci
-```
-
-No se debe asumir que el contrato definitivo está cerrado hasta que sea documentado y acordado por el equipo.
-
----
-
-# 8. Ejecutar el backend localmente
-
-## Requisitos
-
-Se necesita:
-
-* Python
-* Git
-* Visual Studio Code recomendado
-
----
-
-## Crear entorno virtual
-
-Desde la raíz del proyecto:
-
-```bash
-python3 -m venv .venv
-```
-
-Activar el entorno:
-
-```bash
-source .venv/bin/activate
-```
-
-Cuando esté activo deberá aparecer algo similar a:
-
-```text
-(.venv) TARECK ~/G10-CommunityLabE32 %
-```
-
----
-
-# 9. Instalar dependencias iniciales
-
-Con el entorno virtual activo:
-
-```bash
-python -m pip install fastapi uvicorn
-```
-
-Las dependencias adicionales se irán incorporando conforme avance el proyecto.
-
----
-
-# 10. Ejecutar FastAPI
-
-Desde la raíz:
-
-```bash
-python -m uvicorn backend.app.main:app --reload
-```
-
-La API quedará disponible localmente en:
-
-```text
-http://127.0.0.1:8000
-```
-
----
-
-# 11. Swagger / documentación de la API
-
-FastAPI genera automáticamente la documentación interactiva.
-
-Abrir:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-En Swagger actualmente debe aparecer:
-
-```text
-GET  /health
-POST /api/v1/procesamientos
-```
-
-El endpoint `POST /api/v1/procesamientos` puede ejecutarse desde Swagger utilizando:
-
-```text
-Try it out
-```
-
-y posteriormente:
-
-```text
-Execute
-```
-
----
-
-# 12. Arquitectura prevista
-
-La arquitectura general del MVP está organizada por componentes:
-
-```text
-                  ┌─────────────────┐
-                  │    Frontend     │
-                  │ Next.js / React │
-                  └────────┬────────┘
-                           │
-                           ▼
-                  ┌─────────────────┐
-                  │    FastAPI      │
-                  │      API        │
-                  └────────┬────────┘
-                           │
-                           ▼
-                  ┌─────────────────┐
-                  │     Worker      │
-                  │ procesamiento   │
-                  └────────┬────────┘
-                           │
-             ┌─────────────┼─────────────┐
-             ▼             ▼             ▼
-        PostgreSQL      Pipelines        IA
-                         │              Gemini
-                         │
-                         ▼
-                  Generación de
-                     activos
-                           │
-                           ▼
-                  OCI Object Storage
-```
-
----
-
-# 13. Pipeline de datos
-
-El pipeline previsto para el MVP es:
-
-```text
-Lote JSON / CSV
-      │
-      ▼
-Validación
-      │
-      ▼
-Normalización
-      │
-      ▼
-Deduplicación
-      │
-      ▼
-Análisis
-      │
-      ├── Sentimiento
-      ├── Temas
-      ├── Relevancia
-      └── Fuentes
-      │
-      ▼
-Generación de contenido
-      │
-      ├── LinkedIn / X
-      ├── FAQ / Tip
-      └── Community Highlights
-      │
-      ▼
-Paquete de resultados
-      │
-      ▼
-OCI Object Storage
-```
-
-## Primer borrador acordado de la arquitectura del pipeline
-
-Paulo y Santiago acordaron el primer borrador de las cuatro rutas del procesamiento: logro, dudas recurrentes, período y bloqueo. El diagrama representa el diseño objetivo; el proveedor de almacenamiento de objetos y las interfaces de integración siguen por definir.
-
-![Arquitectura del pipeline de CommunityLab con sus cuatro rutas](docs/arquitectura-pipeline.svg)
-
-El diagrama describe el diseño objetivo. La alerta de bloqueo es interna y no se publica. La integración completa entre API, worker, base de datos e IA, así como las reglas de prioridad del enrutamiento, siguen pendientes de implementación y validación.
-
----
-
-# 14. LangGraph
-
-LangGraph está previsto para organizar el flujo de procesamiento y los diferentes pasos del pipeline.
-
-La arquitectura definitiva del grafo será documentada en:
-
-```text
-docs/
-```
-
-El grafo deberá permitir organizar etapas como:
-
-```text
-Ingesta
-   ↓
-Limpieza
-   ↓
-Análisis
-   ↓
-Generación
-   ↓
-Validación
-   ↓
-Almacenamiento
-```
-
-Los nodos de error y reintentos para problemas de IA también forman parte del desarrollo posterior.
-
----
-
-# 15. Inteligencia Artificial
-
-El proyecto contempla el uso de **Gemini** para el análisis de los mensajes.
-
-El análisis deberá contemplar información como:
-
-* Sentimiento.
-* Temas.
-* Relevancia.
-* Fuentes.
-* Preguntas frecuentes.
-* Testimonios.
-* Información útil para generación de contenido.
-
-La salida del análisis deberá mantenerse estructurada para poder ser procesada por los siguientes componentes del pipeline.
-
----
-
-# 16. Generación de activos
-
-Uno de los objetivos principales del proyecto es convertir la información de la comunidad en activos reutilizables.
-
-Los activos contemplados para el MVP incluyen:
-
-### LinkedIn / X
-
-Generación de contenido para redes sociales a partir de los hallazgos de la comunidad.
-
-### FAQ / Tip
-
-Conversión de preguntas o conocimientos frecuentes en contenido útil.
-
-### Community Highlights
-
-Identificación de momentos, opiniones o aportes relevantes de la comunidad.
-
-Los activos deben conservar las fuentes utilizadas para generarlos.
-
----
-
-# 17. PostgreSQL
-
-PostgreSQL está contemplado como la base de datos del sistema.
-
-Será utilizada para manejar información relacionada con:
-
-* Procesamientos.
-* Estados.
-* Mensajes o datos normalizados según el diseño definitivo.
-* Resultados del procesamiento.
-* Información necesaria para coordinar el worker.
-
-La implementación completa de PostgreSQL forma parte de las siguientes etapas del proyecto.
-
----
-
-# 18. Worker
-
-El proyecto contempla un worker para ejecutar el procesamiento de los lotes de forma asíncrona.
-
-El worker tendrá responsabilidad sobre el procesamiento del lote y la ejecución de los componentes correspondientes del pipeline.
-
-La implementación se realizará dentro de Docker Compose.
-
----
-
-# 19. Docker Compose
-
-El objetivo es disponer de una arquitectura compuesta por servicios independientes.
-
-La configuración prevista contempla:
-
-```text
-proxy
-web
-api
-worker
-postgres
-```
-
-Además se contemplan:
-
-* Healthchecks.
-* Reinicio automático.
-* Red privada entre servicios.
-* Imágenes compatibles con ARM64.
-* Secretos fuera del repositorio.
-
-La configuración de Docker Compose se encuentra actualmente en desarrollo.
-
----
-
-# 20. OCI
-
-OCI será utilizado como infraestructura de despliegue y almacenamiento del proyecto.
-
-La arquitectura contempla:
-
-```text
-OCI
-│
-├── VM Always Free
-│
-└── Object Storage
-```
-
-La VM prevista utiliza:
-
-```text
-Ampere A1
-ARM64
-Ubuntu
-```
-
-La configuración contempla:
-
-* VCN.
-* Subred.
-* IP pública.
-* Claves SSH.
-* Reglas de entrada.
-* Docker.
-* Servicios del proyecto.
-
----
-
-# 21. Estado de OCI
-
-Actualmente la creación de la VM Always Free está bloqueada por disponibilidad de capacidad en la región utilizada.
-
-Por esta razón, el equipo continúa desarrollando localmente mientras se intenta nuevamente el aprovisionamiento.
-
-Esto **no bloquea el desarrollo del código**.
-
-La estrategia actual es:
-
-```text
-Desarrollo local
-       │
-       ▼
-Git / GitHub
-       │
-       ▼
-Pruebas
-       │
-       ▼
-OCI cuando la infraestructura esté disponible
-```
-
----
-
-# 22. OCI Object Storage
-
-El proyecto contempla almacenar los paquetes generados en Object Storage.
-
-La estructura prevista es:
-
-```text
-demo/
-└── {periodo}/
-    └── lotes/
-        └── {id}/
-            └── paquete.json
-```
-
-También se contempla una ruta:
-
-```text
-aprobados/
-```
-
-El almacenamiento del paquete deberá confirmarse solamente después de que el archivo haya sido escrito correctamente.
-
-Esta parte todavía está pendiente de implementación.
-
----
-
-# 23. Variables de entorno y secretos
-
-Los secretos **no deben subirse al repositorio**.
-
-Utilizar:
-
-```text
-.env
-```
-
-para valores locales y secretos.
-
-El repositorio solamente debe contener:
-
-```text
-.env.example
-```
-
-como referencia de las variables necesarias.
-
-Nunca subir:
-
-```text
-.env
-```
-
-ni claves API, credenciales, claves SSH u otros secretos.
-
----
-
-# 24. Git y flujo de trabajo
-
-El proyecto utiliza Git y GitHub para trabajar en equipo.
-
-Cada integrante debe:
-
-1. Actualizar su repositorio.
-2. Trabajar en su rama correspondiente.
-3. Realizar cambios pequeños y relacionados.
-4. Probar los cambios localmente.
-5. Crear commits descriptivos.
-6. Hacer push de la rama.
-7. Crear Pull Request cuando corresponda.
-8. Revisar conflictos antes de integrar cambios.
-
----
-
-# 25. Convención de commits
-
-Se recomienda utilizar commits siguiendo una convención tipo Conventional Commits.
-
-Ejemplos:
-
-```text
-feat: agregar endpoint de procesamiento
-fix: corregir validación del lote
-docs: actualizar README
-refactor: reorganizar servicio de ingesta
-test: agregar pruebas de procesamiento
-chore: actualizar configuración docker
-```
-
-El primer commit funcional del backend realizado en esta etapa fue:
-
-```text
-feat: inicializar backend FastAPI y endpoint mock
-```
-
----
-
-# 26. Estado del backend actual
-
-Actualmente el backend tiene:
-
-```text
-backend/app/
-│
-├── __init__.py
-│
-├── main.py
-│
-├── api/
-│   ├── __init__.py
-│   └── routes/
-│       ├── __init__.py
-│       └── procesamientos.py
-│
-└── schemas/
-    └── __init__.py
-```
-
-El backend puede ejecutarse localmente mediante:
-
-```bash
-python -m uvicorn backend.app.main:app --reload
-```
-
----
-
-# 27. Estado del frontend
-
-El frontend forma parte de la arquitectura prevista y será construido utilizando:
-
-```text
-Next.js
-React
-TypeScript
-Tailwind CSS
-```
-
-La interfaz deberá permitir posteriormente:
-
-* Subir lotes JSON/CSV.
-* Previsualizar mensajes.
-* Enviar el lote al backend.
-* Mostrar el procesamiento.
-* Mostrar los activos generados.
-* Mostrar las fuentes asociadas.
-
-Durante el desarrollo inicial podrán utilizarse mocks mientras el endpoint real del backend no esté terminado.
-
----
-
-# 28. Datos de prueba
-
-Para el MVP se contempla trabajar inicialmente con datos sintéticos que representen mensajes de una comunidad de Discord.
-
-Esto permite desarrollar y probar el pipeline sin depender inicialmente de una comunidad real.
-
-La demostración prevista contempla una corrida con mensajes sintéticos y generación de activos.
-
----
-
-# 29. MVP
-
-El objetivo de la primera demostración funcional es conseguir un flujo completo:
-
-```text
-Mensajes sintéticos
-        │
-        ▼
-      Ingesta
-        │
-        ▼
-     Limpieza
-        │
-        ▼
-     Análisis IA
-        │
-        ▼
-Generación de activos
-        │
-        ├── Post
-        ├── FAQ
-        └── Highlights
-        │
-        ▼
-     OCI Storage
-```
-
-La demostración debe permitir comprobar que el procesamiento completo funciona de extremo a extremo.
-
----
-
-# 30. Próximas tareas
-
-El desarrollo continuará siguiendo el cronograma del proyecto.
-
-Orden general de trabajo:
-
-```text
-1. Repositorio y workflow Git
-        ↓
-2. Infraestructura OCI
-        ↓
-3. Object Storage
-        ↓
-4. Docker Compose ARM64
-        ↓
-5. Herramientas / stack
-        ↓
-6. Backend FastAPI + endpoint mock
-        ↓
-7. Frontend Next.js
-        ↓
-8. Ingesta JSON / CSV
-        ↓
-9. Integración Gemini
-        ↓
-10. Worker + PostgreSQL
-        ↓
-11. Almacenamiento OCI
-        ↓
-12. Endpoint real
-        ↓
-13. UI conectada al backend
-        ↓
-14. Demo End-to-End
-```
-
-Las tareas de infraestructura que dependan de disponibilidad de OCI podrán continuar en local hasta que la VM esté disponible.
-
----
-
-# 31. Documentación
-
-La documentación técnica del proyecto se encuentra en:
-
-```text
-docs/
-```
-
-Se documentarán progresivamente:
-
-* Arquitectura.
-* Pipeline.
-* LangGraph.
-* Contratos de API.
-* Configuración de infraestructura.
-* Flujo de despliegue.
-* Pruebas.
-* Decisiones técnicas.
-
----
-
-# 32. Cómo empezar a trabajar en el proyecto
-
-Clonar el repositorio:
-
-```bash
-git clone git@github.com:No-Country-simulation/G10-CommunityLabE32.git
-```
-
-Entrar al proyecto:
-
-```bash
-cd G10-CommunityLabE32
-```
-
-Crear entorno virtual:
-
-```bash
-python3 -m venv .venv
-```
-
-Activarlo:
-
-```bash
-source .venv/bin/activate
-```
-
-Instalar dependencias iniciales:
-
-```bash
-python -m pip install fastapi uvicorn
-```
-
-Ejecutar backend:
-
-```bash
-python -m uvicorn backend.app.main:app --reload
-```
-
-Abrir Swagger:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
----
-
-# 33. Importante para el equipo
-
-Actualmente el proyecto está en desarrollo.
-
-No asumir que todos los módulos descritos en esta documentación están terminados.
-
-### Implementado actualmente
-
-```text
-Git / GitHub
-        ↓
-Backend FastAPI
-        ↓
-GET /health
-        ↓
-POST /api/v1/procesamientos
-        ↓
-Swagger /docs
-```
-
-### En construcción
-
-```text
-Frontend
-Ingesta
-Limpieza
-Gemini
-LangGraph
-Worker
-PostgreSQL
-OCI Object Storage
-Docker Compose completo
-Endpoint real
-Pruebas E2E
-```
-
-Antes de modificar una parte del proyecto, revisar la estructura existente y coordinar los cambios con el equipo para evitar conflictos entre ramas.
-
----
-
-# 34. Equipo
-
-Proyecto:
-
-**G10 CommunityLab E32**
-
-Organización:
-
-**No Country — Simulation**
-
-Repositorio:
-
-```text
-No-Country-simulation/G10-CommunityLabE32
-```
-
-El trabajo se desarrolla de manera colaborativa mediante GitHub, ramas, commits y Pull Requests.
-
----
-
-# 35. Visión del producto
-
-Community Radar busca convertir las conversaciones de una comunidad en información accionable.
-
-La idea central es:
-
-```text
-Conversaciones
-      ↓
-Datos estructurados
-      ↓
-Información útil
-      ↓
-Inteligencia artificial
-      ↓
-Contenido
-      ↓
-Activos de comunicación
-```
-
-El sistema permitirá que la información generada por la comunidad pueda convertirse en contenido reutilizable, manteniendo trazabilidad hacia las fuentes originales.
-
----
-
-# 36. Estado de esta documentación
-
-Este README corresponde al estado actual del proyecto durante la construcción del MVP.
-
-Se actualizará conforme se incorporen:
-
-* Nuevos servicios.
-* Nuevos endpoints.
-* Procesamiento real.
-* Integración con IA.
-* Base de datos.
-* Docker.
-* OCI.
-* Frontend.
-* Pruebas End-to-End.
-* Nuevas decisiones de arquitectura.
-
----
-
-**G10 CommunityLab E32 — Community Radar**
-
-Construyendo el MVP paso a paso. 🚀
-
-
-## Configuración de Gemini API
-
-La [guía de configuración y verificación de Gemini](infrastructure/gemini/README.md) incluye una plantilla sin secretos y una prueba independiente de conexión. La clave se configura de forma privada; la comprobación desde la VM continúa pendiente.
+## 11. Seguridad
+
+- **Sesiones:** cookie HttpOnly (`cl_sesion`) + token CSRF en memoria; nada de tokens en `localStorage`.
+  Roles leídos de la base en cada petición; registro público cerrado; límite de intentos de login.
+- **Permisos** por endpoint en `docs/politica-acceso.md`. Las acciones destructivas (eliminar lotes,
+  gestionar cuentas) son solo de administradores.
+- **Secretos:** solo en el `.env` privado de la VM (600). No hay credenciales predeterminadas; las
+  contraseñas nunca van en argumentos ni en logs. OCI usa la identidad de la VM, sin llaves.
+- **Contenedores:** usuarios no root, sistemas de archivos de solo lectura donde aplica, sin puertos
+  publicados salvo el proxy.
+- **IA:** los mensajes de bloqueo nunca llegan a contenido público; todo contenido pasa por aprobación humana.
+
+## 12. Pruebas
+
+- **Worker, API y PostgreSQL** (`worker/tests/`): ingesta, flujo híbrido, curaduría, búsqueda, tipos y
+  temas, nombres de Discord, OCI con cliente falso, datos cargados y una batería de acceso y seguridad.
+- **Grafo y Gemini** (`pipelines/communitylab/tests/`): router, presupuesto, fidelidad y cliente con
+  transporte falso (sin red ni claves).
+- **Discord** (`integrations/discord/*/tests`) y **operación de la VM** (`ops/vm/tests/`: puertas de
+  despliegue, respaldo, restauración y reversión con Docker real).
+- **CI en GitHub Actions** en cada PR: título con convención de commits, grafo, Discord, PostgreSQL,
+  proxy HTTP/HTTPS y operación de la VM.
+
+## 13. Datos de demostración
+
+La demo usa 500 mensajes de soporte al cliente en español, repartidos en 5 semanas (W39 a W43), con
+autores, canales y fechas ficticios. Los textos provienen del dataset público
+[Bitext customer support (español)](https://huggingface.co/datasets/Faramir/Bitext-customer-support-llm-chatbot-training-dataset-spanish),
+licencia **CDLA-Sharing-1.0**. No contienen datos personales reales.
+
+## 14. Documentación detallada
+
+| Documento | Tema |
+|---|---|
+| `docs/operacion-vm.md` | Operación de la VM: rutas, variables, despliegue, respaldo y reversión |
+| `docs/http-local-https-vm.md` | HTTP local y HTTPS en la VM |
+| `docs/gemini-grafo-worker.md` | Cliente Gemini, presupuesto por lote y política de errores |
+| `docs/oci-object-storage.md` | Copia de los aprobados en OCI y acceso por instance principal |
+| `docs/ingesta-lotes.md` | Formatos de lote, resultados del worker y datos cargados |
+| `docs/flujo-hibrido-banners.md` | «Procesar pendientes», cierre de período y banners |
+| `docs/discord-historico.md` | Importación histórica de canales de Discord |
+| `docs/metricas-panel.md` | Cómo se calcula cada métrica del panel |
+| `docs/politica-acceso.md` | Roles, sesiones y permisos por endpoint |
+
+## 15. Equipo
+
+| Integrante | Rol |
+|---|---|
+| Elizabeth Aguilar | Gestión del proyecto, metodologías ágiles y control de calidad |
+| Vania Sherel Cruz Hernández | Desarrollo asistido por IA, experiencia de usuario y soporte de integración |
+| José Ángel Olán de los Santos | Ingeniería de datos: PostgreSQL, modelado y ETL |
+| Fredy Pachón | Desarrollo de backend: flujos de datos y lógica del backend |
+| Ianjaner Alfonso Beltrán Guañarita | Desarrollo web: frontend Next.js, autenticación y protección de rutas |
+| Santiago Horta Hurtado | Ingeniería de agentes autónomos e integración con el backend |
+| Fabián Hernández Alejandro | Ingeniería de prompts para análisis y generación de contenido |
+| Paulo Andrés Escobar Saldaña | Ingeniería de agentes: LangGraph, Gemini, integración con Discord y despliegue en OCI |
