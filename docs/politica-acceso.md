@@ -21,7 +21,7 @@ de datos enviados por el cliente.
 
 - **usuario**: lee agregados sin textos.
 - **operador**: lo anterior, más los datos comunitarios y las acciones.
-- **administrador**: lo anterior, más la gestión de cuentas.
+- **administrador**: lo anterior, más la gestión de cuentas y de los datos cargados (ocultar o eliminar lotes).
 
 ## Sesión
 
@@ -94,6 +94,7 @@ de datos enviados por el cliente.
 | `POST /api/auth/register` | solo con `REGISTRO_PUBLICO=true` | — | — | — | — | — |
 | `GET /api/auth/sesion`, `POST /api/auth/logout`, `GET/PATCH /api/auth/me` | ✖ | ✔ | ✔ | ✔ | ✖ | ✖ |
 | `GET/POST/PATCH /api/auth/usuarios…` | ✖ | ✖ | ✖ | ✔ | ✖ | ✖ |
+| `GET/PATCH/POST /api/v1/datos/lotes…` (datos cargados: ocultar o eliminar lotes) | ✖ | ✖ | ✖ | ✔ | ✖ | ✖ |
 | `GET /api/dashboard/kpis`, `/ambitos`, `GET /api/mensajes/sentimiento/resumen` (agregados) | ✖ | ✔ | ✔ | ✔ | ✖ | ✔ |
 | `GET /api/dashboard/alertas` (detalle de alertas: textos y autores) | ✖ | ✖ | ✔ | ✔ | ✖ | ✔ |
 | `GET /api/mensajes` (textos y autores) | ✖ | ✖ | ✔ | ✔ | ✖ | ✔ |

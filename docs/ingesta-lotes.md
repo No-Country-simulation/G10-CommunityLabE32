@@ -59,3 +59,16 @@ abre `/curaduria?trabajo=<id>` (`GET /api/curaduria/activos?trabajo=<id>`).
 - Trabajos con error de IA: `error_codigo` y, si el proveedor rechazó la petición,
   `resultado.diagnostico`: estado HTTP, categoría y valores de catálogo; nunca texto del proveedor
   ni del lote (ver `docs/gemini-grafo-worker.md`).
+
+## Datos cargados: ocultar o eliminar lotes (solo administradores)
+
+Al final de **Ingesta de datos** está la sección «Datos cargados». Lista cada lote (origen · período ·
+vía de entrada) con sus mensajes, contenidos y si está visible u oculto. API en
+`backend/app/api/routes/datos.py`; lógica en `backend/app/services/datos_cargados.py`.
+
+- **Ocultar del panel** (reversible): marca los trabajos del lote como de prueba (`es_prueba`). Dejan
+  de contar en Resumen, Analítica, Interacciones y Curaduría; «Mostrar en el panel» lo revierte.
+- **Eliminar** (irreversible): primero muestra qué se borrará y pide escribir `ELIMINAR`. Borra los
+  trabajos, los contenidos de Curaduría con su historial y banners, y solo los mensajes que ningún otro
+  lote usa. Se niega si hay trabajos del lote en proceso, y pide confirmar aparte si borraría
+  contenidos aprobados. No toca lo ya copiado en OCI ni el historial importado de Discord.
