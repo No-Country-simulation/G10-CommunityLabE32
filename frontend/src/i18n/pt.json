@@ -738,5 +738,22 @@
   "Restablecer contraseña": "Redefinir senha",
   "Tu cuenta (cámbiala en Configuraciones)": "Sua conta (altere em Configurações)",
   "Error al cargar las cuentas.": "Erro ao carregar as contas.",
-  "Crear cuenta y generar contraseña": "Criar conta e gerar senha"
+  "Crear cuenta y generar contraseña": "Criar conta e gerar senha",
+  "Hay": "Há",
+  "Se borrarán": "Serão excluídos",
+  "Última actualización:": "Última atualização:",
+  "aprobado(s)": "aprovado(s)",
+  "banner(s).": "banner(s).",
+  "contenido(s) de Curaduría con su historial y": "conteúdo(s) da Curadoria com o histórico e",
+  "contenido(s) ya aprobado(s)": "conteúdo(s) já aprovado(s)",
+  "contenido(s)": "conteúdo(s)",
+  "lote(s) seleccionado(s)": "lote(s) selecionado(s)",
+  "mensaje(s)": "mensagem(ns)",
+  "también en otro lote": "também em outro lote",
+  "trabajo(s) en proceso: espera a que terminen.": "trabalho(s) em andamento: aguarde a conclusão.",
+  "Incluir": "Incluir",
+  "Eliminar definitivamente": "Excluir definitivamente",
+  "Detectada": "Detectado",
+  "veces": "vezes",
+  "Ver pendientes de Curaduría": "Ver pendentes de Curadoria"
 }

@@ -57,7 +57,7 @@ export default function UsuariosPage() {
       const creado = await crearUsuarioAdmin({ email: email.trim(), full_name: nombre.trim() || undefined, password: clave, rol });
       setUsuarios((lista) => [...lista, creado]);
       setEmail(''); setNombre('');
-      setAviso({ texto: `Cuenta creada para ${creado.email}. Entrégale esta contraseña temporal por un canal privado; la cambiará en Configuración.`, clave });
+      setAviso({ texto: `Cuenta creada para ${creado.email}. Entrégale esta contraseña temporal por un canal privado; la cambiará en Configuraciones.`, clave });
     } catch (err) { mostrarError(err); }
     finally { setOcupado(null); }
   };

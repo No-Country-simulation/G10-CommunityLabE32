@@ -738,5 +738,22 @@
   "Restablecer contraseña": "Reset password",
   "Tu cuenta (cámbiala en Configuraciones)": "Your account (change it in Settings)",
   "Error al cargar las cuentas.": "Error loading accounts.",
-  "Crear cuenta y generar contraseña": "Create account and generate password"
+  "Crear cuenta y generar contraseña": "Create account and generate password",
+  "Hay": "There are",
+  "Se borrarán": "This will delete",
+  "Última actualización:": "Last updated:",
+  "aprobado(s)": "approved",
+  "banner(s).": "banner(s).",
+  "contenido(s) de Curaduría con su historial y": "Curation item(s) with their history and",
+  "contenido(s) ya aprobado(s)": "already approved item(s)",
+  "contenido(s)": "item(s)",
+  "lote(s) seleccionado(s)": "batch(es) selected",
+  "mensaje(s)": "message(s)",
+  "también en otro lote": "also in another batch",
+  "trabajo(s) en proceso: espera a que terminen.": "job(s) in progress: wait for them to finish.",
+  "Incluir": "Include",
+  "Eliminar definitivamente": "Delete permanently",
+  "Detectada": "Detected",
+  "veces": "times",
+  "Ver pendientes de Curaduría": "View pending Curation items"
 }

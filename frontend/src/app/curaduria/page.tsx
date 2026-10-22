@@ -275,7 +275,7 @@ function CuraduriaPage() {
                   </span>
                 </div>
                 <h3 className="text-sm font-medium text-foreground truncate" translate="no">{a.titulo}</h3>
-                <p className="text-xs text-muted-foreground mt-1" translate="no">{(a.fuentes?.length ?? 0) > 1 ? `${a.fuentes.length} fuentes` : a.fuentes_detalle?.[0]?.autor && !/^\d{16,22}$/.test(a.fuentes_detalle[0].autor) ? a.fuentes_detalle[0].autor : 'Autor no disponible'}</p><p className="text-xs text-muted-foreground line-clamp-2 mt-1" translate="no">{a.copy}</p>
+                <p className="text-xs text-muted-foreground mt-1" translate={(a.fuentes?.length ?? 0) > 1 ? 'yes' : 'no'}>{(a.fuentes?.length ?? 0) > 1 ? `${a.fuentes.length} fuentes` : a.fuentes_detalle?.[0]?.autor && !/^\d{16,22}$/.test(a.fuentes_detalle[0].autor) ? a.fuentes_detalle[0].autor : 'Autor no disponible'}</p><p className="text-xs text-muted-foreground line-clamp-2 mt-1" translate="no">{a.copy}</p>
                 <p className="text-xs text-muted-foreground mt-1">{new Date(a.fecha_actualizacion).toLocaleString('es')}</p>
               </button>
             ))}
