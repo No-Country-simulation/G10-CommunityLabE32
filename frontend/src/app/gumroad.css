@@ -481,15 +481,15 @@ code,pre,kbd,.font-mono { font-family: var(--font-community-sans), Arial, sans-s
 .interaction-search { max-width: 560px; min-width: 200px; }
 .interaction-search .input { padding-left: 42px; width: 100%; }
 .interaction-search > svg { pointer-events: none; }
-.interactions-page .interaction-stat.card {
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card {
   background: #f1f333;
   color: #000;
   border: 1px solid #000;
   box-shadow: 2px 2px 0 #66665f;
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
-.interactions-page .interaction-stat p { color: #000; }
-.interactions-page .interaction-stat.card:hover {
+:is(.interactions-page, .overview-sentiments) .interaction-stat p { color: #000; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card:hover {
   transform: translate(-3px, -3px);
   box-shadow: 6px 6px 0 #b5b5ab;
 }
@@ -511,25 +511,25 @@ code,pre,kbd,.font-mono { font-family: var(--font-community-sans), Arial, sans-s
   box-shadow: 1px 1px 0 #55554d;
 }
 @media (prefers-reduced-motion: reduce) {
-  .interactions-page .interaction-stat.card { transition: none; }
-  .interactions-page .interaction-stat.card:hover,
+  :is(.interactions-page, .overview-sentiments) .interaction-stat.card { transition: none; }
+  :is(.interactions-page, .overview-sentiments) .interaction-stat.card:hover,
   .interactions-page .interaction-filter.btn-secondary:hover,
   .interactions-page .interaction-filter.btn-secondary:active { transform: none; }
 }
 
 /* Un color por sentimiento, el mismo en las tarjetas, las etiquetas de la tabla y Analítica.
    Pasteles acordes a la paleta: el negativo pasa de azul a coral. */
-.interactions-page .interaction-stat.card[data-filtro="todos"] { background: #ff90e8; }
-.interactions-page .interaction-stat.card[data-filtro="positivo"] { background: #b9e9c5; }
-.interactions-page .interaction-stat.card[data-filtro="negativo"] { background: #ffa8a0; }
-.interactions-page .interaction-stat.card[data-filtro="neutral"] { background: #d9d6ce; }
-.interactions-page .interaction-stat.card[data-filtro="indeterminado"] { background: #c9b8ff; }
-.interactions-page .interaction-stat.card[data-filtro="sin_analizar"] { background: #f1f333; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="todos"] { background: #ff90e8; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="positivo"] { background: #b9e9c5; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="negativo"] { background: #ffa8a0; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="neutral"] { background: #d9d6ce; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="indeterminado"] { background: #c9b8ff; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="sin_analizar"] { background: #f1f333; }
 /* La tarjeta elegida se distingue sin depender del color. */
-.interactions-page .interaction-stat.card[aria-pressed="true"] { outline: 3px solid var(--foreground); outline-offset: 2px; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[aria-pressed="true"] { outline: 3px solid var(--foreground); outline-offset: 2px; }
 /* Seis tarjetas en una fila: la etiqueta se achica para que «Indeterminados» no se corte. */
-.interactions-page .interaction-stats .interaction-stat { padding-left: 14px; padding-right: 14px; }
-.interactions-page .interaction-stats .interaction-stat > p:first-child { font-size: 12px; letter-spacing: .02em; overflow-wrap: normal; word-break: keep-all; hyphens: none; }
+:is(.interactions-page, .overview-sentiments) .interaction-stats .interaction-stat { padding-left: 14px; padding-right: 14px; }
+:is(.interactions-page, .overview-sentiments) .interaction-stats .interaction-stat > p:first-child { font-size: 12px; letter-spacing: .02em; overflow-wrap: normal; word-break: keep-all; hyphens: none; }
 
 .gum-community-intro .gum-eyebrow {
   display: inline-block;
@@ -751,11 +751,11 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 
 .discord-connect-footer .discord-auto-connect-note { font-size: 13px; }
 
-.interactions-page .interaction-stat > p:nth-child(2) { text-align: center; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat > p:nth-child(2) { text-align: center; }
 
-.interactions-page .interaction-stat > p:first-child { font-family: var(--font-community-sans), Arial, sans-serif; font-size: 14px; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat > p:first-child { font-family: var(--font-community-sans), Arial, sans-serif; font-size: 14px; }
 
-.interactions-page button.interaction-stat { cursor: pointer; }
+:is(.interactions-page, .overview-sentiments) button.interaction-stat { cursor: pointer; }
 
 .interaction-keyword-search { display: flex; align-items: center; min-width: 0; max-width: 100%; gap: 8px; }
 .interaction-search-toggle { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; color: var(--foreground); cursor: pointer; flex-shrink: 0; }
@@ -845,7 +845,11 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 .overview-intro .gum-community-intro { margin: 0; }
 .gum-intro-copy h2 { font-size: clamp(34px, 4.4vw, 66px); line-height: .98; letter-spacing: -.055em; margin: 26px 0; }
 .ingestion-support > .discord-pending-card { grid-column: auto; height: 100%; }
-.ingestion-support > .ingestion-requirements { height: auto; align-self: start; margin: 0; }
+.ingestion-support > .ingestion-requirements { height: 100%; margin: 0; display: flex; flex-direction: column; }
+/* Si la tarjeta vecina crece (Discord importando o procesando), el contenido se reparte en el alto disponible. */
+.ingestion-requirements > ul { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-evenly; row-gap: 12px; }
+.ingestion-source > .ingestion-drop-form { flex: 1 1 auto; display: flex; flex-direction: column; }
+.ingestion-drop-form > label { flex: 1 1 auto; }
 .ingestion-support > .ingestion-tracking { grid-column: 1 / -1; }
 .ingestion-requirements li { overflow-wrap: anywhere; }
 .denied-table-card { border-top: 5px solid #90a8ed; overflow: hidden; }
@@ -894,7 +898,8 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
   .datos-lote { grid-template-columns: auto minmax(0, 2fr) 120px minmax(0, 1fr) minmax(0, 1fr) 100px; }
   .datos-lote > :not(input):not(label) { grid-column: auto; }
 }
-.datos-confirmacion { border: 1px solid #ff90e8; border-radius: 12px; background: color-mix(in srgb, #ff90e8 8%, transparent); }
+.datos-confirmacion { border: 1px solid var(--border); border-radius: 12px; background: var(--surface-muted); transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease; }
+.datos-confirmacion:hover, .datos-confirmacion:focus-within { border-color: #ff90e8; background: color-mix(in srgb, #ff90e8 8%, var(--surface-muted)); box-shadow: 0 0 0 3px color-mix(in srgb, #ff90e8 18%, transparent); }
 
 /* Botones de redes en Curaduría: LinkedIn en blanco con su logo y X en negro con su logo. */
 .btn-red { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid #000; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
@@ -905,3 +910,15 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 :root[data-theme="light"] .btn-red-x { border-color: #0b0b0b; }
 :root[data-theme="light"] .btn-red-x:hover { box-shadow: 3px 3px 0 #0b0b0b; }
 @media (prefers-reduced-motion: reduce) { .btn-red, .btn-red:hover { transition: none; transform: none; } }
+/* Descarga del banner en JPG: ícono pequeño sobre la vista previa. */
+.banner-descarga { position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 12px; font-weight: 700; color: #000; background: #fff; border: 1px solid #000; border-radius: 4px; box-shadow: 3px 3px 0 #000; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+.banner-descarga:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 #000; background: #ff90e8; }
+.banner-descarga:focus-visible { outline: 2px solid #ff90e8; outline-offset: 3px; }
+.banner-descarga:disabled { opacity: .6; cursor: progress; }
+@media (prefers-reduced-motion: reduce) { .banner-descarga:hover:not(:disabled) { transform: none; } }
+/* Resumen: línea discreta con lo operativo (borradores, aprobados y alertas internas) bajo las tarjetas. */
+.overview-operativo { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; font-size: 13px; color: var(--muted-foreground); }
+.overview-operativo button { display: inline-flex; align-items: baseline; gap: 5px; padding: 2px 0; background: none; border: 0; border-bottom: 1px dashed transparent; color: inherit; cursor: pointer; }
+.overview-operativo button:hover, .overview-operativo button[aria-pressed="true"] { color: var(--foreground); border-bottom-color: #ff90e8; }
+.overview-operativo button:focus-visible { outline: 2px solid #ff90e8; outline-offset: 3px; }
+.overview-operativo strong { color: var(--foreground); }

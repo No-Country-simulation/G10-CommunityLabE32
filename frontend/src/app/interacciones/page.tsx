@@ -10,6 +10,7 @@ import { Search, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import RutaProtegida from '@/components/RutaProtegida';
+import { iniciales, temaLegible } from '@/services/formato';
 
 type FiltroSentimiento = 'todos' | FiltroApi;
 
@@ -191,7 +192,7 @@ export default function InteraccionesPage() {
                         <td data-label="Autor" className="table-td whitespace-nowrap">
                           <div className="flex items-center gap-3">
                             <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-white text-[11px] font-bold shrink-0" translate="no">
-                              {/^\d{16,22}$/.test(msg.autor) ? 'CL' : msg.autor.substring(0, 2).toUpperCase()}
+                              {/^\d{16,22}$/.test(msg.autor) ? 'CL' : iniciales(msg.autor)}
                             </div>
                             <span className="font-medium text-foreground" translate="no">{/^\d{16,22}$/.test(msg.autor) ? 'Integrante de Discord' : msg.autor}</span>
                           </div>
@@ -203,7 +204,7 @@ export default function InteraccionesPage() {
                         </td>
                         <td data-label="Tipo" className="table-td whitespace-nowrap">
                           <span className="badge-neutral" title={msg.tipo || 'Sin clasificación disponible'}>{etiquetaTipo(msg.tipo)}</span>
-                          {msg.tema_ref && <div className="mt-1 text-xs text-muted-foreground max-w-[12rem] truncate" title={msg.tema_ref} translate="no">{msg.tema_ref}</div>}
+                          {msg.tema_ref && <div className="mt-1 text-xs text-muted-foreground max-w-[12rem] truncate" title={msg.tema_ref} translate="no">{temaLegible(msg.tema_ref)}</div>}
                         </td>
                         <td data-label="Sentimiento detectado" className="table-td whitespace-nowrap">
                           <span
@@ -222,12 +223,12 @@ export default function InteraccionesPage() {
 
             <div className="px-4 py-3.5 border-t border-border flex flex-wrap gap-3 items-center justify-between shrink-0 bg-surface">
               <div className="text-sm text-subtle-foreground">
+                {totalRegistros === 0 ? 'Sin resultados' : <>
                 Mostrando{' '}
-                <span className="text-foreground font-medium">
-                  {totalRegistros > 0 ? indicePrimerItem + 1 : 0}
-                </span>{' '}
+                <span className="text-foreground font-medium">{indicePrimerItem + 1}</span>{' '}
                 a <span className="text-foreground font-medium">{indiceUltimoItem}</span> de{' '}
-                <span className="text-foreground font-medium">{totalRegistros}</span> resultados
+                <span className="text-foreground font-medium">{totalRegistros}</span> {totalRegistros === 1 ? 'resultado' : 'resultados'}
+                </>}
               </div>
               <div className="flex items-center gap-2">
                 <button

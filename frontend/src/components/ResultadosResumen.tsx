@@ -2,22 +2,32 @@
 
 import UiTree from '@/components/UiTree';
 import VerMensaje from '@/components/VerMensaje';
+import { canalLegible } from '@/services/formato';
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { obtenerMensajes, listarActivos, listarAlertasInternas, type Mensaje, type Activo, type AlertaInterna } from '@/services/api';
+import { obtenerMensajes, listarActivos, listarAlertasInternas, type FiltroSentimiento, type Mensaje, type Activo, type AlertaInterna } from '@/services/api';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-export type FiltroResumen = 'mensajes' | 'pendientes' | 'aprobados' | 'alertas';
+export type FiltroResumen = 'mensajes' | FiltroSentimiento | 'pendientes' | 'aprobados' | 'alertas';
+const SENTIMIENTOS: FiltroResumen[] = ['positivo', 'negativo', 'neutral', 'indeterminado', 'sin_analizar'];
 const POR_PAGINA = 9;
-const titulos: Record<FiltroResumen, string> = { mensajes: 'Total de mensajes', pendientes: 'Borradores pendientes', aprobados: 'Aprobados', alertas: 'Alertas internas' };
-const colores = { mensajes: '#ff90e8', pendientes: '#f1f333', aprobados: '#b9e9c5', alertas: '#90a8ed' };
+const titulos: Record<FiltroResumen, string> = {
+  mensajes: 'Total de mensajes', positivo: 'Positivos', negativo: 'Negativos', neutral: 'Neutrales', indeterminado: 'Indeterminados',
+  sin_analizar: 'Sin analizar', pendientes: 'Borradores pendientes', aprobados: 'Aprobados', alertas: 'Alertas internas',
+};
+// Colores de sentimiento iguales a Interacciones; lo operativo conserva los suyos.
+const colores: Record<FiltroResumen, string> = {
+  mensajes: '#ff90e8', positivo: '#b9e9c5', negativo: '#ffa8a0', neutral: '#d9d6ce', indeterminado: '#c9b8ff', sin_analizar: '#f1f333',
+  pendientes: '#f1f333', aprobados: '#b9e9c5', alertas: '#90a8ed',
+};
+const etiquetasSentimiento: Record<string, string> = { positivo: 'Positivo', negativo: 'Negativo', neutral: 'Neutral', indeterminado: 'Indeterminado' };
 // Etiqueta de cada mensaje: su relación con borradores y alertas o, si no tiene, su tipo de participación.
-const relacionMensaje: Record<Exclude<FiltroResumen, 'mensajes'>, string> = { pendientes: 'Con borrador pendiente', aprobados: 'Con borrador aprobado', alertas: 'Con alerta interna' };
+const relacionMensaje: Record<'pendientes' | 'aprobados' | 'alertas', string> = { pendientes: 'Con borrador pendiente', aprobados: 'Con borrador aprobado', alertas: 'Con alerta interna' };
 const tiposMensaje: Record<string, string> = { logro: 'Logro', duda: 'Duda', bloqueo: 'Bloqueo', comentario: 'Comentario', testimonio: 'Testimonio', pregunta_tecnica: 'Duda', consulta_negocio: 'Consulta' };
 function etiquetaMensaje(mensaje: Mensaje): string {
   const categoria = categoriaMensaje(mensaje);
   return categoria === 'mensajes' ? tiposMensaje[mensaje.tipo ?? ''] ?? 'Sin clasificar' : relacionMensaje[categoria];
 }
-function categoriaMensaje(mensaje: Mensaje): FiltroResumen {
+function categoriaMensaje(mensaje: Mensaje): 'mensajes' | 'pendientes' | 'aprobados' | 'alertas' {
   if (mensaje.alerta_interna === true) return 'alertas';
   if (mensaje.estado_borrador === 'aprobado') return 'aprobados';
   if (mensaje.estado_borrador === 'pendiente') return 'pendientes';
@@ -50,8 +60,9 @@ export default function ResultadosResumen({ filtro, onTotal }: { filtro: FiltroR
       setCargando(true); setError('');
       try {
         let cantidad: number;
-        if (filtro === 'mensajes') {
-          const datos = await obtenerMensajes((pagina - 1) * POR_PAGINA, POR_PAGINA);
+        if (filtro === 'mensajes' || SENTIMIENTOS.includes(filtro)) {
+          const sentimiento = filtro === 'mensajes' ? undefined : filtro as FiltroSentimiento;
+          const datos = await obtenerMensajes((pagina - 1) * POR_PAGINA, POR_PAGINA, undefined, undefined, sentimiento);
           if (!vigente) return;
           setMensajes(datos.items); setActivos([]); setAlertas([]); cantidad = datos.total;
         } else if (filtro === 'alertas') {
@@ -84,7 +95,7 @@ export default function ResultadosResumen({ filtro, onTotal }: { filtro: FiltroR
     {cargando && !hayContenido ? <div className="card p-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin" aria-label="Cargando contenido" /></div> : error ? <div role="alert" className="card p-6 text-sm"><p>{error}</p><button type="button" className="btn-secondary mt-3" onClick={() => setIntento(i => i + 1)}>Reintentar</button></div> : <>
       {total === 0 && !cargando && <p className="card p-6 text-sm text-muted-foreground">No hay contenido disponible en esta categoría.</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 transition-opacity duration-200" style={{ opacity: cargando ? 0.45 : 1 }}>
-        {mensajes.map(msg => <article key={msg.id_mensaje} className={claseTarjeta} style={{ borderTopColor: colores[categoriaMensaje(msg)], overflowWrap: 'anywhere' }}><div><div className="flex flex-wrap gap-2"><span className="badge-neutral" translate="no">{msg.canal}</span><span className="badge-neutral">{etiquetaMensaje(msg)}</span></div><p className="text-sm text-muted-foreground mt-4 mb-5 whitespace-pre-wrap" translate="no">{msg.texto}</p></div><div className="pt-4 border-t border-border text-xs"><strong translate="no">{msg.autor}</strong><p className="text-muted-foreground mt-1">{fechaLegible(msg.fecha)}</p></div></article>)}
+        {mensajes.map(msg => <article key={msg.id_mensaje} className={claseTarjeta} style={{ borderTopColor: colores[(msg.sentimiento_ref ?? 'sin_analizar') as FiltroResumen] ?? colores.mensajes, overflowWrap: 'anywhere' }}><div><div className="flex flex-wrap gap-2"><span className="badge-neutral" translate="no">{canalLegible(msg.canal)}</span><span className="badge-neutral">{etiquetaMensaje(msg)}</span><span className="badge-neutral">{etiquetasSentimiento[msg.sentimiento_ref ?? ''] ?? 'Sin analizar'}</span></div><p className="text-sm text-muted-foreground mt-4 mb-5 whitespace-pre-wrap" translate="no">{msg.texto}</p></div><div className="pt-4 border-t border-border text-xs"><strong translate="no">{msg.autor}</strong><p className="text-muted-foreground mt-1">{fechaLegible(msg.fecha)}</p></div></article>)}
         {activos.map(item => <article key={item.id_activo} className={claseTarjeta} style={{ borderTopColor: colores[filtro], overflowWrap: 'anywhere' }}><div><div className="flex flex-wrap justify-between gap-2 mb-4"><span className="badge-neutral">{item.formato}</span><span className="badge-neutral">{filtro === 'pendientes' ? 'Pendiente' : 'Aprobado'}</span></div><h3 className="font-bold mb-3" translate="no">{item.titulo}</h3><p className="text-sm text-muted-foreground whitespace-pre-wrap" translate="no">{item.copy}</p></div></article>)}
         {alertas.map(alerta => <article key={alerta.id_alerta} className={claseTarjeta} style={{ borderTopColor: colores.alertas, overflowWrap: 'anywhere' }}><div><span className="badge-neutral">Alerta interna</span><p className="text-sm text-muted-foreground mt-4 whitespace-pre-wrap" translate="no">{alerta.texto}</p><p className="text-sm mt-3"><strong>Motivo:</strong> <span translate="no">{alerta.motivo}</span></p>{alerta.veces > 1 && <p className="text-xs mt-2">Detectada {alerta.veces} veces</p>}</div><div className="pt-4 mt-5 border-t border-border text-xs"><strong translate="no">{/^\d{16,22}$/.test(alerta.autor) ? 'Integrante de Discord' : alerta.autor}</strong><p className="text-muted-foreground mt-1">{fechaLegible(alerta.fecha)}</p><p className="text-muted-foreground mt-2"><strong>Lote:</strong> <span translate="no">{[alerta.origen, alerta.periodo].filter(Boolean).join(' · ') || alerta.trabajo || 'Sin lote identificado'}</span></p><VerMensaje texto={alerta.texto} autor={alerta.autor} canal={alerta.canal} idMensaje={alerta.id_mensaje} /></div></article>)}
       </div>

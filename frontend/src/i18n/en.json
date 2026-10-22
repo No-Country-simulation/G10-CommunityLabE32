@@ -1,5 +1,12 @@
 {
   "Error cargando analítica:": "Error loading analytics:",
+  "Denegar": "Reject",
+  "Denegar banner": "Reject banner",
+  "Sin resultados": "No results",
+  "resultado": "result",
+  "mensaje": "message",
+  "alerta interna": "internal alert",
+  "Discord": "Discord",
   "No se pudieron actualizar los lotes seleccionados. Se mantienen los últimos resultados cargados.": "The selected batches could not be updated. The last loaded results are still displayed.",
   "Positivos": "Positive",
   "Negativos": "Negative",
@@ -755,5 +762,16 @@
   "Eliminar definitivamente": "Delete permanently",
   "Detectada": "Detected",
   "veces": "times",
-  "Ver pendientes de Curaduría": "View pending Curation items"
+  "Ver pendientes de Curaduría": "View pending Curation items",
+  "Analizados:": "Analyzed:",
+  "Mensajes": "Messages",
+  "Descargar banner en JPG": "Download banner as JPG",
+  "Descargar en JPG": "Download as JPG",
+  "No se pudo descargar": "Couldn't download",
+  "No se pudo descargar.": "Couldn't download.",
+  "No se pudo leer el banner.": "Couldn't read the banner.",
+  "El navegador no permite dibujar el banner.": "Your browser can't draw the banner.",
+  "No se pudo convertir el banner a JPG.": "Couldn't convert the banner to JPG.",
+  "Inténtalo de nuevo.": "Try again.",
+  "Sentimiento de la comunidad": "Community sentiment"
 }

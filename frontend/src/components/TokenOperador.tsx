@@ -18,7 +18,8 @@ export default function TokenOperador({ className = '' }: TokenOperadorProps) {
     return () => window.removeEventListener(EVENTO_SESION, actualizar);
   }, []);
   const operador = esOperador(usuario);
-  return (
+  // UiTree traduce los textos (p. ej. «Sesión de administrador activa») al idioma elegido.
+  return <UiTree>{(
     <div className={`text-xs text-muted-foreground flex items-center gap-2 ${className}`}>
       <span className={`w-2 h-2 rounded-full inline-block ${operador
         ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-amber-500'}`} />
@@ -26,5 +27,5 @@ export default function TokenOperador({ className = '' }: TokenOperadorProps) {
         ? `Sesión de ${usuario?.rol} activa`
         : 'Tu cuenta no tiene rol de operador: las acciones quedarán deshabilitadas en el servidor'}</span>
     </div>
-  );
+  )}</UiTree>;
 }

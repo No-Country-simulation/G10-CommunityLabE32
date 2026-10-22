@@ -26,6 +26,7 @@ import { motion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import SelectorLotes from '@/components/SelectorLotes';
 import RutaProtegida from '@/components/RutaProtegida';
+import { temaLegible } from '@/services/formato';
 
 export default function AnaliticaPage() {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
@@ -88,34 +89,18 @@ export default function AnaliticaPage() {
   const neg = resumen?.por_valor.negativo ?? 0;
   const neu = resumen?.por_valor.neutral ?? 0;
   const ind = resumen?.por_valor.indeterminado ?? 0;
+  const sinAnalizar = resumen?.sin_analizar ?? 0;
+  // La dona muestra los mismos cinco estados que Interacciones, así que el porcentaje es sobre todos los mensajes.
+  const totalDona = analizados + sinAnalizar;
+  const pct = (n: number) => (totalDona > 0 ? Math.round((n / totalDona) * 100) : 0);
 
-  const pctPos = analizados > 0 ? Math.round((pos / analizados) * 100) : 0;
-  const pctNeu = analizados > 0 ? Math.round((neu / analizados) * 100) : 0;
-  const pctNeg = analizados > 0 ? Math.round((neg / analizados) * 100) : 0;
-  const pctInd = analizados > 0 ? Math.round((ind / analizados) * 100) : 0;
-
-  // Embudo de Curaduría
+  // Embudo de Curaduría: las mismas etapas que las pestañas de Curaduría. «Pendientes» suma los
+  // borradores generados y revisados (el backend los cuenta juntos en borradores_pendientes).
   const estadosActivos = [
-    {
-      etiqueta: 'Generados',
-      cantidad: kpis?.activos_por_estado?.generado ?? 0,
-      color: '#f1f333',
-    },
-    {
-      etiqueta: 'Revisados',
-      cantidad: kpis?.activos_por_estado?.revisado ?? 0,
-      color: '#f1f333',
-    },
-    {
-      etiqueta: 'Aprobados',
-      cantidad: kpis?.activos_por_estado?.aprobado ?? 0,
-      color: '#b9e9c5',
-    },
-    {
-      etiqueta: 'Denegados',
-      cantidad: kpis?.activos_por_estado?.rechazado ?? 0,
-      color: '#ff90e8',
-    },
+    { etiqueta: 'Generados', cantidad: kpis?.activos_generados ?? 0, color: '#ff90e8' },
+    { etiqueta: 'Pendientes', cantidad: kpis?.borradores_pendientes ?? 0, color: '#90a8ed' },
+    { etiqueta: 'Aprobados', cantidad: kpis?.activos_aprobados ?? 0, color: '#b9e9c5' },
+    { etiqueta: 'Denegados', cantidad: kpis?.activos_por_estado?.rechazado ?? 0, color: '#ffa8a0' },
   ];
   const totalActivos = Math.max(1, kpis?.activos_generados ?? 1);
 
@@ -129,14 +114,15 @@ export default function AnaliticaPage() {
     COMENTARIO: 'Comentarios',
     SIN_CLASIFICAR: 'Sin clasificar',
   };
-  const coloresTema = ['#ff90e8', '#f1f333', '#90a8ed', '#b9e9c5'];
+  // Paleta completa de la app (la de Interacciones más el azul), en un orden que no repite tonos vecinos.
+  const coloresTema = ['#ff90e8', '#b9e9c5', '#ffa8a0', '#f1f333', '#c9b8ff', '#90a8ed', '#d9d6ce'];
   const temas = Object.entries(kpis?.mensajes_por_tipo ?? {})
     .filter(([tipo]) => tipo.toUpperCase() !== 'SIN_CLASIFICAR')
     .sort((a, b) => b[1] - a[1])
     .map(([tipo, cantidad], indice) => ({ id: tipo, nombre: nombresTipo[tipo.toUpperCase()] ?? tipo.replaceAll('_', ' ').toLowerCase(), cantidad, color: coloresTema[indice % coloresTema.length] }));
   const maxTema = Math.max(1, ...temas.map((item) => item.cantidad));
   const temasIA = (kpis?.temas_principales ?? [])
-    .map(({ tema, cantidad }, indice) => ({ id: tema, nombre: tema.charAt(0).toLocaleUpperCase('es') + tema.slice(1), cantidad, color: coloresTema[indice % coloresTema.length] }));
+    .map(({ tema, cantidad }, indice) => ({ id: tema, nombre: temaLegible(tema), cantidad, color: coloresTema[indice % coloresTema.length] }));
   const maxTemaIA = Math.max(1, ...temasIA.map((item) => item.cantidad));
 
   // Tasas operativas
@@ -149,14 +135,18 @@ export default function AnaliticaPage() {
 
   // Segmentos de la Dona con colores y metadatos
   const segmentos = [
-    { id: 'positivo', nombre: 'Positivos', valor: pctPos, cantidad: pos, stroke: '#b9e9c5', bgHex: '#b9e9c5' },
-    { id: 'neutral', nombre: 'Neutrales', valor: pctNeu, cantidad: neu, stroke: '#d9d6ce', bgHex: '#d9d6ce' },
-    { id: 'negativo', nombre: 'Negativos', valor: pctNeg, cantidad: neg, stroke: '#ffa8a0', bgHex: '#ffa8a0' },
-    { id: 'indeterminado', nombre: 'Indeterminados', valor: pctInd, cantidad: ind, stroke: '#c9b8ff', bgHex: '#c9b8ff' },
+    { id: 'positivo', nombre: 'Positivos', valor: pct(pos), cantidad: pos, stroke: '#b9e9c5', bgHex: '#b9e9c5' },
+    { id: 'negativo', nombre: 'Negativos', valor: pct(neg), cantidad: neg, stroke: '#ffa8a0', bgHex: '#ffa8a0' },
+    { id: 'neutral', nombre: 'Neutrales', valor: pct(neu), cantidad: neu, stroke: '#d9d6ce', bgHex: '#d9d6ce' },
+    { id: 'indeterminado', nombre: 'Indeterminados', valor: pct(ind), cantidad: ind, stroke: '#c9b8ff', bgHex: '#c9b8ff' },
+    { id: 'sin_analizar', nombre: 'Sin analizar', valor: pct(sinAnalizar), cantidad: sinAnalizar, stroke: '#f1f333', bgHex: '#f1f333' },
   ];
 
   const radio = 62;
   const circunferencia = 2 * Math.PI * radio;
+  // Geometría con fracciones exactas (no con el porcentaje redondeado) y extremos rectos con una
+  // pequeña separación: así cada color ocupa su tramo sin montarse sobre el vecino.
+  const separacion = segmentos.filter((s) => s.cantidad > 0).length > 1 ? 3 : 0;
   let acumulado = 0;
 
   // Segmento actualmente seleccionado en el hover
@@ -261,7 +251,7 @@ export default function AnaliticaPage() {
                     <span className="text-3xl font-extrabold text-foreground tabular-nums">
                       {kpis?.mensajes_por_tipo?.bloqueo ?? 0}
                     </span>
-                    <span className="text-xs text-muted-foreground">mensajes · {kpis?.alertas_internas ?? 0} alertas internas</span>
+                    <span className="text-xs text-muted-foreground">{(kpis?.mensajes_por_tipo?.bloqueo ?? 0) === 1 ? 'mensaje' : 'mensajes'} · {kpis?.alertas_internas ?? 0} {(kpis?.alertas_internas ?? 0) === 1 ? 'alerta interna' : 'alertas internas'}</span>
 
                   </div>
                   {(kpis?.alertas_internas ?? 0) > 0 && <p className="text-xs text-muted-foreground mt-3 flex items-start gap-2">
@@ -288,7 +278,7 @@ export default function AnaliticaPage() {
                     </p>
                   </div>
 
-                  {analizados === 0 ? (
+                  {totalDona === 0 ? (
                     <div className="py-16 text-center text-sm text-subtle-foreground">
                       Aún no hay mensajes analizados en este ámbito para graficar el sentimiento.
                     </div>
@@ -307,10 +297,11 @@ export default function AnaliticaPage() {
                             className="text-surface-muted"
                           />
                           {segmentos.map((seg) => {
-                            const longitud = (seg.valor / 100) * circunferencia;
-                            const dashArray = `${longitud} ${circunferencia}`;
-                            const dashOffset = -((acumulado / 100) * circunferencia);
-                            acumulado += seg.valor;
+                            if (seg.cantidad === 0) return null;
+                            const tramo = (seg.cantidad / totalDona) * circunferencia;
+                            const dashArray = `${Math.max(0, tramo - separacion)} ${circunferencia}`;
+                            const dashOffset = -(acumulado + separacion / 2);
+                            acumulado += tramo;
                             const isHovered = segmentoActivo === seg.id;
 
                             return <UiTree key={seg.id}>{(
@@ -324,7 +315,7 @@ export default function AnaliticaPage() {
                                 strokeWidth={isHovered ? '22' : '16'}
                                 strokeDasharray={dashArray}
                                 strokeDashoffset={dashOffset}
-                                strokeLinecap="round"
+                                strokeLinecap="butt"
                                 className="transition-all duration-300 cursor-pointer"
                                 onMouseEnter={() => setSegmentoActivo(seg.id)}
                                 onMouseLeave={() => setSegmentoActivo(null)}
@@ -346,17 +337,17 @@ export default function AnaliticaPage() {
                               >
                                 {infoSeleccionada.cantidad}
                               </span>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-foreground">
-                                {infoSeleccionada.nombre} ({infoSeleccionada.valor}%)
+                              <span className="text-xs font-bold tabular-nums" style={{ color: infoSeleccionada.stroke }}>
+                                {infoSeleccionada.valor}%
                               </span>
                             </>
                           ) : (
                             <>
                               <span className="text-2xl font-extrabold text-foreground tabular-nums">
-                                {analizados}
+                                {totalDona}
                               </span>
                               <span className="text-[10px] text-subtle-foreground uppercase tracking-wider font-semibold">
-                                Analizados
+                                Mensajes
                               </span>
                             </>
                           )}
@@ -402,7 +393,7 @@ export default function AnaliticaPage() {
                     <span className="flex items-center gap-1.5">
                       <Info className="w-3.5 h-3.5 text-primary" /> Gráfica interactiva
                     </span>
-                    <span>Sin analizar: {resumen?.sin_analizar ?? 0}</span>
+                    <span>Analizados: {analizados}</span>
                   </div>
                 </motion.div>
 
@@ -449,8 +440,7 @@ export default function AnaliticaPage() {
                     })}
                   </div>
 
-                  <div className="pt-3 border-t border-border flex justify-between text-xs text-subtle-foreground">
-                    <span>Pendientes de revisión: {kpis?.borradores_pendientes ?? 0}</span>
+                  <div className="pt-3 border-t border-border flex justify-end text-xs text-subtle-foreground">
                     <span>Publicación externa: manual</span>
                   </div>
                 </motion.div>
