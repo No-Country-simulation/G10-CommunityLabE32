@@ -54,8 +54,8 @@ abre `/curaduria?trabajo=<id>` (`GET /api/curaduria/activos?trabajo=<id>`).
 ## Resultado
 
 - `persistencia: {postgres: "guardado", activos: N}`: los activos se guardaron en PostgreSQL.
-- `almacenamiento: {capa: "objetos_externos_oci", estado: "no_persistido"}`: describe solo la copia
-  externa en OCI Object Storage, aún no implementada; no indica pérdida de datos.
+- `almacenamiento: {capa: "objetos_externos_oci", estado: "no_persistido"}`: el lote en sí no se copia a
+  OCI; lo que se copia en Object Storage es cada activo aprobado (ver `docs/oci-object-storage.md`).
 - Trabajos con error de IA: `error_codigo` y, si el proveedor rechazó la petición,
   `resultado.diagnostico`: estado HTTP, categoría y valores de catálogo; nunca texto del proveedor
   ni del lote (ver `docs/gemini-grafo-worker.md`).

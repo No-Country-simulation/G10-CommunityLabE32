@@ -8,6 +8,8 @@ python-multipart>=0.0.9
 requests>=2.31.0
 python-jose[cryptography]>=3.3.0
 bcrypt>=4.1.2
+# SDK de OCI (Object Storage con identidad de la instancia). 2.175.0: sin aiohttp ni pkcs11.
+oci==2.175.0
 
 -r ../worker/requirements.txt
 -r ../pipelines/communitylab/requirements-lock.txt

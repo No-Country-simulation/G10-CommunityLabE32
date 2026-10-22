@@ -31,6 +31,8 @@ ALTER TABLE IF EXISTS discord_mensajes_historicos ADD COLUMN IF NOT EXISTS autor
 -- Curaduría (aditiva): versiones LinkedIn/X, contador de «Generar post» e historial de eventos.
 ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS posts_redes jsonb;
 ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS generaciones_ia integer NOT NULL DEFAULT 0;
+-- Copia de la versión aprobada en OCI Object Storage (aditiva; ver backend/app/services/oci.py).
+ALTER TABLE IF EXISTS activos ADD COLUMN IF NOT EXISTS almacenamiento_oci jsonb;
 CREATE TABLE IF NOT EXISTS activos_historial (
     id bigserial PRIMARY KEY,
     id_activo text NOT NULL,

@@ -23,6 +23,8 @@ class Activo(Base):
     # Versiones por red ({"linkedin", "x"}); `copy` se mantiene igual a la de LinkedIn. NULL = solo copy.
     posts_redes: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     # Veces que se pidió «Generar post» con IA (tope CURADURIA_MAX_GENERACIONES).
+    # Copia en OCI Object Storage de la última versión aprobada ({"estado", "fecha", "objetos"|"error"}).
+    almacenamiento_oci: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     generaciones_ia: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     fecha_creacion: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     fecha_actualizacion: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

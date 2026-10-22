@@ -62,6 +62,8 @@ class ActivoResponse(BaseModel):
     # Controles automáticos de fidelidad; None en activos anteriores al control.
     advertencias_fidelidad: Optional[List[dict]] = None
     posts_redes: Optional[PostsRedes] = None
+    # Copia de la versión aprobada en OCI Object Storage; None si nunca se aprobó.
+    almacenamiento_oci: Optional[dict] = None
     fecha_creacion: FechaUTC
     fecha_actualizacion: FechaUTC
 
