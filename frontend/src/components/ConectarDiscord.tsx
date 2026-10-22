@@ -26,6 +26,17 @@ function rangoFechas(unidad: Unidad, desde: string, hasta: string) {
   return { desde: inicio, hasta: fin };
 }
 
+// El backend informa el rango en días con decimales (hoy hasta ahora = 0.067). Se muestra en horas si
+// dura menos de un día y en días enteros si no.
+function duracionRango(dias: number): { cantidad: number; unidad: string } {
+  if (dias < 1) {
+    const horas = Math.max(1, Math.round(dias * 24));
+    return { cantidad: horas, unidad: horas === 1 ? 'hora' : 'horas' };
+  }
+  const enteros = Math.round(dias);
+  return { cantidad: enteros, unidad: enteros === 1 ? 'día' : 'días' };
+}
+
 function DiscordIcon({ className = '' }: { className?: string }) {
   return <UiTree>{<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}><path d="M19.7 5.1a18 18 0 0 0-4.3-1.3l-.5 1a16 16 0 0 0-5.8 0l-.5-1a18 18 0 0 0-4.3 1.3C1.6 9.2.9 13.2 1.3 17.2a17 17 0 0 0 5.3 2.7l1.1-1.8-1.7-.8.4-.3a13 13 0 0 0 11.2 0l.4.3-1.7.8 1.1 1.8a17 17 0 0 0 5.3-2.7c.5-4.6-.8-8.5-3-12.1ZM8.5 14.9c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm7 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg>}</UiTree>;
 }
@@ -158,7 +169,7 @@ function CanalDiscord({ indice, alConectar, duplicado, alEstado }: { indice: num
         <div className="discord-date-grid"><label className="discord-field"><span>Desde</span><input aria-label="Inicio del período" className="input" type={unidad==='dias'?'date':unidad==='meses'?'month':'number'} min={unidad==='anos'?'2015':unidad==='meses'?'2015-01':'2015-01-01'} max={unidad==='anos'?'9999':undefined} placeholder={unidad==='anos'?'2025':undefined} required value={desde} onChange={e=>{invalidar();setDesde(e.target.value);}}/></label><span className="discord-range-arrow"><ArrowRight size={15}/></span><label className="discord-field"><span>Hasta</span><input aria-label="Final del período" className="input" type={unidad==='dias'?'date':unidad==='meses'?'month':'number'} min={desde || (unidad==='anos'?'2015':undefined)} max={unidad==='anos'?'9999':undefined} placeholder={unidad==='anos'?'2026':undefined} required value={hasta} onChange={e=>{invalidar();setHasta(e.target.value);}}/></label></div>
         <label className="discord-field"><span>Zona horaria</span><span className="discord-timezone-control"><select className="input" value={zona} onChange={e=>{invalidar();setZona(e.target.value);}}>{!['America/Guatemala','America/Mexico_City','America/Bogota','America/Argentina/Buenos_Aires','Europe/Madrid','UTC'].includes(zona) && <option value={zona}>{zona} (detectada)</option>}<option value="America/Guatemala">Guatemala · UTC−06:00</option><option value="America/Mexico_City">Ciudad de México · UTC−06:00</option><option value="America/Bogota">Bogotá / Lima · UTC−05:00</option><option value="America/Argentina/Buenos_Aires">Buenos Aires · UTC−03:00</option><option value="Europe/Madrid">Madrid · UTC+01:00 / UTC+02:00 (horario de verano)</option><option value="UTC">UTC · UTC+00:00</option></select><ChevronDown size={16} aria-hidden="true" /></span></label>
       </fieldset>
-      {preview?.limites.requiere_confirmacion && !importacion && <label className="discord-confirm"><input type="checkbox" checked={confirmado} onChange={e=>setConfirmado(e.target.checked)} disabled={ocupado}/>Confirmo la importación de este rango de {preview.rango.dias} días, con un máximo de {preview.limites.max_mensajes} mensajes.</label>}
+      {preview?.limites.requiere_confirmacion && !importacion && <label className="discord-confirm"><input type="checkbox" checked={confirmado} onChange={e=>setConfirmado(e.target.checked)} disabled={ocupado}/>Confirmo la importación de este rango de {duracionRango(preview.rango.dias).cantidad} {duracionRango(preview.rango.dias).unidad}, con un máximo de {preview.limites.max_mensajes} mensajes.</label>}
       {error && <p className="discord-message text-danger" role="alert"><AlertCircle size={16}/>{error}</p>}
       {importacion && <div className="discord-message text-success" role="status"><CheckCircle2 size={16}/><div>Solicitud recibida: {importacion.estado}.<p className="text-xs text-muted-foreground mt-1 break-all">Importación {importacion.id}</p></div></div>}
       {importacion && ['completada', 'completada_con_limite', 'cancelada'].includes(importacion.estado) && <EnviarAnalisisDiscord importacionId={importacion.id}/>}

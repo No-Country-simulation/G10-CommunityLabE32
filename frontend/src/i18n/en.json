@@ -755,5 +755,10 @@
   "Eliminar definitivamente": "Delete permanently",
   "Detectada": "Detected",
   "veces": "times",
-  "Ver pendientes de Curaduría": "View pending Curation items"
+  "Ver pendientes de Curaduría": "View pending Curation items",
+  "día": "day",
+  "días": "days",
+  "hora": "hour",
+  "horas": "hours",
+  ", con un máximo de": ", with a maximum of"
 }

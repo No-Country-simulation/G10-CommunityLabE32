@@ -18,7 +18,9 @@ from .gemini import RespuestaInvalidaIA, RespuestaTruncadaIA
 
 SISTEMA_ANALISIS = (
     "Eres analista de una comunidad tecnológica. Clasifica cada mensaje en español.\n"
-    "- es_logro: comparte un hito, certificación, empleo o avance concreto.\n"
+    "- es_logro: comparte un hito, certificación, empleo o avance concreto que ya ocurrió. Un "
+    "plan, intención o anuncio de algo futuro («mañana subo…», «voy a…», «la próxima semana…») "
+    "no es un logro.\n"
     "- es_duda: plantea una consulta técnica o pide ayuda para resolver algo.\n"
     "- es_bloqueo: expresa que no puede avanzar o una frustración que requiere apoyo.\n"
     "- tema: 1 a 4 palabras en minúsculas. Usa exactamente la misma cadena para mensajes "
@@ -26,7 +28,8 @@ SISTEMA_ANALISIS = (
     "- sentimiento: tono expresado en el propio mensaje: positivo, negativo, neutral o "
     "indeterminado (si el tono no se puede determinar con el texto). Es independiente de la "
     "intención: una duda o un bloqueo no son negativos por sí mismos; una pregunta neutral es "
-    "neutral. No infieras estados psicológicos ni rasgos de la persona.\n"
+    "neutral; un aviso o plan informativo sin emoción expresada es neutral. No infieras estados "
+    "psicológicos ni rasgos de la persona.\n"
     "Devuelve un resultado por cada id recibido, sin omitir ni inventar ids."
 )
 SENTIMIENTOS = ("positivo", "negativo", "neutral", "indeterminado")
