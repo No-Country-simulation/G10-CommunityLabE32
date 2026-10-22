@@ -25,6 +25,14 @@ utiliza. `WORKER_MODE=simulado` sigue disponible y marca todo como simulado.
 El worker valida la configuración al arrancar y se detiene sin mostrar valores si falta
 algo o si el presupuesto no cabe en `WORKER_TIMEOUT`.
 
+**Valores del worker en `docker-compose.yml` y en la VM** (los de la tabla son los del código):
+`WORKER_TIMEOUT=300`, `GEMINI_PRESUPUESTO_SEGUNDOS=240`, `GEMINI_MAX_LLAMADAS=24`, `GEMINI_REINTENTOS=2`
+y `GEMINI_ESPERA_MAXIMA=60`. Con la cuenta gratuita (unas 15 llamadas por minuto), una semana de la demo
+usa 16-19 llamadas en unos 30 s: con los valores del código el 429 por ritmo pedía esperar más de 10 s y el
+lote fallaba entero (`ia_cuota`), o se quedaba sin llamadas para los borradores (`ia_presupuesto`). Con estos
+valores el lote espera lo que indica Gemini y termina; tarda 1-2 minutos más. La API («Generar post») usa
+sus propios valores por defecto (una sola llamada).
+
 ## Política
 
 | Situación | Acción | Código del trabajo |
@@ -40,7 +48,7 @@ algo o si el presupuesto no cabe en `WORKER_TIMEOUT`.
 
 ### Límite de llamadas en lotes grandes (conocido, sin resolver)
 
-El presupuesto es por trabajo (`GEMINI_MAX_LLAMADAS`=16). Con la configuración de la VM, los bloques son de
+El presupuesto es por trabajo (`GEMINI_MAX_LLAMADAS`: 16 en el código, 24 en la VM). Con la configuración de la VM, los bloques son de
 22 (`analizar`) y 40 (`puntuar`). Un lote de N mensajes usa como mínimo `ceil(N/22) + ceil(N/40)` llamadas,
 más 1 por cada post de logro, 1 por cada FAQ de duda recurrente y 1 de highlights al cierre (si hay mensajes
 relevantes). Los generadores no tienen tope y el cierre vuelve a analizar los mensajes `previo`.
