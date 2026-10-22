@@ -39,7 +39,7 @@ from pipelines.communitylab.simulados import crear_componentes
 salida = ejecutar_lote(lote, crear_componentes(senales))
 ```
 
-`Componentes` permite reemplazar los cinco callbacks síncronos de prueba por las funciones de Santiago. Ver [contrato](CONTRATO_PARA_SANTIAGO.md). `ejecutar_lote` desactiva trazas remotas únicamente durante su ejecución, sin alterar variables del proceso anfitrión. Las implementaciones externas que se inyecten son responsables de sus propias llamadas y reintentos.
+`Componentes` permite reemplazar los cinco callbacks síncronos de prueba por las funciones de Santiago. Ver [contrato](../../docs/historial/contratos/CONTRATO_PARA_SANTIAGO.md). `ejecutar_lote` desactiva trazas remotas únicamente durante su ejecución, sin alterar variables del proceso anfitrión. Las implementaciones externas que se inyecten son responsables de sus propias llamadas y reintentos.
 
 ## Recorrido y errores
 

@@ -105,7 +105,6 @@ de datos enviados por el cliente.
 | `POST/GET /api/v1/trabajos…` (lotes) | ✖ | ✖ | ✔ | ✔ | ✔ | ✔ |
 | `POST /api/v1/puente/solicitudes/…` | ✖ | ✖ | ✖ | ✖ | ✔ | ✖ |
 | `/api/v1/discord/historico/*` y `/api/v1/discord/canales/{id}/escucha` | ✖ | ✖ | ✔ (solo las suyas) | ✔ (todas) | ✖ | ✔ (las del token) |
-| `POST /api/v1/procesamientos`, `/upload` (mock obsoleto) | ✖ | ✖ | ✔ | ✔ | ✖ | ✔ |
 
 **Respuestas de error.**
 - **Sin credencial:** 401.
@@ -115,9 +114,9 @@ de datos enviados por el cliente.
   - `OPERADOR_TOKEN` o `PUENTE_TOKEN`: `acceso_no_configurado`.
   - `JWT_SECRET_KEY`: `autenticacion_no_configurada`.
 
-**Rutas obsoletas.** `POST /api/v1/procesamientos` y `/upload` no encolan, no guardan y no llaman a la IA.
-No tienen consumidores en la interfaz; solo `infrastructure/docker/validacion/probar_integracion.py`.
-Siguen protegidas mientras dure la transición; retirarlas exige actualizar ese script.
+**Rutas retiradas.** `POST /api/v1/procesamientos` y `/upload` (mock de la primera fase, que no encolaba ni
+llamaba a la IA) se retiraron junto con su script de validación. La ingesta real es `POST /api/mensajes/procesamientos`
+y `POST /api/v1/trabajos`.
 
 **Importaciones históricas.** Pertenecen a quien las solicitó (`usuario:<id>` o `operador:token-compartido`).
 - Una importación ajena responde 404, igual que una inexistente.

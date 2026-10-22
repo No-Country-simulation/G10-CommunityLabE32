@@ -1,4 +1,4 @@
-"""Análisis y puntuación reales con Gemini (contrato de Santiago, ver CONTRATO_PARA_SANTIAGO.md).
+"""Análisis y puntuación reales con Gemini (contrato de Santiago, ver docs/historial/contratos/CONTRATO_PARA_SANTIAGO.md).
 
 Reemplazan a analizar_real/puntuar_real de OpenRouter. Procesan el lote por bloques
 (GEMINI_TAMANO_BLOQUE) y exigen exactamente un resultado por ID del bloque.
