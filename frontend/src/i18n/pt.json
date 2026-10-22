@@ -773,5 +773,10 @@
   "El navegador no permite dibujar el banner.": "O navegador não permite desenhar o banner.",
   "No se pudo convertir el banner a JPG.": "Não foi possível converter o banner para JPG.",
   "Inténtalo de nuevo.": "Tente novamente.",
-  "Sentimiento de la comunidad": "Sentimento da comunidade"
+  "Sentimiento de la comunidad": "Sentimento da comunidade",
+  "día": "dia",
+  "días": "dias",
+  "hora": "hora",
+  "horas": "horas",
+  ", con un máximo de": ", com um máximo de"
 }

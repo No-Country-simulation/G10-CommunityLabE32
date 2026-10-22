@@ -85,7 +85,10 @@ async def _detalle(db, fila):
             trabajos[t["id"]] = {"estado": t["estado"],
                                  "activos": len(resultado.get("activos_distribucion_generados") or []),
                                  "alertas": len(resultado.get("alertas_internas") or [])}
-    detalle = [{**l, "trabajo_estado": trabajos.get(l.get("trabajo"), {}).get("estado"),
+    # Si el trabajo ya no existe (p. ej. se eliminó su lote en Datos cargados), vale el estado final
+    # que quedó registrado en la solicitud; si no, la tarjeta mostraría «Enviando» para siempre.
+    detalle = [{**l, "trabajo_estado": trabajos.get(l.get("trabajo"), {}).get("estado")
+                or (l.get("estado") if l.get("estado") in ("terminado", "error") else None),
                 "activos": trabajos.get(l.get("trabajo"), {}).get("activos", 0),
                 "alertas": trabajos.get(l.get("trabajo"), {}).get("alertas", 0)} for l in lotes]
     return {"id": fila["id"], "origen": fila["origen"], "estado": fila["estado"],
