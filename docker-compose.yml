@@ -102,6 +102,10 @@ services:
       GEMINI_REINTENTOS: ${GEMINI_REINTENTOS:-1}
       GEMINI_ESPERA_MAXIMA: ${GEMINI_ESPERA_MAXIMA:-10}
       CURADURIA_MAX_GENERACIONES: ${CURADURIA_MAX_GENERACIONES:-3}
+      # Copia de los activos aprobados en OCI Object Storage con la identidad de la VM (sin llaves).
+      OCI_ALMACENAMIENTO: ${OCI_ALMACENAMIENTO:-desactivado}
+      OCI_BUCKET_NAME: ${OCI_BUCKET_NAME:-communitylab-activos-marketing}
+      OCI_NAMESPACE: ${OCI_NAMESPACE:-}
     networks: [frontend, database, outbound]
     depends_on:
       postgres:

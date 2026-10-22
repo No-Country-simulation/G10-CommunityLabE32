@@ -260,5 +260,5 @@ Revisar el generador y la plantilla SVG existentes, mantener el flujo SVG actual
 > Resuelto en backend (PRs #46, #47, #48, #49 y #50, desplegados el 21-10): búsqueda `q`, advertencias de
 > fidelidad recalculadas, fechas en UTC, plantilla del banner, tipo y tema por mensaje (`temas_principales`
 > en `/dashboard/kpis`, que Analítica ya muestra como «Temas detectados») y nombres visibles de Discord
-> (`autor` = nombre, `autor_id` = identidad). La ruta `/usuarios` sí existe en `main` y se conserva. Sigue
-> pendiente: persistencia en OCI Object Storage.
+> (`autor` = nombre, `autor_id` = identidad). La ruta `/usuarios` sí existe en `main` y se conserva. La copia
+> en OCI Object Storage de los activos aprobados está en `docs/oci-object-storage.md`.

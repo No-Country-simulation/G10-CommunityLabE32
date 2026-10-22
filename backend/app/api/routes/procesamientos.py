@@ -4,6 +4,7 @@ from backend.app.core.acceso import requiere_operador
 
 from backend.app.services.ingestion import procesar_lote
 from backend.app.services.relevancia import evaluar_interaccion
+from backend.app.services.oci import OCI_BUCKET_NAME
 
 from backend.app.schemas.procesamientos import (
     IngestaRequest,
@@ -78,7 +79,7 @@ def crear_procesamiento(lote: IngestaRequest):
             )
         ],
         almacenamiento_oci=AlmacenamientoOCI(
-            bucket="communitylab-alwaysfree-bucket",
+            bucket=OCI_BUCKET_NAME,
             ruta=(
                 f"demo/{lote.periodo_referencia}/lotes/"
                 "proc-mock-2026-001/paquete.json"
@@ -119,7 +120,7 @@ async def procesar_lote_archivo(
         activos_distribucion_generados=[],
         alertas_internas=[],
         almacenamiento_oci=AlmacenamientoOCI(
-            bucket="communitylab-alwaysfree-bucket",
+            bucket=OCI_BUCKET_NAME,
             ruta=f"demo/{periodo_referencia}/lotes/proc-upload-local/paquete.json",
             estado="simulado_pendiente_worker",
         ),
