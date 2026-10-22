@@ -755,5 +755,16 @@
   "Eliminar definitivamente": "Excluir definitivamente",
   "Detectada": "Detectado",
   "veces": "vezes",
-  "Ver pendientes de Curaduría": "Ver pendentes de Curadoria"
+  "Ver pendientes de Curaduría": "Ver pendentes de Curadoria",
+  "Analizados:": "Analisados:",
+  "Mensajes": "Mensagens",
+  "Descargar banner en JPG": "Baixar banner em JPG",
+  "Descargar en JPG": "Baixar em JPG",
+  "No se pudo descargar": "Não foi possível baixar",
+  "No se pudo descargar.": "Não foi possível baixar.",
+  "No se pudo leer el banner.": "Não foi possível ler o banner.",
+  "El navegador no permite dibujar el banner.": "O navegador não permite desenhar o banner.",
+  "No se pudo convertir el banner a JPG.": "Não foi possível converter o banner para JPG.",
+  "Inténtalo de nuevo.": "Tente novamente.",
+  "Sentimiento de la comunidad": "Sentimento da comunidade"
 }
