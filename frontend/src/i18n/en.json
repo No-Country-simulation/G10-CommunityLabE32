@@ -1,5 +1,12 @@
 {
   "Error cargando analítica:": "Error loading analytics:",
+  "Denegar": "Reject",
+  "Denegar banner": "Reject banner",
+  "Sin resultados": "No results",
+  "resultado": "result",
+  "mensaje": "message",
+  "alerta interna": "internal alert",
+  "Discord": "Discord",
   "No se pudieron actualizar los lotes seleccionados. Se mantienen los últimos resultados cargados.": "The selected batches could not be updated. The last loaded results are still displayed.",
   "Positivos": "Positive",
   "Negativos": "Negative",

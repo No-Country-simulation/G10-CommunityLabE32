@@ -26,6 +26,7 @@ import { motion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import SelectorLotes from '@/components/SelectorLotes';
 import RutaProtegida from '@/components/RutaProtegida';
+import { temaLegible } from '@/services/formato';
 
 export default function AnaliticaPage() {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
@@ -121,7 +122,7 @@ export default function AnaliticaPage() {
     .map(([tipo, cantidad], indice) => ({ id: tipo, nombre: nombresTipo[tipo.toUpperCase()] ?? tipo.replaceAll('_', ' ').toLowerCase(), cantidad, color: coloresTema[indice % coloresTema.length] }));
   const maxTema = Math.max(1, ...temas.map((item) => item.cantidad));
   const temasIA = (kpis?.temas_principales ?? [])
-    .map(({ tema, cantidad }, indice) => ({ id: tema, nombre: tema.charAt(0).toLocaleUpperCase('es') + tema.slice(1), cantidad, color: coloresTema[indice % coloresTema.length] }));
+    .map(({ tema, cantidad }, indice) => ({ id: tema, nombre: temaLegible(tema), cantidad, color: coloresTema[indice % coloresTema.length] }));
   const maxTemaIA = Math.max(1, ...temasIA.map((item) => item.cantidad));
 
   // Tasas operativas
@@ -250,7 +251,7 @@ export default function AnaliticaPage() {
                     <span className="text-3xl font-extrabold text-foreground tabular-nums">
                       {kpis?.mensajes_por_tipo?.bloqueo ?? 0}
                     </span>
-                    <span className="text-xs text-muted-foreground">mensajes · {kpis?.alertas_internas ?? 0} alertas internas</span>
+                    <span className="text-xs text-muted-foreground">{(kpis?.mensajes_por_tipo?.bloqueo ?? 0) === 1 ? 'mensaje' : 'mensajes'} · {kpis?.alertas_internas ?? 0} {(kpis?.alertas_internas ?? 0) === 1 ? 'alerta interna' : 'alertas internas'}</span>
 
                   </div>
                   {(kpis?.alertas_internas ?? 0) > 0 && <p className="text-xs text-muted-foreground mt-3 flex items-start gap-2">
