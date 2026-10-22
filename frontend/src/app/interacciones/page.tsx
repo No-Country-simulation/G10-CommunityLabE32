@@ -207,7 +207,7 @@ export default function InteraccionesPage() {
                         </td>
                         <td data-label="Sentimiento detectado" className="table-td whitespace-nowrap">
                           <span
-                            className={sentimentBadge[msg.sentimiento_ref ?? ''] ?? 'badge-neutral'}
+                            className={msg.sentimiento_ref ? sentimentBadge[msg.sentimiento_ref] ?? 'badge-neutral' : 'sentiment-label sentiment-pending'}
                             title={msg.sentimiento_version ? `Análisis ${msg.sentimiento_origen ?? ''} · ${msg.sentimiento_version}` : undefined}
                           >
                             {ETIQUETA_SENTIMIENTO[msg.sentimiento_ref ?? ''] ?? 'Sin analizar'}

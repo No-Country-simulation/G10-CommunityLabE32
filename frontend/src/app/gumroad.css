@@ -858,6 +858,8 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 .denied-table th:nth-child(4) { width: 16%; }
 .interactions-page .sentiment-neutral { background: #d9d6ce; color: #000; }
 .interactions-page .sentiment-unknown { background: #c9b8ff; color: #000; }
+/* Sin analizar: el mismo amarillo que su tarjeta. */
+.interactions-page .sentiment-pending { background: #f1f333; color: #000; }
 :root[data-theme="light"] svg[class*="text-[#f1f333]"], :root[data-theme="light"] .discord-auto-connect-note > svg { color: #242423 !important; stroke: #242423; filter: drop-shadow(1px 1px 0 #f1f333); }
 :root[data-theme="light"] .text-warning { color: #242423; }
 @media(max-width:1100px) {
