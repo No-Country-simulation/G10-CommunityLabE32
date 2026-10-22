@@ -916,3 +916,9 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 .banner-descarga:focus-visible { outline: 2px solid #ff90e8; outline-offset: 3px; }
 .banner-descarga:disabled { opacity: .6; cursor: progress; }
 @media (prefers-reduced-motion: reduce) { .banner-descarga:hover:not(:disabled) { transform: none; } }
+/* Resumen: línea discreta con lo operativo (borradores, aprobados y alertas internas) bajo las tarjetas. */
+.overview-operativo { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; font-size: 13px; color: var(--muted-foreground); }
+.overview-operativo button { display: inline-flex; align-items: baseline; gap: 5px; padding: 2px 0; background: none; border: 0; border-bottom: 1px dashed transparent; color: inherit; cursor: pointer; }
+.overview-operativo button:hover, .overview-operativo button[aria-pressed="true"] { color: var(--foreground); border-bottom-color: #ff90e8; }
+.overview-operativo button:focus-visible { outline: 2px solid #ff90e8; outline-offset: 3px; }
+.overview-operativo strong { color: var(--foreground); }

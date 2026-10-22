@@ -95,14 +95,6 @@ export default function InteraccionesPage() {
     return () => { vigente = false; clearInterval(timer); };
   }, []);
 
-  // El Resumen enlaza aquí con ?sentimiento=<valor> para abrir la tabla ya filtrada.
-  useEffect(() => {
-    const valor = new URLSearchParams(window.location.search).get('sentimiento');
-    if (!valor || !['positivo', 'negativo', 'neutral', 'indeterminado', 'sin_analizar'].includes(valor)) return;
-    const timer = setTimeout(() => { setFiltroSentimiento(valor as FiltroSentimiento); setPaginaActual(1); }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-
   const elegirFiltro = (valor: FiltroSentimiento) => {
     if (valor === filtroSentimiento) return;
     setFiltroSentimiento(valor);

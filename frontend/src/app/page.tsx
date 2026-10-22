@@ -7,29 +7,40 @@ import { useRouter } from 'next/navigation';
 import { esVistaLocal } from '@/services/vistaLocal';
 import {
   obtenerSesion,
-  obtenerMensajes, listarActivos, listarAlertasInternas,
+  obtenerResumenSentimiento, listarActivos, listarAlertasInternas,
 } from '@/services/api';
-import {
-  Loader2, MessageSquare, Layers, CheckCircle2, AlertTriangle,
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import CommunityIntro from '@/components/CommunityIntro';
 import ResultadosResumen, { type FiltroResumen } from '@/components/ResultadosResumen';
-import SentimientosResumen from '@/components/SentimientosResumen';
 
-const tonos = {
-  info: { fondo: 'bg-info-soft', texto: 'text-info' },
-  success: { fondo: 'bg-success-soft', texto: 'text-success' },
-  warning: { fondo: 'bg-warning-soft', texto: 'text-warning' },
-  danger: { fondo: 'bg-danger-soft', texto: 'text-danger' },
-} as const;
+const TOTALES_VACIOS: Record<FiltroResumen, number | null> = {
+  mensajes: null, positivo: null, negativo: null, neutral: null, indeterminado: null, sin_analizar: null,
+  pendientes: null, aprobados: null, alertas: null,
+};
+
+// El Resumen habla el mismo idioma que Interacciones: total y sentimientos, con sus colores.
+const TARJETAS: { titulo: string; filtro: FiltroResumen }[] = [
+  { titulo: 'Total de mensajes', filtro: 'mensajes' },
+  { titulo: 'Positivos', filtro: 'positivo' },
+  { titulo: 'Negativos', filtro: 'negativo' },
+  { titulo: 'Neutrales', filtro: 'neutral' },
+  { titulo: 'Indeterminados', filtro: 'indeterminado' },
+  { titulo: 'Sin analizar', filtro: 'sin_analizar' },
+];
+// Lo operativo queda en una línea discreta; las alertas internas solo se ven aquí.
+const OPERATIVO: { titulo: string; filtro: FiltroResumen }[] = [
+  { titulo: 'Borradores pendientes', filtro: 'pendientes' },
+  { titulo: 'Aprobados', filtro: 'aprobados' },
+  { titulo: 'Alertas internas', filtro: 'alertas' },
+];
 
 export default function CommunityDashboard() {
   const router = useRouter();
   const reducirMovimiento = useReducedMotion();
   const [autorizado, setAutorizado] = useState(false);
-  const [totales, setTotales] = useState<Record<FiltroResumen, number | null>>({ mensajes: null, pendientes: null, aprobados: null, alertas: null });
+  const [totales, setTotales] = useState<Record<FiltroResumen, number | null>>(TOTALES_VACIOS);
   const [filtro, setFiltro] = useState<FiltroResumen>('mensajes');
   const [cargando, setCargando] = useState(true);
   const [errorCarga, setErrorCarga] = useState('');
@@ -51,18 +62,23 @@ export default function CommunityDashboard() {
   useEffect(() => {
     if (!autorizado) return;
     let vigente = true;
-    const filtros: FiltroResumen[] = ['mensajes', 'pendientes', 'aprobados', 'alertas'];
     Promise.allSettled([
-      obtenerMensajes(0, 1),
+      obtenerResumenSentimiento(),
       listarActivos(1, 1, undefined, undefined, 'generado,revisado'),
       listarActivos(1, 1, 'aprobado'),
       listarAlertasInternas(0, 1),
-    ]).then(resultados => {
+    ]).then(([sentimiento, pendientes, aprobados, alertas]) => {
       if (!vigente) return;
-      const datos: Record<FiltroResumen, number | null> = { mensajes: null, pendientes: null, aprobados: null, alertas: null };
-      resultados.forEach((resultado, indice) => { if (resultado.status === 'fulfilled') datos[filtros[indice]] = resultado.value.total; });
+      const datos = { ...TOTALES_VACIOS };
+      if (sentimiento.status === 'fulfilled') {
+        const r = sentimiento.value;
+        Object.assign(datos, { mensajes: r.total, ...r.por_valor, sin_analizar: r.sin_analizar });
+      }
+      if (pendientes.status === 'fulfilled') datos.pendientes = pendientes.value.total;
+      if (aprobados.status === 'fulfilled') datos.aprobados = aprobados.value.total;
+      if (alertas.status === 'fulfilled') datos.alertas = alertas.value.total;
       setTotales(datos);
-      if (resultados.some(resultado => resultado.status === 'rejected')) setErrorCarga('No se pudieron cargar algunas métricas. Puedes seleccionar su tarjeta para reintentar.');
+      if ([sentimiento, pendientes, aprobados, alertas].some(r => r.status === 'rejected')) setErrorCarga('No se pudieron cargar algunas métricas. Puedes seleccionar su tarjeta para reintentar.');
       setCargando(false);
     });
     return () => { vigente = false; };
@@ -92,38 +108,6 @@ export default function CommunityDashboard() {
       </div>
     )}</UiTree>;
   }
-
-  const tarjetas = [
-        {
-          titulo: 'Total de mensajes',
-          filtro: 'mensajes' as FiltroResumen,
-          valor: totales.mensajes,
-          icono: MessageSquare,
-          tono: tonos.info,
-        },
-        {
-          titulo: 'Borradores pendientes',
-          filtro: 'pendientes' as FiltroResumen,
-          valor: totales.pendientes,
-          icono: Layers,
-          tono: tonos.info,
-        },
-        {
-          titulo: 'Aprobados',
-          filtro: 'aprobados' as FiltroResumen,
-          valor: totales.aprobados,
-          icono: CheckCircle2,
-          tono: tonos.success,
-        },
-        {
-          titulo: 'Alertas internas',
-          filtro: 'alertas' as FiltroResumen,
-          valor: totales.alertas,
-          icono: AlertTriangle,
-          tono: tonos.danger,
-        },
-      ]
-;
 
   return <UiTree>{(
     <div className="flex min-h-screen w-full">
@@ -158,26 +142,24 @@ export default function CommunityDashboard() {
             variants={{ hidden: {}, show: { transition: { staggerChildren: 0.08 } } }}
             className="space-y-8"
           >
-            {(
-              <div className="dashboard-metrics grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                {tarjetas.map((t) => {
-                  const Icono = t.icono;
-                  return <UiTree key={t.titulo}>{(
-                    <button type="button" key={t.titulo} className="metric-card card p-5 text-left" aria-pressed={filtro === t.filtro} onClick={() => elegirFiltro(t.filtro)}>
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${t.tono.fondo}`}>
-                          <Icono className={`w-5 h-5 ${t.tono.texto}`} />
-                        </div>
-                        <span className="text-sm font-medium text-muted-foreground">{t.titulo}</span>
-                      </div>
-                      <h3 className="text-3xl font-bold text-foreground tabular-nums">{t.valor ?? '—'}</h3>
-                    </button>
-                  )}</UiTree>;
-                })}
+            <div>
+              <div className="overview-sentiments interaction-stats grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4" role="group" aria-label="Filtrar por sentimiento">
+                {TARJETAS.map((t) => (
+                  <button type="button" key={t.filtro} data-filtro={t.filtro === 'mensajes' ? 'todos' : t.filtro} className="interaction-stat card px-5 py-4 text-left" aria-pressed={filtro === t.filtro} onClick={() => elegirFiltro(t.filtro)}>
+                    <p className="text-xs font-medium uppercase tracking-wider text-subtle-foreground">{t.titulo}</p>
+                    <p className="mt-1 text-2xl font-bold tabular-nums">{totales[t.filtro] ?? '—'}</p>
+                  </button>
+                ))}
               </div>
-            )}
+              <p className="overview-operativo">
+                {OPERATIVO.map((o) => (
+                  <button type="button" key={o.filtro} aria-pressed={filtro === o.filtro} onClick={() => elegirFiltro(o.filtro)}>
+                    <strong className="tabular-nums">{totales[o.filtro] ?? '—'}</strong> <span>{o.titulo}</span>
+                  </button>
+                ))}
+              </p>
+            </div>
 
-            <SentimientosResumen />
 
             <div ref={resultadosRef} className="scroll-mt-6">
               <ResultadosResumen filtro={filtro} onTotal={actualizarTotal} />
