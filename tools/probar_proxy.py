@@ -67,7 +67,7 @@ def main():
                 status,headers,_=request('/ruta?x=1')
                 assert status==301 and headers['Location']=='https://communitylab.alyntai.com/ruta?x=1'
                 record('HTTP de VM redirige a HTTPS conservando ruta y query')
-            for path in ('/','/api/v1/procesamientos?test=1'):
+            for path in ('/','/api/mensajes?test=1'):
                 status,headers,data=request(path,mode=='tls')
                 assert status==200 and json.loads(data)=={'uri':path,'proto':'https' if mode=='tls' else 'http'}
                 if mode=='tls':

@@ -132,9 +132,6 @@ def test_escrituras_anonimas_rechazadas_sin_efectos(entorno, c):
     assert c.post("/api/v1/trabajos", json=lote()).status_code == 401
     assert c.post("/api/mensajes/procesamientos", files={"file": ("l.json", b"[]")},
                   data={"origen_comunidad": "x", "periodo_referencia": "y"}).status_code == 401
-    assert c.post("/api/v1/procesamientos", json=lote()).status_code == 401
-    assert c.post("/api/v1/procesamientos/upload", files={"file": ("l.json", b"[]")},
-                  data={"origen_comunidad": "x", "periodo_referencia": "y"}).status_code == 401
     assert c.patch(f"/api/curaduria/activos/{a}", json={"copy": "Cambiado por anónimo"}).status_code == 401
     assert c.post("/api/v1/procesamiento-pendientes").status_code == 401
     assert c.post(f"/api/curaduria/activos/{a}/banners").status_code == 401

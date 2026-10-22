@@ -45,10 +45,6 @@ htmlcov/
 data/raw/*
 data/processed/*
 
-# Permitimos mantener las carpetas en Git
-!data/raw/.gitkeep
-!data/processed/.gitkeep
-
 # =========================
 # PostgreSQL / Docker
 # =========================
