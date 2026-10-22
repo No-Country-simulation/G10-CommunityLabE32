@@ -170,7 +170,7 @@ export default function PanelBanner({ idActivo, estadoActivo, version }: {
               <>
                 <button disabled={!!accion || vigente.revision === 'rechazado'}
                   onClick={() => ejecutar('rechazado', () => revisarBanner(vigente.id, 'rechazado'))} className="btn-danger-soft">
-                  <XCircle className="w-4 h-4" /> Rechazar banner
+                  <XCircle className="w-4 h-4" /> Denegar banner
                 </button>
                 <button disabled={!!accion || vigente.revision === 'aprobado'}
                   onClick={() => ejecutar('aprobado', () => revisarBanner(vigente.id, 'aprobado'))} className="btn-success">

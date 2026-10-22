@@ -1,5 +1,12 @@
 {
   "Error cargando analítica:": "Erro ao carregar a análise:",
+  "Denegar": "Recusar",
+  "Denegar banner": "Recusar banner",
+  "Sin resultados": "Nenhum resultado",
+  "resultado": "resultado",
+  "mensaje": "mensagem",
+  "alerta interna": "alerta interno",
+  "Discord": "Discord",
   "No se pudieron actualizar los lotes seleccionados. Se mantienen los últimos resultados cargados.": "Não foi possível atualizar os lotes selecionados. Os últimos resultados carregados continuam visíveis.",
   "Positivos": "Positivos",
   "Negativos": "Negativos",

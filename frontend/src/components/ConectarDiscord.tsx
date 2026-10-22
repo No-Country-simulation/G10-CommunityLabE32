@@ -90,6 +90,13 @@ function CanalDiscord({ indice, alConectar, duplicado, alEstado }: { indice: num
   const [importacion, setImportacion] = useState<ImportacionDiscord | null>(null);
   const clave = useRef<string | null>(null);
   const enCurso = useRef(false);
+  // Aviso inmediato: la conexión automática solo arranca con datos válidos, así que sin este aviso
+  // un ID corto o un rango invertido no mostraban nada.
+  const aviso = (() => {
+    if (canal.trim() && !/^\d{17,20}$/.test(canal.trim())) return 'El ID del canal debe contener entre 17 y 20 dígitos.';
+    if (!desde || !hasta) return '';
+    try { rangoFechas(unidad, desde, hasta); return ''; } catch (err) { return (err as Error).message; }
+  })();
   const invalidar = () => { setPreview(null); setImportacion(null); setConfirmado(false); setError(''); clave.current = null; };
   const conectar = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -160,6 +167,7 @@ function CanalDiscord({ indice, alConectar, duplicado, alEstado }: { indice: num
       </fieldset>
       {preview?.limites.requiere_confirmacion && !importacion && <label className="discord-confirm"><input type="checkbox" checked={confirmado} onChange={e=>setConfirmado(e.target.checked)} disabled={ocupado}/>Confirmo la importación de este rango de {preview.rango.dias} días, con un máximo de {preview.limites.max_mensajes} mensajes.</label>}
       {error && <p className="discord-message text-danger" role="alert"><AlertCircle size={16}/>{error}</p>}
+      {!error && aviso && <p className="discord-message text-danger" role="alert"><AlertCircle size={16}/>{aviso}</p>}
       {importacion && <div className="discord-message text-success" role="status"><CheckCircle2 size={16}/><div>Solicitud recibida: {importacion.estado}.<p className="text-xs text-muted-foreground mt-1 break-all">Importación {importacion.id}</p></div></div>}
       {importacion && ['completada', 'completada_con_limite', 'cancelada'].includes(importacion.estado) && <EnviarAnalisisDiscord importacionId={importacion.id}/>}
       <div className="discord-connect-footer"><p className="discord-auto-connect-note"><AlertCircle size={16} aria-hidden="true"/><span>{ocupado ? 'Conectando…' : importacion ? 'La escucha se apaga al finalizar la carga.' : 'La conexión comienza al completar el ID, las fechas y la zona horaria.'}</span></p>{(error || preview?.limites.requiere_confirmacion) && !importacion && <button className="btn-primary" type="submit" disabled={ocupado || !!importacion || (!!preview?.limites.requiere_confirmacion && !confirmado)}>{ocupado?<Loader2 size={14} className="animate-spin"/>:<DiscordIcon className="h-4 w-4"/>}{ocupado?'Conectando…':importacion?'Solicitud enviada':preview?.limites.requiere_confirmacion?'Confirmar y conectar':'Reintentar'}</button>}</div>
