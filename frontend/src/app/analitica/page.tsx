@@ -93,28 +93,13 @@ export default function AnaliticaPage() {
   const totalDona = analizados + sinAnalizar;
   const pct = (n: number) => (totalDona > 0 ? Math.round((n / totalDona) * 100) : 0);
 
-  // Embudo de Curaduría
+  // Embudo de Curaduría: las mismas etapas que las pestañas de Curaduría. «Pendientes» suma los
+  // borradores generados y revisados (el backend los cuenta juntos en borradores_pendientes).
   const estadosActivos = [
-    {
-      etiqueta: 'Generados',
-      cantidad: kpis?.activos_por_estado?.generado ?? 0,
-      color: '#ff90e8',
-    },
-    {
-      etiqueta: 'Revisados',
-      cantidad: kpis?.activos_por_estado?.revisado ?? 0,
-      color: '#90a8ed',
-    },
-    {
-      etiqueta: 'Aprobados',
-      cantidad: kpis?.activos_por_estado?.aprobado ?? 0,
-      color: '#b9e9c5',
-    },
-    {
-      etiqueta: 'Denegados',
-      cantidad: kpis?.activos_por_estado?.rechazado ?? 0,
-      color: '#ffa8a0',
-    },
+    { etiqueta: 'Generados', cantidad: kpis?.activos_generados ?? 0, color: '#ff90e8' },
+    { etiqueta: 'Pendientes', cantidad: kpis?.borradores_pendientes ?? 0, color: '#90a8ed' },
+    { etiqueta: 'Aprobados', cantidad: kpis?.activos_aprobados ?? 0, color: '#b9e9c5' },
+    { etiqueta: 'Denegados', cantidad: kpis?.activos_por_estado?.rechazado ?? 0, color: '#ffa8a0' },
   ];
   const totalActivos = Math.max(1, kpis?.activos_generados ?? 1);
 
@@ -454,8 +439,7 @@ export default function AnaliticaPage() {
                     })}
                   </div>
 
-                  <div className="pt-3 border-t border-border flex justify-between text-xs text-subtle-foreground">
-                    <span>Pendientes de revisión: {kpis?.borradores_pendientes ?? 0}</span>
+                  <div className="pt-3 border-t border-border flex justify-end text-xs text-subtle-foreground">
                     <span>Publicación externa: manual</span>
                   </div>
                 </motion.div>
