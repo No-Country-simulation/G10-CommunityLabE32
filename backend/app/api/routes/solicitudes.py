@@ -66,6 +66,11 @@ class Informe(BaseModel):
     pendientes: dict[str, int] = Field(default_factory=dict, max_length=200)
 
 
+class ConsultaAnalizados(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    ids: list[str] = Field(default_factory=list, max_length=1000)
+
+
 async def _registrar_puente(db, origen, pendientes):
     await db.execute(text("""INSERT INTO estado_puente (origen, pendientes, visto)
         VALUES (:o, CAST(:p AS jsonb), clock_timestamp())
@@ -161,6 +166,21 @@ async def tomar_solicitud(toma: Toma, db: AsyncSession = Depends(get_db)):
             {"id": fila[0], "s": RESERVA_SEGUNDOS, "p": json.dumps(toma.pendientes)})
     await db.commit()
     return {"id": fila[0] if fila else None}
+
+
+@router.post("/api/v1/puente/mensajes/analizados", dependencies=[Depends(requiere_puente)])
+async def mensajes_analizados(consulta: ConsultaAnalizados, db: AsyncSession = Depends(get_db)):
+    """De los IDs recibidos, los que ya entraron como mensaje nuevo (no como contexto) en un trabajo
+    que no terminó en error, por cualquier vía: importación histórica, carga manual o parciales.
+    El puente los trata como ya procesados para no analizarlos dos veces ni duplicar borradores."""
+    ids = sorted({i for i in consulta.ids if i})
+    if not ids:
+        return {"ids": []}
+    filas = await db.execute(text("""SELECT DISTINCT i->>'id' FROM trabajos_worker t
+        CROSS JOIN LATERAL jsonb_array_elements(t.entrada->'interacciones') i
+        WHERE t.estado <> 'error' AND i->>'id' = ANY(:ids) AND COALESCE(i->>'previo', 'false') <> 'true'"""),
+        {"ids": ids})
+    return {"ids": sorted(r[0] for r in filas)}
 
 
 @router.post("/api/v1/puente/solicitudes/{identificador}/informe", dependencies=[Depends(requiere_puente)])

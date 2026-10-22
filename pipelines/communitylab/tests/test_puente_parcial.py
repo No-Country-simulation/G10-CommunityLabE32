@@ -37,6 +37,9 @@ class Backend:
         self.auth_trabajos = []      # cabecera Authorization de cada POST/GET a /api/v1/trabajos
         self.exigir_auth = False     # como la API: /api/v1/trabajos exige el Bearer del puente
         self.token_trabajos = "Bearer token-local-prueba"
+        self.analizados = set()      # IDs que la API da por analizados por otra vía
+        self.fallo_analizados = None  # código HTTP con el que falla esa consulta
+        self.consultas_analizados = 0
 
     def urlopen(self, peticion, timeout=None):
         if self.caido:
@@ -50,6 +53,11 @@ class Backend:
             if peticion.get_header("Authorization") != "Bearer token-local-prueba":
                 raise urllib.error.HTTPError(url, 401, "x", {}, io.BytesIO(b"{}"))
             datos = json.loads(peticion.data)
+            if url.endswith("/mensajes/analizados"):
+                self.consultas_analizados += 1
+                if self.fallo_analizados:
+                    raise urllib.error.HTTPError(url, self.fallo_analizados, "x", {}, io.BytesIO(b"{}"))
+                return _Resp(json.dumps({"ids": sorted(set(datos["ids"]) & self.analizados)}).encode())
             if url.endswith("/solicitudes/tomar"):
                 self.tomas.append(datos)
                 return _Resp(json.dumps({"id": self.solicitudes.pop(0) if self.solicitudes else None}).encode())
@@ -238,6 +246,60 @@ class PruebasPuenteParcial(unittest.TestCase):
         self.agregar(1)
         resumen = self.puente(token="otro").ciclo()
         self.assertEqual((resumen["sin_conexion"], self.backend.posts_trabajo), (False, 0))
+
+    # --- Mensajes ya analizados por otra vía (importación histórica de Ingesta) -----------
+
+    def test_lo_ya_importado_no_cuenta_como_pendiente_ni_genera_trabajos(self):
+        # Caso de la prueba del 22-10: se importó el canal y luego se pulsó «Procesar pendientes».
+        self.agregar(1, 2, 3)
+        self.backend.analizados = {"discord-1", "discord-2", "discord-3"}
+        self.backend.solicitudes = ["s1"]
+        self.puente().ciclo()
+        self.assertEqual(self.backend.tomas[-1]["pendientes"], {})
+        self.assertEqual(self.backend.posts_trabajo, 0)
+        self.assertEqual(self.backend.informes[-1][1]["estado"], "sin_pendientes")
+
+    def test_lo_ya_importado_va_como_contexto_y_solo_lo_nuevo_se_analiza(self):
+        self.agregar(1, 2, 3)
+        self.backend.analizados = {"discord-1", "discord-2"}
+        self.backend.solicitudes = ["s1"]
+        self.puente().ciclo()
+        (lote,) = self.backend.lotes()
+        self.assertEqual((self.ids(lote, False), self.ids(lote, True)), (["discord-3"], ["discord-1", "discord-2"]))
+        self.assertEqual(self.backend.tomas[-1]["pendientes"], {"2026-W42": 1})
+
+    def test_el_cierre_marca_como_previo_lo_ya_importado(self):
+        self.agregar(1, 2)
+        self.backend.analizados = {"discord-1"}
+        self.ahora = LUNES_W42 + 8 * 86400  # W42 vencida
+        self.puente().ciclo()
+        (cierre,) = [l for l in self.backend.lotes() if l["cierre_periodo"]]
+        self.assertEqual((self.ids(cierre, False), self.ids(cierre, True)), (["discord-2"], ["discord-1"]))
+
+    def test_si_la_consulta_falla_no_se_toma_ni_se_cierra_nada(self):
+        self.agregar(1)
+        self.backend.fallo_analizados = 500
+        self.backend.solicitudes = ["s1"]
+        self.ahora = LUNES_W42 + 8 * 86400
+        resumen = self.puente().ciclo()
+        self.assertEqual((self.backend.tomas, self.backend.posts_trabajo), ([], 0))
+        self.assertEqual(resumen.get("cierres_aplazados"), 1)
+        self.backend.fallo_analizados = None
+        self.puente().ciclo()                      # con la API de vuelta, el cierre sale
+        self.assertEqual(len([l for l in self.backend.lotes() if l["cierre_periodo"]]), 1)
+
+    def test_api_anterior_sin_la_ruta_mantiene_el_comportamiento(self):
+        self.agregar(1)
+        self.backend.fallo_analizados = 404
+        self.backend.solicitudes = ["s1"]
+        self.puente().ciclo()
+        (lote,) = self.backend.lotes()
+        self.assertEqual(self.ids(lote, False), ["discord-1"])
+
+    def test_sin_token_no_se_consulta_la_api(self):
+        self.agregar(1)
+        self.puente(token=None).ciclo()
+        self.assertEqual(self.backend.consultas_analizados, 0)
 
     def _mensajes(self, *ids):
         from pipelines.communitylab.normalizador_discord import normalizar_eventos
