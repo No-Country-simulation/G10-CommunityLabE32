@@ -158,6 +158,9 @@ export default function AnaliticaPage() {
 
   const radio = 62;
   const circunferencia = 2 * Math.PI * radio;
+  // Geometría con fracciones exactas (no con el porcentaje redondeado) y extremos rectos con una
+  // pequeña separación: así cada color ocupa su tramo sin montarse sobre el vecino.
+  const separacion = segmentos.filter((s) => s.cantidad > 0).length > 1 ? 3 : 0;
   let acumulado = 0;
 
   // Segmento actualmente seleccionado en el hover
@@ -308,10 +311,11 @@ export default function AnaliticaPage() {
                             className="text-surface-muted"
                           />
                           {segmentos.map((seg) => {
-                            const longitud = (seg.valor / 100) * circunferencia;
-                            const dashArray = `${longitud} ${circunferencia}`;
-                            const dashOffset = -((acumulado / 100) * circunferencia);
-                            acumulado += seg.valor;
+                            if (seg.cantidad === 0) return null;
+                            const tramo = (seg.cantidad / totalDona) * circunferencia;
+                            const dashArray = `${Math.max(0, tramo - separacion)} ${circunferencia}`;
+                            const dashOffset = -(acumulado + separacion / 2);
+                            acumulado += tramo;
                             const isHovered = segmentoActivo === seg.id;
 
                             return <UiTree key={seg.id}>{(
@@ -325,7 +329,7 @@ export default function AnaliticaPage() {
                                 strokeWidth={isHovered ? '22' : '16'}
                                 strokeDasharray={dashArray}
                                 strokeDashoffset={dashOffset}
-                                strokeLinecap="round"
+                                strokeLinecap="butt"
                                 className="transition-all duration-300 cursor-pointer"
                                 onMouseEnter={() => setSegmentoActivo(seg.id)}
                                 onMouseLeave={() => setSegmentoActivo(null)}
@@ -347,8 +351,8 @@ export default function AnaliticaPage() {
                               >
                                 {infoSeleccionada.cantidad}
                               </span>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-foreground">
-                                {infoSeleccionada.nombre} ({infoSeleccionada.valor}%)
+                              <span className="text-xs font-bold tabular-nums" style={{ color: infoSeleccionada.stroke }}>
+                                {infoSeleccionada.valor}%
                               </span>
                             </>
                           ) : (
