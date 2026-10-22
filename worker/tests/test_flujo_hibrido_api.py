@@ -230,6 +230,12 @@ def test_toma_reserva_vencimiento_e_informe(cliente, cola):
     detalle = cliente.get(f"/api/v1/procesamiento-pendientes/{sid}", headers=H_OP).json()
     assert (detalle["trabajos_terminados"], detalle["mensajes_nuevos"]) == (1, 2)
     assert detalle["historial"] == ["pendiente", "tomada", "tomada", "en_curso", "completada"]
+    # Si el trabajo se borra después (eliminar su lote en Datos cargados), el lote sigue terminado.
+    with cola.conectar() as c:
+        c.execute("DELETE FROM trabajos_worker WHERE id=%s", (trabajo,))
+    huerfano = cliente.get(f"/api/v1/procesamiento-pendientes/{sid}", headers=H_OP).json()
+    assert huerfano["lotes"][0]["trabajo_estado"] == "terminado"
+    assert huerfano["trabajos_terminados"] == 1
     # Cerrada: un informe tardío no la reabre y una nueva solicitud obtiene otro id.
     assert cliente.post(f"/api/v1/puente/solicitudes/{sid}/informe", headers=bearer,
                         json={"origen": "discord", "estado": "en_curso", "lotes": []}).json() == {"actualizada": False}

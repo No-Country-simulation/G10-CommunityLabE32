@@ -92,8 +92,20 @@ async def listar_activos(
     result = await db.execute(paginated_query)
     activos = result.scalars().all()
 
+    # La lista no trae las fuentes completas; para los de un solo mensaje se resuelve su autor aquí,
+    # con una consulta para toda la página.
+    unicas = {a.fuentes[0] for a in activos if len(a.fuentes or []) == 1}
+    autores = {}
+    if unicas:
+        filas = await db.execute(select(Mensaje.id_mensaje, Mensaje.autor, Mensaje.autor_nombre)
+                                 .where(Mensaje.id_mensaje.in_(sorted(unicas))))
+        autores = {i: visible(autor, nombre) for i, autor, nombre in filas.all()}
+    items = [ActivoResponse.model_validate(a).model_copy(
+        update={"autor_fuente": autores.get(a.fuentes[0]) if len(a.fuentes or []) == 1 else None})
+        for a in activos]
+
     return PaginatedActivosResponse(
-        items=activos,
+        items=items,
         total=total,
         page=page,
         limit=limit,

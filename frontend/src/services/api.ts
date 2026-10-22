@@ -278,6 +278,7 @@ export interface Activo {
   advertencias_fidelidad?: AdvertenciaFidelidad[] | null;
   /** Copia de la versión aprobada en OCI Object Storage; null o ausente si nunca se aprobó. */
   almacenamiento_oci?: AlmacenamientoOCI | null;
+  autor_fuente?: string | null;
   fecha_actualizacion: string;
   fuentes_detalle?: FuenteMensajeDetalle[];
 }

@@ -64,6 +64,8 @@ class ActivoResponse(BaseModel):
     posts_redes: Optional[PostsRedes] = None
     # Copia de la versión aprobada en OCI Object Storage; None si nunca se aprobó.
     almacenamiento_oci: Optional[dict] = None
+    # Nombre visible del autor cuando el contenido sale de un solo mensaje (lista de Curaduría).
+    autor_fuente: Optional[str] = None
     fecha_creacion: FechaUTC
     fecha_actualizacion: FechaUTC
 
