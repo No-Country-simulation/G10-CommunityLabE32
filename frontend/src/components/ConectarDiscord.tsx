@@ -37,6 +37,26 @@ function duracionRango(dias: number): { cantidad: number; unidad: string } {
   return { cantidad: enteros, unidad: enteros === 1 ? 'día' : 'días' };
 }
 
+// La última importación se recuerda en esta pestaña: al salir de Ingesta y volver, la tarjeta muestra
+// su estado en lugar de «Sin confirmar». «Nueva importación» la olvida y deja el formulario vacío.
+const CLAVE_IMPORTACION = 'communitylab-discord-importacion';
+type ImportacionGuardada = { id: string; unidad: Unidad; desde: string; hasta: string };
+const FINALES_IMPORTACION = ['completada', 'completada_con_limite', 'cancelada', 'error'];
+
+function leerImportacion(): ImportacionGuardada | null {
+  try {
+    const valor = JSON.parse(sessionStorage.getItem(CLAVE_IMPORTACION) ?? 'null');
+    return valor && typeof valor.id === 'string' && ['dias', 'meses', 'anos'].includes(valor.unidad) ? valor : null;
+  } catch { return null; }
+}
+
+function guardarImportacion(valor: ImportacionGuardada | null) {
+  try {
+    if (valor) sessionStorage.setItem(CLAVE_IMPORTACION, JSON.stringify(valor));
+    else sessionStorage.removeItem(CLAVE_IMPORTACION);
+  } catch { /* Sin almacenamiento la tarjeta funciona igual; solo no recuerda la importación. */ }
+}
+
 function DiscordIcon({ className = '' }: { className?: string }) {
   return <UiTree>{<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}><path d="M19.7 5.1a18 18 0 0 0-4.3-1.3l-.5 1a16 16 0 0 0-5.8 0l-.5-1a18 18 0 0 0-4.3 1.3C1.6 9.2.9 13.2 1.3 17.2a17 17 0 0 0 5.3 2.7l1.1-1.8-1.7-.8.4-.3a13 13 0 0 0 11.2 0l.4.3-1.7.8 1.1 1.8a17 17 0 0 0 5.3-2.7c.5-4.6-.8-8.5-3-12.1ZM8.5 14.9c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm7 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z"/></svg>}</UiTree>;
 }
@@ -109,6 +129,31 @@ function CanalDiscord({ indice, alConectar, duplicado, alEstado }: { indice: num
     try { rangoFechas(unidad, desde, hasta); return ''; } catch (err) { return (err as Error).message; }
   })();
   const invalidar = () => { setPreview(null); setImportacion(null); setConfirmado(false); setError(''); clave.current = null; };
+  // Al volver a Ingesta se recupera la última importación de esta pestaña con su estado real.
+  useEffect(() => {
+    const guardada = leerImportacion();
+    if (!guardada) return;
+    let vigente = true;
+    consultarImportacionDiscord(guardada.id).then(actual => {
+      if (!vigente) return;
+      // Ya terminada: la escucha se apagó en su momento y no se vuelve a pedir.
+      if (FINALES_IMPORTACION.includes(actual.estado)) apagados.current.add(actual.id);
+      setUnidad(guardada.unidad); setDesde(guardada.desde); setHasta(guardada.hasta);
+      setZona(actual.zona); setCanal(actual.canal_id); setImportacion(actual);
+      alConectar(indice, actual.canal_id);
+    }).catch(err => {
+      // Si ya no existe (p. ej. se eliminó su lote), se olvida; ante un fallo de red se conserva.
+      if (vigente && (err as { response?: { status?: number } })?.response?.status === 404) guardarImportacion(null);
+    });
+    return () => { vigente = false; };
+  }, [indice, alConectar]);
+  const nuevaImportacion = () => {
+    guardarImportacion(null);
+    invalidar();
+    ultimoIntento.current = '';
+    setCanal(''); setDesde(''); setHasta('');
+    alEstado(indice, null);
+  };
   const conectar = async (event: React.FormEvent) => {
     event.preventDefault();
     if (enCurso.current) return;
@@ -125,6 +170,7 @@ function CanalDiscord({ indice, alConectar, duplicado, alEstado }: { indice: num
       clave.current ??= crypto.randomUUID();
       const resultado = await crearImportacionDiscord({canal_id: canal.trim(), desde: vista.alcance_congelado.desde, hasta: vista.alcance_congelado.hasta, zona: vista.alcance_congelado.zona, confirmar_alcance: confirmado}, clave.current);
       setImportacion(resultado.importacion);
+      guardarImportacion({ id: resultado.importacion.id, unidad, desde, hasta });
       alConectar(indice, canal.trim());
       // La importación ya existe: el interruptor pasa a «Escuchando» sin esperar al siguiente ciclo.
       obtenerEscuchaDiscord(canal.trim()).then(estado => alEstado(indice, estado)).catch(() => undefined);
@@ -181,7 +227,7 @@ function CanalDiscord({ indice, alConectar, duplicado, alEstado }: { indice: num
       {!error && aviso && <p className="discord-message text-danger" role="alert"><AlertCircle size={16}/>{aviso}</p>}
       {importacion && <div className="discord-message text-success" role="status"><CheckCircle2 size={16}/><div>Solicitud recibida: {importacion.estado}.<p className="text-xs text-muted-foreground mt-1 break-all">Importación {importacion.id}</p></div></div>}
       {importacion && ['completada', 'completada_con_limite', 'cancelada'].includes(importacion.estado) && <EnviarAnalisisDiscord importacionId={importacion.id}/>}
-      <div className="discord-connect-footer"><p className="discord-auto-connect-note"><AlertCircle size={16} aria-hidden="true"/><span>{ocupado ? 'Conectando…' : importacion ? 'La escucha se apaga al finalizar la carga.' : 'La conexión comienza al completar el ID, las fechas y la zona horaria.'}</span></p>{(error || preview?.limites.requiere_confirmacion) && !importacion && <button className="btn-primary" type="submit" disabled={ocupado || !!importacion || (!!preview?.limites.requiere_confirmacion && !confirmado)}>{ocupado?<Loader2 size={14} className="animate-spin"/>:<DiscordIcon className="h-4 w-4"/>}{ocupado?'Conectando…':importacion?'Solicitud enviada':preview?.limites.requiere_confirmacion?'Confirmar y conectar':'Reintentar'}</button>}</div>
+      <div className="discord-connect-footer"><p className="discord-auto-connect-note"><AlertCircle size={16} aria-hidden="true"/><span>{ocupado ? 'Conectando…' : importacion ? 'La escucha se apaga al finalizar la carga.' : 'La conexión comienza al completar el ID, las fechas y la zona horaria.'}</span></p>{importacion && FINALES_IMPORTACION.includes(importacion.estado) && <button type="button" className="btn-secondary" onClick={nuevaImportacion}>Nueva importación</button>}{(error || preview?.limites.requiere_confirmacion) && !importacion && <button className="btn-primary" type="submit" disabled={ocupado || !!importacion || (!!preview?.limites.requiere_confirmacion && !confirmado)}>{ocupado?<Loader2 size={14} className="animate-spin"/>:<DiscordIcon className="h-4 w-4"/>}{ocupado?'Conectando…':importacion?'Solicitud enviada':preview?.limites.requiere_confirmacion?'Confirmar y conectar':'Reintentar'}</button>}</div>
     </form>
   </div>}</UiTree>;
 }
