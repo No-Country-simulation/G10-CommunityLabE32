@@ -9,11 +9,16 @@ import { Menu, X } from 'lucide-react';
 import Notificaciones from './Notificaciones';
 import useAuthLanguage from './useAuthLanguage';
 import { IDIOMAS } from '@/i18n/idioma';
-const enlacesMoviles = [
-  ['/', 'Resumen'], ['/ingesta', 'Ingesta de datos'], ['/interacciones', 'Interacciones'],
-  ['/curaduria', 'Curaduría'], ['/analitica', 'Analítica'], ['/configuracion', 'Configuraciones'],
-  ['/equipo', 'Acerca del equipo'], ['/login', 'Ver inicio de sesión'],
-];
+import { EVENTO_SESION, usuarioEnMemoria } from '@/services/api';
+// Mismo orden que el menú lateral y «Mi cuenta» de escritorio. «Usuarios del equipo» solo se
+// muestra a administradores; /usuarios y la API vuelven a exigir el rol en el servidor.
+function enlacesMoviles(admin: boolean) {
+  return [
+    ['/', 'Resumen'], ['/ingesta', 'Ingesta de datos'], ['/interacciones', 'Interacciones'],
+    ['/curaduria', 'Curaduría'], ['/analitica', 'Analítica'], ['/equipo', 'Acerca del equipo'],
+    ...(admin ? [['/usuarios', 'Usuarios del equipo']] : []), ['/configuracion', 'Configuraciones'],
+  ];
+}
 export default function Topbar() {
   const pathname = usePathname();
   const { language, t } = useAuthLanguage();
@@ -21,6 +26,13 @@ export default function Topbar() {
   const [menuVisible, setMenuVisible] = useState(true);
   const [movilAbierto, setMovilAbierto] = useState(false);
   const menuMovil = useRef<HTMLDialogElement>(null);
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => {
+    const actualizar = () => setAdmin(usuarioEnMemoria()?.rol === 'administrador');
+    const timer = setTimeout(actualizar, 0);
+    window.addEventListener(EVENTO_SESION, actualizar);
+    return () => { clearTimeout(timer); window.removeEventListener(EVENTO_SESION, actualizar); };
+  }, []);
   useEffect(() => {
     document.documentElement.lang = IDIOMAS.find(i => i.valor === language)?.lang ?? 'es';
     document.documentElement.setAttribute('translate', 'yes');
@@ -40,6 +52,6 @@ export default function Topbar() {
   </div><Notificaciones /></header>
   <dialog ref={menuMovil} id="menu-movil" className="mobile-menu-dialog" aria-labelledby="menu-movil-titulo" onClose={() => setMovilAbierto(false)} onClick={e => { if (e.target === e.currentTarget) cerrarMovil(); }}>
     <div className="flex items-center justify-between mb-5"><h2 id="menu-movil-titulo" className="text-lg font-bold">Menú</h2><button type="button" className="btn-ghost" aria-label="Cerrar menú" onClick={cerrarMovil}><X size={20}/></button></div>
-    <nav aria-label="Todas las secciones">{enlacesMoviles.map(([href, texto]) => <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined} onClick={cerrarMovil}>{texto}</Link>)}</nav>
+    <nav aria-label="Todas las secciones">{enlacesMoviles(admin).map(([href, texto]) => <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined} onClick={cerrarMovil}>{texto}</Link>)}</nav>
   </dialog></UiTree>;
 }

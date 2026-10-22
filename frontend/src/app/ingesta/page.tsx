@@ -237,7 +237,7 @@ export default function IngestaPage() {
                 Cerrar período y generar resumen
               </label>
 
-              <form onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
+              <form className="ingestion-drop-form" onDragEnter={handleDrag} onSubmit={(e) => e.preventDefault()}>
                 <input
                   type="file"
                   id="file-upload"
@@ -251,7 +251,7 @@ export default function IngestaPage() {
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
-                  className={`flex flex-col items-center justify-center w-full h-52 sm:h-60 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-200 ${
+                  className={`flex flex-col items-center justify-center w-full min-h-52 sm:min-h-60 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-200 ${
                     dragActive
                       ? 'border-primary bg-primary-soft scale-[1.01]'
                       : file
@@ -478,7 +478,7 @@ export default function IngestaPage() {
 
               <PendientesDiscord />
               <section className="ingestion-requirements card p-5 sm:p-6 min-w-0" aria-labelledby="ingestion-requisitos-titulo"><h2 id="ingestion-requisitos-titulo" className="text-[15px] font-semibold text-foreground mb-4 flex items-center gap-2"><AlertCircle className="w-4 h-4 shrink-0 text-[#f1f333] fill-none warning-outline" aria-hidden="true" />Formatos y requisitos</h2>
-                <ul className="list-disc pl-5 space-y-3 text-sm">
+                <ul className="list-disc pl-5 text-sm">
                   <li><strong>Formatos:</strong> <code>.json</code> (lista o <code>{'{"interacciones": [...]}'}</code>), <code>.jsonl</code> o <code>.csv</code> con encabezado, en UTF-8.</li>
                   <li><strong>Campos obligatorios:</strong> <code>id</code> (o <code>id_mensaje</code>), <code>autor</code>, <code>canal</code>, <code>fecha</code> y <code>texto</code>. <code>tipo</code> es opcional.</li>
                   <li><strong>Fecha:</strong> ISO 8601 con hora y zona, por ejemplo, <code>2026-10-19T14:10:00Z</code>.</li>

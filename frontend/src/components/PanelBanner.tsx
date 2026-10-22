@@ -3,7 +3,7 @@
 
 import UiTree from '@/components/UiTree';
 import { useEffect, useRef, useState } from 'react';
-import { ImageIcon, Loader2, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Info } from 'lucide-react';
+import { ImageIcon, Loader2, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Info, Download } from 'lucide-react';
 import {
   describirError, generarBanner, listarBanners, revisarBanner, BannersActivo, ErrorLegible,
 } from '@/services/api';
@@ -12,6 +12,36 @@ const ERROR_BANNER: Record<string, string> = {
   texto_insuficiente: 'El texto aprobado no tiene contenido suficiente para la tarjeta.',
   fallo_render: 'No se pudo generar la tarjeta. Puedes reintentar.',
 };
+
+// LinkedIn y X no aceptan SVG: el navegador dibuja el mismo banner en un canvas y lo baja en JPG.
+// Se dibuja al doble de resolución para que el texto quede nítido al publicarlo.
+async function descargarJpg(url: string, nombre: string) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('No se pudo leer el banner.');
+  const svg = URL.createObjectURL(new Blob([await res.text()], { type: 'image/svg+xml' }));
+  try {
+    const img = new Image();
+    img.src = svg;
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = 2400;
+    canvas.height = 1260;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('El navegador no permite dibujar el banner.');
+    ctx.fillStyle = '#0b0b0b';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const jpg = await new Promise<Blob | null>(ok => canvas.toBlob(ok, 'image/jpeg', 0.92));
+    if (!jpg) throw new Error('No se pudo convertir el banner a JPG.');
+    const enlace = document.createElement('a');
+    enlace.href = URL.createObjectURL(jpg);
+    enlace.download = nombre;
+    enlace.click();
+    setTimeout(() => URL.revokeObjectURL(enlace.href), 1000);
+  } finally {
+    URL.revokeObjectURL(svg);
+  }
+}
 
 // Generar el banner es una acción separada de aprobar el texto, y aprobar el banner no lo publica.
 export default function PanelBanner({ idActivo, estadoActivo, version }: {
@@ -22,6 +52,7 @@ export default function PanelBanner({ idActivo, estadoActivo, version }: {
   const [accion, setAccion] = useState<'generar' | 'aprobado' | 'rechazado' | null>(null);
   const [error, setError] = useState<ErrorLegible | null>(null);
   const [refresco, setRefresco] = useState(0);
+  const [descargando, setDescargando] = useState(false);
   const ocupadoRef = useRef(false);
 
   // Se recarga al cambiar de activo, de estado o de versión del texto.
@@ -53,6 +84,19 @@ export default function PanelBanner({ idActivo, estadoActivo, version }: {
   const anterior = datos?.banners.find(b => b.desactualizado && b.estado === 'generado') ?? null;
   const mostrado = vigente ?? anterior;
 
+  const descargar = async () => {
+    if (!mostrado?.url || descargando) return;
+    setDescargando(true);
+    setError(null);
+    try {
+      await descargarJpg(mostrado.url, `banner-${idActivo}-v${mostrado.version_texto}.jpg`);
+    } catch (e) {
+      setError({ tipo: 'desconocido', titulo: 'No se pudo descargar', mensaje: e instanceof Error ? e.message : 'Inténtalo de nuevo.', errores: [] });
+    } finally {
+      setDescargando(false);
+    }
+  };
+
   return <UiTree>{(
     <div className="card p-5">
       <div className="flex justify-between items-center mb-3 gap-2">
@@ -82,6 +126,13 @@ export default function PanelBanner({ idActivo, estadoActivo, version }: {
                 alt={`Vista previa del banner, versión ${mostrado.version_texto} del texto`}
                 className={`w-full rounded-xl border border-border aspect-[1200/630] object-cover ${mostrado.desactualizado ? 'opacity-50' : ''}`}
               />
+              {!mostrado.desactualizado && (
+                <button type="button" onClick={descargar} disabled={descargando} className="banner-descarga"
+                  aria-label="Descargar banner en JPG" title="Descargar en JPG">
+                  {descargando ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Download className="w-4 h-4" aria-hidden="true" />}
+                  <span>JPG</span>
+                </button>
+              )}
               {mostrado.desactualizado && (
                 <span className="badge-warning absolute top-2 left-2">
                   <AlertTriangle className="w-3 h-3" /> Desactualizado (texto v{mostrado.version_texto})
@@ -119,7 +170,7 @@ export default function PanelBanner({ idActivo, estadoActivo, version }: {
               <>
                 <button disabled={!!accion || vigente.revision === 'rechazado'}
                   onClick={() => ejecutar('rechazado', () => revisarBanner(vigente.id, 'rechazado'))} className="btn-danger-soft">
-                  <XCircle className="w-4 h-4" /> Rechazar banner
+                  <XCircle className="w-4 h-4" /> Denegar banner
                 </button>
                 <button disabled={!!accion || vigente.revision === 'aprobado'}
                   onClick={() => ejecutar('aprobado', () => revisarBanner(vigente.id, 'aprobado'))} className="btn-success">

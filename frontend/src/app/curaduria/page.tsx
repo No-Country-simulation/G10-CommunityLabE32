@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { listarActivos, listarLogrosCuraduria, generarPostsLogro, esLogroAcademicoElegible, obtenerDetalleActivo, actualizarActivo, describirError, Activo, EstadoActivo } from '@/services/api';
 import Sidebar from '@/components/Sidebar';
 import TablaDenegados from '@/components/TablaDenegados';
+import { canalLegible } from '@/services/formato';
 import { esReferenciaPublicada } from '@/services/referenciaPublicada';
 import PanelBanner from '@/components/PanelBanner';
 import EstadoOCI from '@/components/EstadoOCI';
@@ -439,7 +440,7 @@ function CuraduriaPage() {
                 </div>
                 <div className="flex gap-2.5 flex-wrap">
                   <button disabled={soloReferencia || saving || selectedActivo.estado === 'rechazado'} onClick={() => handleUpdate('rechazado')} className="btn-danger-soft">
-                    <XCircle className="w-4 h-4" /> Rechazar
+                    <XCircle className="w-4 h-4" /> Denegar
                   </button>
                   <button disabled={soloReferencia || saving || selectedActivo.estado === 'aprobado'} onClick={() => handleUpdate('aprobado')} className="btn-success">
                     <CheckCircle2 className="w-4 h-4" /> Aprobar como definitivo
@@ -486,7 +487,7 @@ function CuraduriaPage() {
                     <div key={f.id_mensaje} className="card p-4">
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-xs font-semibold text-foreground" translate="no">{f.autor}</span>
-                        <span className="badge-neutral">{f.canal}</span>
+                        <span className="badge-neutral">{canalLegible(f.canal)}</span>
                       </div>
                       <p className="text-sm text-muted-foreground italic leading-relaxed" translate="no">&quot;{f.texto}&quot;</p>
                     </div>
