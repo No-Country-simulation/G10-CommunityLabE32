@@ -242,6 +242,23 @@ def test_toma_reserva_vencimiento_e_informe(cliente, cola):
     assert cliente.post("/api/v1/procesamiento-pendientes", headers=H_OP).json()["id"] != sid
 
 
+def test_puente_consulta_mensajes_ya_analizados_por_otra_via(cliente, cola):
+    bearer = {"Authorization": f"Bearer {PUENTE}"}
+    importado = lote(["discord-1", "discord-2"])            # p. ej. importación histórica
+    importado["interacciones"].append({**lote(["discord-3"])["interacciones"][0], "previo": True})
+    cola.encolar(importado)
+    fallido = cola.encolar(lote(["discord-4"]))
+    with cola.conectar() as c:
+        c.execute("UPDATE trabajos_worker SET estado='error' WHERE id=%s", (fallido,))
+    consulta = {"ids": ["discord-1", "discord-2", "discord-3", "discord-4", "discord-5"]}
+    r = cliente.post("/api/v1/puente/mensajes/analizados", headers=bearer, json=consulta)
+    # discord-3 solo fue contexto, discord-4 terminó en error y discord-5 nunca entró.
+    assert r.json() == {"ids": ["discord-1", "discord-2"]}
+    assert cliente.post("/api/v1/puente/mensajes/analizados", json=consulta).status_code == 401
+    assert cliente.post("/api/v1/puente/mensajes/analizados", headers=bearer,
+                        json={"ids": [f"discord-{i}" for i in range(1001)]}).status_code == 422
+
+
 # --- Extremo a extremo: puente real + API real + worker -------------------------------
 
 class _Resp(io.BytesIO):

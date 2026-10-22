@@ -24,6 +24,13 @@ Procesamiento parcial bajo demanda ("Procesar pendientes" en la interfaz):
 - El cierre semanal sigue igual, se aplaza mientras haya parciales del período en curso y
   marca previo=true lo ya procesado en parciales terminados.
 
+Mensajes ya analizados por otra vía (p. ej. la importación histórica de Ingesta): en cada ciclo
+el puente pregunta a la API cuáles de sus mensajes ya entraron en un trabajo. Esos no cuentan
+como pendientes y, si entran en un parcial o en el cierre, van solo como contexto (previo=true).
+Si la consulta falla, no se toma ninguna solicitud ni se cierra ningún período en ese ciclo
+(mejor esperar que analizar dos veces); una API anterior sin la ruta (404) mantiene el
+comportamiento previo.
+
 Entrega: reutiliza Entregas (payload y clave guardados antes del POST) y el cliente
 HTTP del CLI de #27. Un trabajo solo se da por completado cuando la API informa
 `terminado`; `error` y los rechazos 4xx quedan para revisión, nunca se reenvían
@@ -49,6 +56,7 @@ from .normalizador_discord import MAX_INTERACCIONES_POR_LOTE
 LOG = logging.getLogger("communitylab.puente")
 UNIDADES = {"semana", "dia"}
 FINALES = {"terminado", "error", "rechazado"}
+CONSULTA_ANALIZADOS_MAX = 1000  # IDs por consulta; igual que el límite de la API.
 
 
 def leer_bandeja(ruta):
@@ -149,6 +157,9 @@ class Puente:
         with self.entregas.conexion() as c:
             planificados = {r[0] for r in c.execute("SELECT id FROM ambitos")}
             solicitudes = {r[0] for r in c.execute("SELECT periodo FROM solicitudes_cierre")}
+        # Una sola consulta por ciclo para los períodos que aún pueden enviarse.
+        analizados = self._analizados([m["id"] for periodo, mensajes in por_periodo.items()
+                                       if self.ambito(periodo) not in planificados for m in mensajes])
         abiertos = {}
         for periodo in sorted(por_periodo):
             ambito = self.ambito(periodo)
@@ -160,7 +171,11 @@ class Puente:
                     resumen["cierres_aplazados"] = resumen.get("cierres_aplazados", 0) + 1
                     LOG.info("puente periodo=%s cierre_aplazado parciales_en_curso", periodo)
                     continue
-                procesados = self._procesados_en_parciales(periodo)
+                if analizados is None:
+                    resumen["cierres_aplazados"] = resumen.get("cierres_aplazados", 0) + 1
+                    LOG.info("puente periodo=%s cierre_aplazado sin_consulta_analizados", periodo)
+                    continue
+                procesados = self._procesados_en_parciales(periodo) | analizados
                 marcados = [{**m, "previo": True} if m["id"] in procesados else m for m in mensajes]
                 self.entregas.preparar(self.url, marcados, self.origen, periodo, True, construir_lotes)
                 resumen["planificados"] += 1
@@ -169,11 +184,11 @@ class Puente:
             else:
                 abiertos[periodo] = mensajes
         try:
-            if self.token:
-                self._atender_solicitud(abiertos, resumen)
+            if self.token and analizados is not None:
+                self._atender_solicitud(abiertos, resumen, analizados)
             self._entregar(resumen)
-            if self.token:
-                self._informar(abiertos)
+            if self.token and analizados is not None:
+                self._informar(abiertos, analizados)
         except SinConexion:
             resumen["sin_conexion"] = True
             LOG.warning("puente api_no_disponible reintento_en_proximo_ciclo")
@@ -193,38 +208,62 @@ class Puente:
                 "SELECT f.id FROM fuentes f JOIN entregas e ON e.clave=f.clave "
                 "WHERE f.ambito=? AND e.estado='terminado'", (self.ambito_parcial(periodo),))}
 
-    def pendientes(self, abiertos):
-        """Mensajes de períodos abiertos que aún no entraron en ningún parcial."""
+    def _analizados(self, ids):
+        """IDs ya analizados por cualquier vía según la API; None si no se pudo consultar.
+        Sin token la API no se puede consultar y el puente se comporta como antes."""
+        ids = sorted(set(ids))
+        if not self.token or not ids:
+            return set()
+        salida = set()
+        try:
+            for inicio in range(0, len(ids), CONSULTA_ANALIZADOS_MAX):
+                respuesta = self._pedir_control("mensajes/analizados",
+                                                {"ids": ids[inicio:inicio + CONSULTA_ANALIZADOS_MAX]})
+                salida.update(i for i in respuesta.get("ids", []) if isinstance(i, str))
+        except ErrorBackend as error:
+            if error.estado_http == 404:
+                LOG.warning("puente consulta_analizados_no_disponible api_anterior")
+                return set()
+            LOG.warning("puente consulta_analizados_fallida http=%s", error.estado_http)
+            return None
+        except SinConexion:
+            LOG.warning("puente consulta_analizados_sin_conexion")
+            return None
+        return salida
+
+    def pendientes(self, abiertos, analizados=frozenset()):
+        """Mensajes de períodos abiertos que aún no entraron en ningún parcial ni en otro trabajo."""
         salida = {}
         with self.entregas.conexion() as c:
             for periodo, mensajes in abiertos.items():
                 enviados = {r[0] for r in c.execute("SELECT id FROM fuentes WHERE ambito=?",
                                                     (self.ambito_parcial(periodo),))}
-                n = sum(1 for m in mensajes if m["id"] not in enviados)
+                n = sum(1 for m in mensajes if m["id"] not in enviados and m["id"] not in analizados)
                 if n:
                     salida[periodo] = n
         return salida
 
-    def _atender_solicitud(self, abiertos, resumen):
+    def _atender_solicitud(self, abiertos, resumen, analizados=frozenset()):
         with self.entregas.conexion() as c:
             activa = c.execute("SELECT id FROM solicitudes_parciales WHERE estado='planificada'").fetchone()
         if activa:
             return  # Una sola a la vez; la API tampoco entrega otra mientras esta sigue abierta.
         try:
             tomada = self._pedir_control("solicitudes/tomar", {"origen": self.origen,
-                                                               "pendientes": self.pendientes(abiertos)})
+                                                               "pendientes": self.pendientes(abiertos, analizados)})
         except ErrorBackend as error:
             LOG.warning("puente solicitud_no_tomada http=%s", error.estado_http)
             return
         identificador = tomada.get("id")
         if not isinstance(identificador, str) or not identificador:
             return
-        lotes = self.planificar_parcial(identificador, abiertos)
+        lotes = self.planificar_parcial(identificador, abiertos, analizados)
         resumen["parciales"] = len(lotes)
         LOG.info("puente solicitud=%s lotes_parciales=%d", identificador, len(lotes))
 
-    def planificar_parcial(self, solicitud, abiertos):
-        """Fija (una sola vez por solicitud) qué mensajes nuevos entran y los guarda antes del POST."""
+    def planificar_parcial(self, solicitud, abiertos, analizados=frozenset()):
+        """Fija (una sola vez por solicitud) qué mensajes nuevos entran y los guarda antes del POST.
+        Los ya analizados por otra vía no son nuevos: van como contexto, igual que los parciales terminados."""
         with self.entregas.conexion() as c:
             c.execute("BEGIN IMMEDIATE")
             if c.execute("SELECT 1 FROM solicitudes_parciales WHERE id=?", (solicitud,)).fetchone():
@@ -234,13 +273,15 @@ class Puente:
             for periodo in sorted(abiertos):
                 ambito = self.ambito_parcial(periodo)
                 ya = {r[0]: r[1] for r in c.execute("SELECT id, contenido FROM fuentes WHERE ambito=?", (ambito,))}
-                nuevos = sorted((m for m in abiertos[periodo] if m["id"] not in ya), key=lambda m: m["id"])
+                nuevos = sorted((m for m in abiertos[periodo] if m["id"] not in ya and m["id"] not in analizados),
+                                key=lambda m: m["id"])
                 if not nuevos:
                     continue
-                # Contexto: los parciales anteriores ya terminados, más recientes primero.
+                # Contexto: los parciales anteriores ya terminados y lo analizado por otra vía,
+                # más recientes primero.
                 terminados = {r[0] for r in c.execute(
                     "SELECT f.id FROM fuentes f JOIN entregas e ON e.clave=f.clave "
-                    "WHERE f.ambito=? AND e.estado='terminado'", (ambito,))}
+                    "WHERE f.ambito=? AND e.estado='terminado'", (ambito,))} | set(analizados)
                 previos = sorted((m for m in abiertos[periodo] if m["id"] in terminados),
                                  key=lambda m: (m["fecha"], m["id"]), reverse=True)
                 for inicio in range(0, len(nuevos), MAX_INTERACCIONES_POR_LOTE - self.max_previos):
@@ -271,7 +312,7 @@ class Puente:
                 liberados = c.execute("DELETE FROM fuentes WHERE clave=?", (clave,)).rowcount
                 LOG.warning("puente parcial_fallido mensajes_liberados=%d", liberados)
 
-    def _informar(self, abiertos):
+    def _informar(self, abiertos, analizados=frozenset()):
         """Informa a la API el avance de cada solicitud abierta y los pendientes actuales."""
         with self.entregas.conexion() as c:
             abiertas = [r[0] for r in c.execute(
@@ -286,7 +327,7 @@ class Puente:
             try:
                 self._pedir_control(f"solicitudes/{solicitud}/informe",
                                     {"origen": self.origen, "estado": estado, "lotes": lotes,
-                                     "pendientes": self.pendientes(abiertos)})
+                                     "pendientes": self.pendientes(abiertos, analizados)})
             except ErrorBackend as error:
                 LOG.warning("puente informe_fallido http=%s", error.estado_http)
                 continue
