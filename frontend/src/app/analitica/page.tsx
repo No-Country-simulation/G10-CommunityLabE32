@@ -128,7 +128,8 @@ export default function AnaliticaPage() {
     COMENTARIO: 'Comentarios',
     SIN_CLASIFICAR: 'Sin clasificar',
   };
-  const coloresTema = ['#ff90e8', '#f1f333', '#90a8ed', '#b9e9c5'];
+  // Paleta completa de la app (la de Interacciones más el azul), en un orden que no repite tonos vecinos.
+  const coloresTema = ['#ff90e8', '#b9e9c5', '#ffa8a0', '#f1f333', '#c9b8ff', '#90a8ed', '#d9d6ce'];
   const temas = Object.entries(kpis?.mensajes_por_tipo ?? {})
     .filter(([tipo]) => tipo.toUpperCase() !== 'SIN_CLASIFICAR')
     .sort((a, b) => b[1] - a[1])
