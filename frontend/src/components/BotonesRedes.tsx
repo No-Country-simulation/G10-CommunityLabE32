@@ -43,7 +43,7 @@ export default function BotonesRedes({ textoLinkedin = '', textoX = '' }: { text
       </a>
       <a className="btn-red btn-red-x" href={x ? X + encodeURIComponent(x) : 'https://x.com/'} target="_blank" rel="noopener noreferrer"
         title={x ? 'Abre X con el texto para publicar (no se publica solo)' : 'Abrir X'}>
-        <LogoX />Publicar en X
+        <LogoX />X
       </a>
     </div>
     {aviso && <p role="status" className="text-xs text-muted-foreground mt-2">{aviso}</p>}
