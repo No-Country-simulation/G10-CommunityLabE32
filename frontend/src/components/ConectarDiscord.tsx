@@ -39,6 +39,13 @@ function duracionRango(dias: number): { cantidad: number; unidad: string } {
 
 // La última importación se recuerda en esta pestaña: al salir de Ingesta y volver, la tarjeta muestra
 // su estado en lugar de «Sin confirmar». «Nueva importación» la olvida y deja el formulario vacío.
+// Zonas de América Latina por diferencia con UTC. Se usan las zonas fijas Etc/GMT de IANA, que
+// invierten el signo: Etc/GMT+6 es UTC−06:00 (Guatemala, Centroamérica y el centro de México).
+const ZONAS_LATAM: [string, string][] = [
+  ['Etc/GMT+2', 'UTC−02:00'], ['Etc/GMT+3', 'UTC−03:00'], ['Etc/GMT+4', 'UTC−04:00'], ['Etc/GMT+5', 'UTC−05:00'],
+  ['Etc/GMT+6', 'UTC−06:00'], ['Etc/GMT+7', 'UTC−07:00'], ['Etc/GMT+8', 'UTC−08:00'],
+];
+
 const CLAVE_IMPORTACION = 'communitylab-discord-importacion';
 type ImportacionGuardada = { id: string; unidad: Unidad; desde: string; hasta: string };
 const FINALES_IMPORTACION = ['completada', 'completada_con_limite', 'cancelada', 'error'];
@@ -98,7 +105,7 @@ function CanalDiscord({ indice, alConectar, duplicado, alEstado }: { indice: num
   const [canal, setCanal] = useState('');
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
-  const [zona, setZona] = useState('America/Guatemala');
+  const [zona, setZona] = useState('Etc/GMT+6');
   const [errorBot, setErrorBot] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
   const ultimoIntento = useRef('');
@@ -220,7 +227,7 @@ function CanalDiscord({ indice, alConectar, duplicado, alEstado }: { indice: num
         <label className="discord-field"><span><Hash size={13}/> ID del canal de Discord</span><input className="input" inputMode="numeric" placeholder="Ej. 123456789012345678" value={canal} onChange={e=>{invalidar();alEstado(indice, null);setCanal(e.target.value);}} required pattern="[0-9]{17,20}"/><small>Activa el modo desarrollador en Discord y elige «Copiar ID del canal».</small></label>
         <div className="discord-date-heading"><span><CalendarDays size={14}/> Período de mensajes</span><div className="discord-date-tabs" role="group" aria-label="Seleccionar por días, meses o años">{([{id:'dias',nombre:'Días'},{id:'meses',nombre:'Meses'},{id:'anos',nombre:'Años'}] as const).map(item=><button key={item.id} type="button" aria-pressed={unidad===item.id} onClick={()=>{invalidar();setUnidad(item.id);setDesde('');setHasta('');}}>{item.nombre}</button>)}</div></div>
         <div className="discord-date-grid"><label className="discord-field"><span>Desde</span><input aria-label="Inicio del período" className="input" type={unidad==='dias'?'date':unidad==='meses'?'month':'number'} min={unidad==='anos'?'2015':unidad==='meses'?'2015-01':'2015-01-01'} max={unidad==='anos'?'9999':undefined} placeholder={unidad==='anos'?'2025':undefined} required value={desde} onChange={e=>{invalidar();setDesde(e.target.value);}}/></label><span className="discord-range-arrow"><ArrowRight size={15}/></span><label className="discord-field"><span>Hasta</span><input aria-label="Final del período" className="input" type={unidad==='dias'?'date':unidad==='meses'?'month':'number'} min={desde || (unidad==='anos'?'2015':undefined)} max={unidad==='anos'?'9999':undefined} placeholder={unidad==='anos'?'2026':undefined} required value={hasta} onChange={e=>{invalidar();setHasta(e.target.value);}}/></label></div>
-        <label className="discord-field"><span>Zona horaria</span><span className="discord-timezone-control"><select className="input" value={zona} onChange={e=>{invalidar();setZona(e.target.value);}}>{!['America/Guatemala','America/Mexico_City','America/Bogota','America/Argentina/Buenos_Aires','Europe/Madrid','UTC'].includes(zona) && <option value={zona}>{zona} (detectada)</option>}<option value="America/Guatemala">Guatemala · UTC−06:00</option><option value="America/Mexico_City">Ciudad de México · UTC−06:00</option><option value="America/Bogota">Bogotá / Lima · UTC−05:00</option><option value="America/Argentina/Buenos_Aires">Buenos Aires · UTC−03:00</option><option value="Europe/Madrid">Madrid · UTC+01:00 / UTC+02:00 (horario de verano)</option><option value="UTC">UTC · UTC+00:00</option></select><ChevronDown size={16} aria-hidden="true" /></span></label>
+        <label className="discord-field"><span>Zona horaria</span><span className="discord-timezone-control"><select className="input" value={zona} onChange={e=>{invalidar();setZona(e.target.value);}}>{!ZONAS_LATAM.some(([valor]) => valor === zona) && <option value={zona}>{zona}</option>}{ZONAS_LATAM.map(([valor, nombre]) => <option key={valor} value={valor}>{nombre}</option>)}</select><ChevronDown size={16} aria-hidden="true" /></span></label>
       </fieldset>
       {preview?.limites.requiere_confirmacion && !importacion && <label className="discord-confirm"><input type="checkbox" checked={confirmado} onChange={e=>setConfirmado(e.target.checked)} disabled={ocupado}/>Confirmo la importación de este rango de {duracionRango(preview.rango.dias).cantidad} {duracionRango(preview.rango.dias).unidad}, con un máximo de {preview.limites.max_mensajes} mensajes.</label>}
       {error && <p className="discord-message text-danger" role="alert"><AlertCircle size={16}/>{error}</p>}
