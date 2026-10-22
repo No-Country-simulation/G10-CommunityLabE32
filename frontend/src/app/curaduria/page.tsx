@@ -16,6 +16,7 @@ import TablaDenegados from '@/components/TablaDenegados';
 import { esReferenciaPublicada } from '@/services/referenciaPublicada';
 import PanelBanner from '@/components/PanelBanner';
 import EstadoOCI from '@/components/EstadoOCI';
+import BotonesRedes from '@/components/BotonesRedes';
 import RutaProtegida from '@/components/RutaProtegida';
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -346,10 +347,7 @@ function CuraduriaPage() {
                     <button type="button" className="btn-secondary" disabled={soloReferencia || generandoPosts || saving || !esLogroAcademicoElegible(selectedActivo)} onClick={generarPosts}>{generandoPosts ? <Loader2 className="w-4 h-4 animate-spin"/> : <FileText className="w-4 h-4"/>}Generar post</button>
                     {isDirty && <span className="badge-warning">Cambios sin guardar</span>}
                   </div>
-                  <div className="flex gap-2 mb-4">
-                    <a className="btn-secondary" href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer" title="Abrir LinkedIn; no publica automáticamente">LinkedIn</a>
-                    <a className="btn-secondary" href="https://x.com/" target="_blank" rel="noopener noreferrer" title="Abrir X; no publica automáticamente">X</a>
-                  </div>
+                  <BotonesRedes textoLinkedin={editCopy} textoX={postX} />
                   {errorPosts && <p role="alert" className="text-sm text-danger mb-3">{errorPosts}</p>}
                   <p className="text-xs font-bold mb-2">Texto para LinkedIn</p>
                   <textarea
@@ -453,7 +451,7 @@ function CuraduriaPage() {
             <div className="flex-1 flex items-center justify-center text-subtle-foreground text-sm">
               <div className="card p-6 w-full max-w-2xl text-left">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4"><h2 className="font-bold text-foreground">Cuerpo del contenido</h2><button className="btn-secondary" disabled><FileText className="w-4 h-4"/>Generar post</button></div>
-                <div className="flex gap-2 mb-5"><a className="btn-secondary" href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer">LinkedIn</a><a className="btn-secondary" href="https://x.com/" target="_blank" rel="noopener noreferrer">X</a></div>
+                <BotonesRedes />
                 <p className="text-sm text-muted-foreground flex gap-2"><Edit3 className="w-4 h-4 shrink-0"/>Selecciona un logro académico verificado para revisar el banner y generar los textos de LinkedIn y X.</p>
               </div>
             </div>

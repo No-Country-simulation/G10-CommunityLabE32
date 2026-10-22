@@ -8,7 +8,6 @@ import {
   Database,
   Cpu,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
@@ -22,13 +21,24 @@ function IconoLinkedin({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   )}</UiTree>;
 }
 
+function IconoGithub({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return <UiTree>{(
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.03a9.56 9.56 0 0 1 5 0c1.91-1.3 2.75-1.03 2.75-1.03.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.69 0 3.84-2.34 4.69-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z" />
+    </svg>
+  )}</UiTree>;
+}
+
 interface MiembroEquipo {
   nombre: string;
   rol: string;
   especialidad: string;
   bio: string;
-  stack: string[];
+  /** Exactamente cinco habilidades por integrante. */
+  stack: [string, string, string, string, string];
   linkedin: string;
+  /** Usuario de GitHub; sin él, no se muestra el botón. */
+  github?: string;
 }
 
 const integrantes: MiembroEquipo[] = [
@@ -36,65 +46,71 @@ const integrantes: MiembroEquipo[] = [
     nombre: 'Elizabeth Aguilar',
     rol: 'Gestión de proyectos',
     especialidad: 'Gestión del proyecto • Metodologías ágiles • Control de calidad',
-    bio: 'Coordinación general del equipo de trabajo en No Country, planificación de ciclos de trabajo y control de calidad para la presentación del proyecto.',
-    stack: ['Agile', 'Scrum', 'Jira', 'QA Management'],
+    bio: 'Coordinación general del equipo en No Country, planificación de los ciclos de trabajo y control de calidad para la presentación del proyecto.',
+    stack: ['Agile', 'Scrum', 'Jira', 'Control de calidad', 'Liderazgo de equipos'],
     linkedin: 'https://www.linkedin.com/in/eav1804/',
+    github: 'LizAg1804',
   },
   {
-    nombre: 'Vania Sherel Cruz Hernandez',
+    nombre: 'Vania Cruz',
     rol: 'Desarrollo asistido por IA',
     especialidad: 'Experiencia de usuario • Soporte de integración',
-    bio: 'Colaboración en el desarrollo del flujo frontend, pruebas y refinamiento general de la experiencia de la plataforma.',
-    stack: ['Frontend', 'JavaScript', 'Tailwind', 'UI Testing'],
+    bio: 'Colaboración en el desarrollo del flujo del frontend, las pruebas y el refinamiento general de la experiencia de la plataforma.',
+    stack: ['Frontend', 'JavaScript', 'Tailwind CSS', 'Pruebas de interfaz', 'Experiencia de usuario'],
     linkedin: 'https://www.linkedin.com/in/vaniasherelcruz/',
   },
   {
-    nombre: 'Jose Angel Olan de los Santos',
+    nombre: 'José Olán',
     rol: 'Ingeniería de datos',
     especialidad: 'PostgreSQL • Modelado de datos • ETL',
     bio: 'Estructuración de esquemas relacionales, optimización de consultas asíncronas y gestión de bases de datos.',
-    stack: ['PostgreSQL', 'SQLAlchemy', 'Python', 'Docker'],
+    stack: ['PostgreSQL', 'SQLAlchemy', 'Python', 'Docker', 'ETL'],
     linkedin: 'https://www.linkedin.com/in/jose-olan/',
+    github: 'JoseOlannn',
   },
   {
-    nombre: 'Fredy Pachon',
+    nombre: 'Fredy Pachón',
     rol: 'Desarrollo de backend',
     especialidad: 'Ciencia de datos • Modelado y lógica',
     bio: 'Construcción y validación de flujos de datos analíticos y soporte en la lógica del backend.',
-    stack: ['Python', 'SQLAlchemy', 'Data Science', 'FastAPI'],
+    stack: ['Python', 'FastAPI', 'SQLAlchemy', 'Ciencia de datos', 'Modelado de datos'],
     linkedin: 'https://www.linkedin.com/in/fredy-pachon-cinetifico-datos/',
+    github: 'FredyPachon',
   },
   {
-    nombre: 'Ianjaner Alfonso Beltran Guañarita',
+    nombre: 'Ianjaner Beltrán',
     rol: 'Desarrollo de aplicaciones web',
-    especialidad: 'Next.js 16 • UI/UX • Autenticación JWT y FastAPI',
-    bio: 'Desarrollo de la interfaz de usuario, el centro de operaciones, la seguridad JWT y la protección de rutas en el ecosistema del frontend.',
-    stack: ['Next.js 16', 'TypeScript', 'Tailwind', 'FastAPI', 'PostgreSQL'],
+    especialidad: 'Next.js • UI/UX • Autenticación con JWT y FastAPI',
+    bio: 'Desarrollo de la interfaz de usuario, el centro de operaciones, la seguridad con JWT y la protección de rutas del frontend.',
+    stack: ['Next.js', 'TypeScript', 'Tailwind CSS', 'FastAPI', 'JWT'],
     linkedin: 'https://www.linkedin.com/in/ianjaner-beltran/',
+    github: 'ianjaner75',
   },
   {
-    nombre: 'Santiago Horta Hurtado',
+    nombre: 'Santiago Horta',
     rol: 'Ingeniería de agentes autónomos',
     especialidad: 'Agentes inteligentes • Integración con el backend',
-    bio: 'Desarrollo y optimización de componentes de automatización y lógica de agentes de inteligencia artificial.',
-    stack: ['Python', 'IA', 'FastAPI', 'Git'],
+    bio: 'Desarrollo y optimización de componentes de automatización y de la lógica de agentes de inteligencia artificial.',
+    stack: ['Python', 'Agentes de IA', 'FastAPI', 'Git', 'Integración con Discord'],
     linkedin: 'https://www.linkedin.com/in/santiago-h-4bb592109/',
+    github: 'TIANHH77',
   },
   {
-    nombre: 'Fabián Hernández Alejandro',
+    nombre: 'Fabián Hernández',
     rol: 'Ingeniería de prompts',
-    especialidad: 'Ingeniería de prompts • Modelos LLM',
+    especialidad: 'Ingeniería de prompts • Modelos de lenguaje',
     bio: 'Diseño, prueba y optimización de prompts estructurados para el análisis de sentimiento y la generación de contenido editorial.',
-    stack: ['Prompt Engineering', 'Gemini AI', 'JSON Schema', 'NLP'],
+    stack: ['Ingeniería de prompts', 'Gemini', 'JSON Schema', 'Procesamiento de lenguaje natural', 'Análisis de sentimiento'],
     linkedin: 'https://www.linkedin.com/in/fabián-hernández-alejandro/',
   },
   {
-    nombre: 'Paulo Andrés Escobar Saldaña',
+    nombre: 'Paulo Escobar',
     rol: 'Ingeniería de agentes autónomos',
-    especialidad: 'LangGraph • Gemini AI • Infraestructura de máquinas virtuales',
-    bio: 'Arquitectura de agentes autónomos con Gemini, integración con Discord y despliegue del backend.',
-    stack: ['Python', 'LangGraph', 'Gemini API', 'Docker', 'Nginx', 'Claude Code', 'Codex'],
+    especialidad: 'LangGraph • Gemini • Infraestructura en la nube',
+    bio: 'Arquitectura de agentes autónomos con Gemini, integración con Discord y despliegue de la plataforma en OCI.',
+    stack: ['Python', 'LangGraph', 'Gemini', 'Docker', 'OCI'],
     linkedin: 'https://www.linkedin.com/in/paulo-escobar-nodnexa/',
+    github: 'AndresS-max',
   },
 ];
 
@@ -130,7 +146,7 @@ export default function EquipoPage() {
         <main className="dashboard-content flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
           <header className="mb-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-soft text-primary text-xs font-bold mb-2">
-              <Sparkles className="w-3.5 h-3.5" /> Equipo 32
+              Equipo 32
             </div>
             <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-foreground">
               El equipo detrás de CommunityLab
@@ -183,6 +199,18 @@ export default function EquipoPage() {
                       <IconoLinkedin className="team-linkedin-icon w-4 h-4" />
                       LinkedIn
                     </a>
+                    {m.github && (
+                      <a
+                        href={`https://github.com/${m.github}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`GitHub de ${m.nombre}`}
+                        className="team-linkedin btn-secondary py-1.5! px-3! text-xs flex items-center gap-1.5"
+                      >
+                        <IconoGithub className="w-4 h-4" />
+                        GitHub
+                      </a>
+                    )}
                   </div>
                 </motion.div>
               ))}

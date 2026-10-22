@@ -517,11 +517,19 @@ code,pre,kbd,.font-mono { font-family: var(--font-community-sans), Arial, sans-s
   .interactions-page .interaction-filter.btn-secondary:active { transform: none; }
 }
 
-/* Misma secuencia de colores que las tarjetas del Resumen. */
-.interactions-page .interaction-stat.card:nth-child(1) { background: #ff90e8; }
-.interactions-page .interaction-stat.card:nth-child(2) { background: #b9e9c5; }
-.interactions-page .interaction-stat.card:nth-child(3) { background: #90a8ed; }
-.interactions-page .interaction-stat.card:nth-child(4) { background: #f1f333; }
+/* Un color por sentimiento, el mismo en las tarjetas, las etiquetas de la tabla y Analítica.
+   Pasteles acordes a la paleta: el negativo pasa de azul a coral. */
+.interactions-page .interaction-stat.card[data-filtro="todos"] { background: #ff90e8; }
+.interactions-page .interaction-stat.card[data-filtro="positivo"] { background: #b9e9c5; }
+.interactions-page .interaction-stat.card[data-filtro="negativo"] { background: #ffa8a0; }
+.interactions-page .interaction-stat.card[data-filtro="neutral"] { background: #d9d6ce; }
+.interactions-page .interaction-stat.card[data-filtro="indeterminado"] { background: #c9b8ff; }
+.interactions-page .interaction-stat.card[data-filtro="sin_analizar"] { background: #f1f333; }
+/* La tarjeta elegida se distingue sin depender del color. */
+.interactions-page .interaction-stat.card[aria-pressed="true"] { outline: 3px solid var(--foreground); outline-offset: 2px; }
+/* Seis tarjetas en una fila: la etiqueta se achica para que «Indeterminados» no se corte. */
+.interactions-page .interaction-stats .interaction-stat { padding-left: 14px; padding-right: 14px; }
+.interactions-page .interaction-stats .interaction-stat > p:first-child { font-size: 12px; letter-spacing: .02em; overflow-wrap: normal; word-break: keep-all; hyphens: none; }
 
 .gum-community-intro .gum-eyebrow {
   display: inline-block;
@@ -771,7 +779,7 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 
 .interactions-page .sentiment-label { display: inline-flex; align-items: center; border: 1px solid #000; border-radius: 30px; padding: 4px 10px; color: #000; font-size: 11px; line-height: 1.4; }
 .interactions-page .sentiment-positive { background: #b9e9c5; }
-.interactions-page .sentiment-negative { background: #90a8ed; }
+.interactions-page .sentiment-negative { background: #ffa8a0; }
 .interactions-page .sentiment-neutral { background: #f1f333; }
 .interactions-page .sentiment-unknown { background: #ff90e8; }
 
@@ -832,14 +840,12 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 .password-control { position: relative; width: 100%; }
 .password-control > input { padding-right: 48px !important; }
 .password-control > button { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; display: grid; place-items: center; color: var(--foreground); border: 0; background: transparent; }
-.overview-intro-disclosure { margin-bottom: 28px; border: 1px solid var(--border); border-radius: 5px; }
-.overview-intro-disclosure > summary { padding: 16px 20px; cursor: pointer; color: var(--foreground); }
-.overview-intro-disclosure > summary > span:first-child { color: #ff90e8; margin-right: 14px; }
-.overview-intro-disclosure > summary > span:last-child { font-size: 13px; }
-.overview-intro-disclosure .gum-community-intro { margin: 0; border: 0; }
+/* Presentación fija arriba del Resumen (antes era un desplegable). */
+.overview-intro { margin-bottom: 28px; }
+.overview-intro .gum-community-intro { margin: 0; }
 .gum-intro-copy h2 { font-size: clamp(34px, 4.4vw, 66px); line-height: .98; letter-spacing: -.055em; margin: 26px 0; }
 .ingestion-support > .discord-pending-card { grid-column: auto; height: 100%; }
-.ingestion-support > .ingestion-requirements { height: 100%; margin: 0; }
+.ingestion-support > .ingestion-requirements { height: auto; align-self: start; margin: 0; }
 .ingestion-support > .ingestion-tracking { grid-column: 1 / -1; }
 .ingestion-requirements li { overflow-wrap: anywhere; }
 .denied-table-card { border-top: 5px solid #90a8ed; overflow: hidden; }
@@ -850,8 +856,8 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 .denied-table th:nth-child(2) { width: 34%; }
 .denied-table th:nth-child(3) { width: 32%; }
 .denied-table th:nth-child(4) { width: 16%; }
-.interactions-page .sentiment-neutral { background: #d3d3cb; color: #000; }
-.interactions-page .sentiment-unknown { background: #f1f333; color: #000; }
+.interactions-page .sentiment-neutral { background: #d9d6ce; color: #000; }
+.interactions-page .sentiment-unknown { background: #c9b8ff; color: #000; }
 :root[data-theme="light"] svg[class*="text-[#f1f333]"], :root[data-theme="light"] .discord-auto-connect-note > svg { color: #242423 !important; stroke: #242423; filter: drop-shadow(1px 1px 0 #f1f333); }
 :root[data-theme="light"] .text-warning { color: #242423; }
 @media(max-width:1100px) {
@@ -871,8 +877,6 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
   .interaction-table tr { padding: 14px 16px; border-bottom: 1px solid var(--border); }
   .interaction-table td { border: 0; padding: 8px 0; white-space: normal; overflow-wrap: anywhere; }
   .interaction-table td[data-label]::before { content: attr(data-label); display: block; color: var(--muted-foreground); font-size: 12px; margin-bottom: 5px; }
-  .overview-intro-disclosure > summary { padding: 14px; }
-  .overview-intro-disclosure > summary > span:last-child { display: block; margin-top: 6px; }
   .gum-intro-copy h2 { font-size: 36px; }
 }
 
@@ -889,3 +893,13 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
   .datos-lote > :not(input):not(label) { grid-column: auto; }
 }
 .datos-confirmacion { border: 1px solid #ff90e8; border-radius: 12px; background: color-mix(in srgb, #ff90e8 8%, transparent); }
+
+/* Botones de redes en Curaduría: LinkedIn en blanco con su logo y X en negro con su logo. */
+.btn-red { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid #000; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
+.btn-red:hover { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 #000; }
+.btn-red-linkedin { background: #fff; color: #0b0b0b; }
+.btn-red-x { background: #0b0b0b; color: #fff; border-color: #fff; }
+.btn-red-x:hover { box-shadow: 3px 3px 0 #fff; }
+:root[data-theme="light"] .btn-red-x { border-color: #0b0b0b; }
+:root[data-theme="light"] .btn-red-x:hover { box-shadow: 3px 3px 0 #0b0b0b; }
+@media (prefers-reduced-motion: reduce) { .btn-red, .btn-red:hover { transition: none; transform: none; } }
