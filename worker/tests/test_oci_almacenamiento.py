@@ -105,6 +105,10 @@ def test_aprobar_sube_texto_y_banner_de_esa_version(cliente, cola, oci_falso):
     assert tipo.startswith("application/json") and datos["copy"] == COPY and datos["version"] == 1
     assert "comentario_curador" not in datos and "actor" not in datos       # nada de quien revisó
     assert oci_falso.objetos[f"aprobados/{a}/v1/banner.svg"] == (b"<svg>v1</svg>", "image/svg+xml")
+    # El detalle (lo que abre Curaduría) y el listado también devuelven el registro.
+    assert cliente.get(f"/api/curaduria/activos/{a}", headers=H_OP).json()["almacenamiento_oci"] == registro
+    listado = cliente.get("/api/curaduria/activos", params={"estado": "aprobado"}, headers=H_OP).json()["items"]
+    assert [i["almacenamiento_oci"]["estado"] for i in listado] == ["guardado"]
 
 
 def test_editar_y_reaprobar_sube_la_version_nueva_sin_banner_viejo(cliente, cola, oci_falso):

@@ -144,6 +144,7 @@ async def obtener_detalle_activo(id_activo: str, db: AsyncSession = Depends(get_
         comentario_curador=activo.comentario_curador,
         advertencias_fidelidad=activo.advertencias_fidelidad,
         posts_redes=activo.posts_redes,
+        almacenamiento_oci=activo.almacenamiento_oci,
         fecha_creacion=activo.fecha_creacion,
         fecha_actualizacion=activo.fecha_actualizacion,
         fuentes_detalle=fuentes_detalle,
