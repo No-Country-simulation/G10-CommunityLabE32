@@ -31,21 +31,21 @@ function DiscordIcon({ className = '' }: { className?: string }) {
 }
 
 export default function ConectarDiscord() {
-  const [cantidad, setCantidad] = useState(1);
   const [estados, setEstados] = useState<Record<number, EstadoEscuchaDiscord | null>>({});
   const [cambiando, setCambiando] = useState(false);
   const [errorControl, setErrorControl] = useState('');
   const conectados = useRef(new Map<number, string>());
   const alEstado = useCallback((indice: number, estado: EstadoEscuchaDiscord | null) => setEstados(actual => ({ ...actual, [indice]: estado })), []);
-  const alConectar = useCallback((indice: number, canal: string) => {
-    conectados.current.set(indice, canal);
-    setCantidad(actual => indice === actual - 1 ? Math.min(4, actual + 1) : actual);
-  }, []);
+  const alConectar = useCallback((indice: number, canal: string) => { conectados.current.set(indice, canal); }, []);
   const duplicado = useCallback((indice: number, canal: string) => [...conectados.current.entries()].some(([otro, id]) => otro !== indice && id === canal), []);
   const conocidos = Object.entries(estados).filter((item): item is [string, EstadoEscuchaDiscord] => item[1] !== null);
   const escuchando = conocidos.some(([, estado]) => estado.escuchando);
+  const conectado = conocidos.some(([, estado]) => estado.conectado);
+  const etiqueta = cambiando ? 'Actualizando…' : conocidos.length === 0 ? 'Sin confirmar'
+    : escuchando ? 'Escuchando' : conectado ? 'Conectado' : 'No autorizado';
+  // Solo sirve para detener una importación en curso: encender sin importación no tiene efecto.
   const alternar = async () => {
-    if (cambiando || conocidos.length === 0) return;
+    if (cambiando || !escuchando) return;
     setCambiando(true); setErrorControl('');
     await Promise.all(conocidos.map(async ([indice, estado]) => {
       try { alEstado(Number(indice), await cambiarEscuchaDiscord(estado.canal_id, !escuchando)); }
@@ -54,11 +54,11 @@ export default function ConectarDiscord() {
     setCambiando(false);
   };
   return <UiTree>{<section className="card discord-connect" aria-labelledby="discord-connect-title">
-    <div className="discord-panel-heading"><div className="discord-heading-copy"><span className="discord-brand-icon"><DiscordIcon className="h-5 w-5"/></span><div><h2 id="discord-connect-title">Conectar a Discord</h2><p>Importa hasta cuatro canales, cada uno con su período y zona horaria.</p></div></div>
-      <button type="button" role="switch" aria-checked={escuchando} aria-label="Escucha de los canales de Discord" disabled={cambiando || conocidos.length === 0} onClick={alternar} className={'discord-bot-control ' + (escuchando ? 'is-online' : '')}><DiscordIcon className="h-4 w-4"/><span className="discord-bot-dot"/><span>{cambiando ? 'Actualizando…' : conocidos.length === 0 ? 'Sin confirmar' : escuchando ? 'Escuchando' : 'Apagado'}</span></button>
+    <div className="discord-panel-heading"><div className="discord-heading-copy"><span className="discord-brand-icon"><DiscordIcon className="h-5 w-5"/></span><div><h2 id="discord-connect-title">Conectar a Discord</h2><p>Importa los mensajes de un canal, con su período y zona horaria.</p></div></div>
+      <button type="button" role="switch" aria-checked={escuchando} aria-label={escuchando ? 'Detener la importación del canal de Discord' : 'Estado del canal de Discord'} title={escuchando ? 'Pulsa para detener la importación' : undefined} disabled={cambiando || !escuchando} onClick={alternar} className={'discord-bot-control ' + (escuchando || conectado ? 'is-online' : '')}><DiscordIcon className="h-4 w-4"/><span className="discord-bot-dot"/><span>{etiqueta}</span></button>
     </div>
     {errorControl && <p role="alert" className="discord-message text-danger">{errorControl}</p>}
-    <div className="discord-channel-list">{Array.from({ length: cantidad }, (_, indice) => <CanalDiscord key={indice} indice={indice} duplicado={duplicado} alConectar={alConectar} alEstado={alEstado} />)}</div>
+    <div className="discord-channel-list"><CanalDiscord indice={0} duplicado={duplicado} alConectar={alConectar} alEstado={alEstado} /></div>
   </section>}</UiTree>;
 }
 
@@ -108,6 +108,8 @@ function CanalDiscord({ indice, alConectar, duplicado, alEstado }: { indice: num
       const resultado = await crearImportacionDiscord({canal_id: canal.trim(), desde: vista.alcance_congelado.desde, hasta: vista.alcance_congelado.hasta, zona: vista.alcance_congelado.zona, confirmar_alcance: confirmado}, clave.current);
       setImportacion(resultado.importacion);
       alConectar(indice, canal.trim());
+      // La importación ya existe: el interruptor pasa a «Escuchando» sin esperar al siguiente ciclo.
+      obtenerEscuchaDiscord(canal.trim()).then(estado => alEstado(indice, estado)).catch(() => undefined);
     } catch (err) { const info = describirError(err); setError(`${info.titulo}. ${info.mensaje}`); }
     finally { setOcupado(false); enCurso.current = false; }
   };
@@ -127,11 +129,16 @@ function CanalDiscord({ indice, alConectar, duplicado, alEstado }: { indice: num
     if (!importacion || !['pendiente', 'ejecutando'].includes(importacion.estado)) return;
     let vigente = true;
     const timer = setTimeout(async () => {
-      try { const actual = await consultarImportacionDiscord(importacion.id); if (vigente) setImportacion(actual); }
+      try {
+        const actual = await consultarImportacionDiscord(importacion.id);
+        if (vigente) setImportacion(actual);
+        const estado = await obtenerEscuchaDiscord(importacion.canal_id);
+        if (vigente) alEstado(indice, estado);
+      }
       catch { if (vigente) setError('No se pudo actualizar el progreso de la importación.'); }
     }, 4000);
     return () => { vigente = false; clearTimeout(timer); };
-  }, [importacion]);
+  }, [importacion, indice, alEstado]);
   useEffect(() => {
     if (!importacion || ['pendiente', 'ejecutando'].includes(importacion.estado) || apagados.current.has(importacion.id)) return;
     apagados.current.add(importacion.id);
@@ -142,7 +149,7 @@ function CanalDiscord({ indice, alConectar, duplicado, alEstado }: { indice: num
     return () => { vigente = false; };
   }, [importacion, indice, alEstado]);
   return <UiTree>{<div className="discord-channel-row" aria-labelledby={'discord-channel-title-' + indice}>
-    <h3 id={'discord-channel-title-' + indice} className="text-sm font-bold mb-3">Canal {indice + 1}</h3>
+    <h3 id={'discord-channel-title-' + indice} className="text-sm font-bold mb-3">Canal</h3>
     {errorBot && <p className="discord-preview-note" role="status">{errorBot}</p>}
     <form ref={formRef} onSubmit={conectar} className="discord-connect-form">
       <fieldset disabled={ocupado || !!importacion} className="contents">

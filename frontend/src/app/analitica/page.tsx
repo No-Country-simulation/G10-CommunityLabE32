@@ -150,9 +150,9 @@ export default function AnaliticaPage() {
   // Segmentos de la Dona con colores y metadatos
   const segmentos = [
     { id: 'positivo', nombre: 'Positivos', valor: pctPos, cantidad: pos, stroke: '#b9e9c5', bgHex: '#b9e9c5' },
-    { id: 'neutral', nombre: 'Neutrales', valor: pctNeu, cantidad: neu, stroke: '#a7a79f', bgHex: '#a7a79f' },
-    { id: 'negativo', nombre: 'Negativos', valor: pctNeg, cantidad: neg, stroke: '#90a8ed', bgHex: '#90a8ed' },
-    { id: 'indeterminado', nombre: 'Indeterminados', valor: pctInd, cantidad: ind, stroke: '#f1f333', bgHex: '#f1f333' },
+    { id: 'neutral', nombre: 'Neutrales', valor: pctNeu, cantidad: neu, stroke: '#d9d6ce', bgHex: '#d9d6ce' },
+    { id: 'negativo', nombre: 'Negativos', valor: pctNeg, cantidad: neg, stroke: '#ffa8a0', bgHex: '#ffa8a0' },
+    { id: 'indeterminado', nombre: 'Indeterminados', valor: pctInd, cantidad: ind, stroke: '#c9b8ff', bgHex: '#c9b8ff' },
   ];
 
   const radio = 62;

@@ -112,10 +112,12 @@ export default function InteraccionesPage() {
     { filtro: 'todos' as FiltroSentimiento, etiqueta: 'Total de mensajes', valor: resumen?.total ?? '—' },
     { filtro: 'positivo' as FiltroSentimiento, etiqueta: 'Positivos', valor: resumen?.por_valor.positivo ?? '—' },
     { filtro: 'negativo' as FiltroSentimiento, etiqueta: 'Negativos', valor: resumen?.por_valor.negativo ?? '—' },
+    { filtro: 'neutral' as FiltroSentimiento, etiqueta: 'Neutrales', valor: resumen?.por_valor.neutral ?? '—' },
+    { filtro: 'indeterminado' as FiltroSentimiento, etiqueta: 'Indeterminados', valor: resumen?.por_valor.indeterminado ?? '—' },
     { filtro: 'sin_analizar' as FiltroSentimiento, etiqueta: 'Sin analizar', valor: resumen?.sin_analizar ?? '—' },
   ];
 
-  const tituloListado = ({ neutral: 'Neutrales', indeterminado: 'Indeterminados' } as Record<string, string>)[filtroSentimiento] ?? stats.find(item => item.filtro === filtroSentimiento)?.etiqueta ?? 'Total de mensajes';
+  const tituloListado = stats.find(item => item.filtro === filtroSentimiento)?.etiqueta ?? 'Total de mensajes';
 
   return <UiTree>{(
     <RutaProtegida>
@@ -132,19 +134,15 @@ export default function InteraccionesPage() {
             </p>
           </header>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 shrink-0">
+          <div className="interaction-stats grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-6 shrink-0" role="group" aria-label="Filtrar por sentimiento">
             {stats.map((s) => (
-              <button type="button" key={s.etiqueta} className="interaction-stat card px-5 py-4 text-left" aria-pressed={filtroSentimiento === s.filtro} onClick={() => elegirFiltro(s.filtro)}>
+              <button type="button" key={s.etiqueta} data-filtro={s.filtro} className="interaction-stat card px-5 py-4 text-left" aria-pressed={filtroSentimiento === s.filtro} onClick={() => elegirFiltro(s.filtro)}>
                 <p className="text-xs font-medium uppercase tracking-wider text-subtle-foreground">
                   {s.etiqueta}
                 </p>
                 <p className="mt-1 text-2xl font-bold tabular-nums">{s.valor}</p>
               </button>
             ))}
-          </div>
-          <div className="flex flex-wrap gap-2 mb-5" role="group" aria-label="Otros sentimientos">
-            <button type="button" className="btn-secondary" aria-pressed={filtroSentimiento === 'neutral'} onClick={() => elegirFiltro('neutral')}>Neutrales · {resumen?.por_valor.neutral ?? '—'}</button>
-            <button type="button" className="btn-secondary" aria-pressed={filtroSentimiento === 'indeterminado'} onClick={() => elegirFiltro('indeterminado')}>Indeterminados · {resumen?.por_valor.indeterminado ?? '—'}</button>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-4 mb-3 shrink-0">
@@ -209,7 +207,7 @@ export default function InteraccionesPage() {
                         </td>
                         <td data-label="Sentimiento detectado" className="table-td whitespace-nowrap">
                           <span
-                            className={sentimentBadge[msg.sentimiento_ref ?? ''] ?? 'badge-neutral'}
+                            className={msg.sentimiento_ref ? sentimentBadge[msg.sentimiento_ref] ?? 'badge-neutral' : 'sentiment-label sentiment-pending'}
                             title={msg.sentimiento_version ? `Análisis ${msg.sentimiento_origen ?? ''} · ${msg.sentimiento_version}` : undefined}
                           >
                             {ETIQUETA_SENTIMIENTO[msg.sentimiento_ref ?? ''] ?? 'Sin analizar'}

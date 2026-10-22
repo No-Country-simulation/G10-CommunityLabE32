@@ -8,9 +8,10 @@ import Image from 'next/image';
 import { Menu, X } from 'lucide-react';
 import Notificaciones from './Notificaciones';
 import useAuthLanguage from './useAuthLanguage';
+import { IDIOMAS } from '@/i18n/idioma';
 const enlacesMoviles = [
   ['/', 'Resumen'], ['/ingesta', 'Ingesta de datos'], ['/interacciones', 'Interacciones'],
-  ['/curaduria', 'Curaduría'], ['/analitica', 'Analítica'], ['/configuracion', 'Cuenta y seguridad'],
+  ['/curaduria', 'Curaduría'], ['/analitica', 'Analítica'], ['/configuracion', 'Configuraciones'],
   ['/equipo', 'Acerca del equipo'], ['/login', 'Ver inicio de sesión'],
 ];
 export default function Topbar() {
@@ -21,7 +22,7 @@ export default function Topbar() {
   const [movilAbierto, setMovilAbierto] = useState(false);
   const menuMovil = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    document.documentElement.lang = language;
+    document.documentElement.lang = IDIOMAS.find(i => i.valor === language)?.lang ?? 'es';
     document.documentElement.setAttribute('translate', 'yes');
   }, [language]);
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function Topbar() {
   }, []);
   const cerrarMovil = () => { menuMovil.current?.close(); setMovilAbierto(false); };
   const simbolo = <Image src="/brand/communitylab-logo-current.svg" width={34} height={39} className="communitylab-symbol" alt="" aria-hidden="true" priority />;
-  if (auth) return <UiTree><header className="auth-header" lang={language}><Link href="/login" className="auth-brand notranslate" translate="no">{simbolo}Community<span className="brand-lab">Lab</span></Link><div className="auth-header-controls">{pathname === '/login' ? <button type="button" className="auth-header-login auth-header-link" onClick={() => window.dispatchEvent(new Event('communitylab-open-login'))}>{t('Iniciar sesión', 'Log in')}</button> : <Link className="auth-header-login auth-header-link" href="/login">{t('Iniciar sesión', 'Log in')}</Link>}<Link className="auth-header-link" href="/register">{t('Registrarse', 'Sign up')}</Link></div></header></UiTree>;
+  if (auth) return <UiTree><header className="auth-header" lang={IDIOMAS.find(i => i.valor === language)?.lang ?? 'es'}><Link href="/login" className="auth-brand notranslate" translate="no">{simbolo}Community<span className="brand-lab">Lab</span></Link><div className="auth-header-controls">{pathname === '/login' ? <button type="button" className="auth-header-login auth-header-link" onClick={() => window.dispatchEvent(new Event('communitylab-open-login'))}>{t('Iniciar sesión', 'Log in')}</button> : <Link className="auth-header-login auth-header-link" href="/login">{t('Iniciar sesión', 'Log in')}</Link>}<Link className="auth-header-link" href="/register">{t('Registrarse', 'Sign up')}</Link></div></header></UiTree>;
   return <UiTree><header className="workspace-topbar"><div className="workspace-brand-area">
     <button className="desktop-menu-toggle" type="button" aria-label={menuVisible ? 'Ocultar menú' : 'Mostrar menú'} aria-expanded={menuVisible} aria-controls="sidebar-principal" onClick={() => { setMenuVisible(!menuVisible); document.documentElement.dataset.menuOculto = String(menuVisible); }}><Menu size={17}/></button>
     <button className="mobile-menu-toggle" type="button" aria-label="Abrir menú" aria-expanded={movilAbierto} aria-controls="menu-movil" onClick={() => { menuMovil.current?.showModal(); setMovilAbierto(true); }}><Menu size={19}/></button>

@@ -23,11 +23,14 @@ import {
   Palette,
   KeyRound,
   LogOut,
+  Languages,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import PasswordInput from '@/components/PasswordInput';
 import RutaProtegida from '@/components/RutaProtegida';
 import TokenOperador from '@/components/TokenOperador';
+import useAuthLanguage from '@/components/useAuthLanguage';
+import { IDIOMAS, cambiarIdioma } from '@/i18n/idioma';
 
 export default function ConfiguracionPage() {
   const router = useRouter();
@@ -126,10 +129,10 @@ export default function ConfiguracionPage() {
         <main className="dashboard-content flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
           <header className="mb-8">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              Configuración de la cuenta y seguridad
+              Configuraciones
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Actualiza tus datos, protege tu cuenta y personaliza la apariencia.
+              Administra tu perfil, tu contraseña, el idioma y la apariencia de CommunityLab.
             </p>
           </header>
 
@@ -306,6 +309,8 @@ export default function ConfiguracionPage() {
                 <TokenOperador />
               </div>
 
+              <SelectorIdioma />
+
               {/* Tarjeta 4: Preferencias de Apariencia */}
               <div className="card p-6 space-y-4 flex flex-col justify-between">
                 <div>
@@ -361,5 +366,34 @@ export default function ConfiguracionPage() {
         </main>
       </div>
     </RutaProtegida>
+  )}</UiTree>;
+}
+
+// Idioma de la interfaz (español, inglés o portugués de Brasil); se guarda en este navegador.
+function SelectorIdioma() {
+  const { language } = useAuthLanguage();
+  return <UiTree>{(
+    <div className="card p-6 space-y-4">
+      <div className="flex items-center gap-3 border-b border-border pb-4">
+        <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center">
+          <Languages className="w-5 h-5" />
+        </div>
+        <div>
+          <h2 className="text-base font-bold text-foreground">Idioma de la interfaz</h2>
+          <p className="text-xs text-muted-foreground">Elige el idioma en que se muestra CommunityLab. Se guarda en este navegador.</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" role="group" aria-label="Idioma">
+        {IDIOMAS.map(idioma => (
+          <button key={idioma.valor} type="button" lang={idioma.lang} translate="no" aria-pressed={language === idioma.valor}
+            onClick={() => cambiarIdioma(idioma.valor)}
+            className="btn-secondary justify-center cursor-pointer"
+            style={language === idioma.valor ? { background: '#ff90e8', color: '#0b0b0b', borderColor: '#0b0b0b' } : undefined}>
+            {idioma.nombre}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">Los contenidos de la comunidad (mensajes y borradores) se muestran en su idioma original.</p>
+    </div>
   )}</UiTree>;
 }

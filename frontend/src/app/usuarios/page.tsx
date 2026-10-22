@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, Copy, KeyRound, Loader2, UserPlus, Users } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import UiTree from '@/components/UiTree';
 import RutaProtegida from '@/components/RutaProtegida';
 import {
   actualizarUsuarioAdmin, crearUsuarioAdmin, describirError, listarUsuarios, obtenerSesion,
@@ -56,7 +57,7 @@ export default function UsuariosPage() {
       const creado = await crearUsuarioAdmin({ email: email.trim(), full_name: nombre.trim() || undefined, password: clave, rol });
       setUsuarios((lista) => [...lista, creado]);
       setEmail(''); setNombre('');
-      setAviso({ texto: `Cuenta creada para ${creado.email}. Entrégale esta contraseña temporal por un canal privado; la cambiará en Configuración.`, clave });
+      setAviso({ texto: `Cuenta creada para ${creado.email}. Entrégale esta contraseña temporal por un canal privado; la cambiará en Configuraciones.`, clave });
     } catch (err) { mostrarError(err); }
     finally { setOcupado(null); }
   };
@@ -74,7 +75,7 @@ export default function UsuariosPage() {
     finally { setOcupado(null); }
   };
 
-  return (
+  return <UiTree>{(
     <RutaProtegida>
       <div className="flex min-h-screen w-full">
         <Sidebar />
@@ -116,7 +117,7 @@ export default function UsuariosPage() {
                         </td>
                         <td className="p-4"><span className={u.is_active ? 'badge-success' : 'badge-neutral'}>{u.is_active ? 'Activa' : 'Deshabilitada'}</span></td>
                         <td className="p-4">
-                          {propia ? <p className="text-xs text-muted-foreground text-right">Tu cuenta (cámbiala en Configuración)</p> :
+                          {propia ? <p className="text-xs text-muted-foreground text-right">Tu cuenta (cámbiala en Configuraciones)</p> :
                             <div className="flex flex-wrap justify-end gap-2">
                               <button type="button" className="btn-secondary text-xs inline-flex items-center gap-1.5" disabled={ocupado !== null}
                                 onClick={() => { if (window.confirm(`¿Generar una contraseña temporal nueva para ${u.email}?`)) void actualizar(u, { restablecer: true }); }}>
@@ -152,5 +153,5 @@ export default function UsuariosPage() {
         </main>
       </div>
     </RutaProtegida>
-  );
+  )}</UiTree>;
 }

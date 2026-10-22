@@ -1,4 +1,5 @@
 import type { AlmacenamientoOCI } from '@/services/api';
+import UiTree from '@/components/UiTree';
 import { Cloud, CloudOff } from 'lucide-react';
 
 // Copia de la versión aprobada en OCI Object Storage (backend/app/services/oci.py).
@@ -26,10 +27,10 @@ export default function EstadoOCI({ registro, conDetalle = false }: { registro?:
   if (!registro || !(registro.estado in ETIQUETA)) return null;
   const Icono = registro.estado === 'guardado' ? Cloud : CloudOff;
   const { corto, completo } = detalle(registro);
-  return <span className={conDetalle ? 'flex flex-wrap items-center gap-2' : 'inline-flex'}>
+  return <UiTree>{<span className={conDetalle ? 'flex flex-wrap items-center gap-2' : 'inline-flex'}>
     <span className={`${CLASE[registro.estado]} inline-flex items-center gap-1`} title={completo}>
       <Icono className="w-3 h-3" aria-hidden="true" />{ETIQUETA[registro.estado]}
     </span>
     {conDetalle && <span className="text-xs text-muted-foreground" title={completo}>{corto}</span>}
-  </span>;
+  </span>}</UiTree>;
 }

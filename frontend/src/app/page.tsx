@@ -129,7 +129,7 @@ export default function CommunityDashboard() {
       <Sidebar />
 
       <main className="dashboard-content flex-1 min-w-0 p-4 sm:p-6 md:p-10 md:h-[calc(100dvh-var(--topbar-h))] md:overflow-y-auto">
-        <details className="overview-intro-disclosure"><summary><span translate="no">CommunityLab</span>{' '}<span>Tu comunidad, en contexto · Ver presentación</span></summary><CommunityIntro /></details>
+        <div className="overview-intro"><CommunityIntro /></div>
         <header className="mb-8 flex flex-wrap justify-between items-end gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground mb-1.5">
