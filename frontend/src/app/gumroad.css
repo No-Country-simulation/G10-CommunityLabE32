@@ -680,7 +680,7 @@ code,pre,kbd,.font-mono { font-family: var(--font-community-sans), Arial, sans-s
 .analytics-summary-grid > .card { display: flex; flex-direction: column; }
 .analytics-summary-grid > .card > div:first-child { min-height: 40px; align-items: center; }
 .analytics-summary-grid > .card > div:nth-child(2) { min-height: 46px; align-items: center; justify-content: flex-start; }
-.analytics-summary-grid > .card > div:nth-child(2) > span { font-size: 36px; line-height: 1.1; text-align: left; font-variant-numeric: tabular-nums; }
+.analytics-summary-grid > .card > div:nth-child(2) > span:first-child { font-size: 36px; line-height: 1.1; text-align: left; font-variant-numeric: tabular-nums; }
 
 .summary-refresh.btn-secondary, .summary-refresh.btn-secondary:hover { background: #f1f333; color: #000; border: 1px solid #000; box-shadow: 3px 3px 0 #55554d; }
 .summary-refresh.btn-secondary:hover:not(:disabled) { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 #77776d; }
