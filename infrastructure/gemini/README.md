@@ -2,7 +2,9 @@
 
 Aporte a la actividad «Configurar la Gemini API (claves, cuotas y modelo de respaldo) y probar la conexión desde la VM», con entrega prevista el 24/09/2026. Responsable: Paulo.
 
-Esta carpeta entrega una prueba reproducible de conexión con Python 3.10 o superior, sin instalar dependencias. Es independiente del backend, del worker y de Docker Compose: no activa procesamiento con IA en el proyecto.
+Esta carpeta entrega una prueba reproducible de conexión con Python 3.10 o superior, sin instalar dependencias. Es independiente del backend, del worker y de Docker Compose.
+
+> **Estado actual:** el procesamiento real con IA ya está integrado. El worker analiza y genera contenido con Gemini en producción (ver `docs/gemini-grafo-worker.md`), y `tools/probar_gemini_real.py` prueba el grafo completo con Gemini real. Este script queda como prueba mínima de conexión y de la clave.
 
 ## Archivos
 
@@ -65,7 +67,7 @@ En AI Studio se registraron ese día el nivel gratuito y estas cuotas del proyec
 
 Estas cuotas son una observación del 24/09, no el saldo actual ni límites universales. Consultar el panel del proyecto antes de planificar lotes o demos. No se publica la credencial, el identificador privado del proyecto ni los archivos locales de evidencia.
 
-Para cerrar toda la actividad queda repetir la conexión desde la VM del equipo cuando esté disponible y registrar fecha, modelos, resultado y referencia al informe sin secretos en la bitácora. La integración del pipeline, la calidad del análisis, las pruebas de carga y la conmutación automática corresponden a etapas posteriores.
+La conexión desde la VM quedó comprobada después: el worker de producción procesa lotes con Gemini, con escalamiento al modelo de respaldo, reintentos ante 429 y presupuesto por lote (`docs/gemini-grafo-worker.md`).
 
 ## Verificar el script sin consumir la API
 

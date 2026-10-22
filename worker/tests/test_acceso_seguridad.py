@@ -132,9 +132,6 @@ def test_escrituras_anonimas_rechazadas_sin_efectos(entorno, c):
     assert c.post("/api/v1/trabajos", json=lote()).status_code == 401
     assert c.post("/api/mensajes/procesamientos", files={"file": ("l.json", b"[]")},
                   data={"origen_comunidad": "x", "periodo_referencia": "y"}).status_code == 401
-    assert c.post("/api/v1/procesamientos", json=lote()).status_code == 401
-    assert c.post("/api/v1/procesamientos/upload", files={"file": ("l.json", b"[]")},
-                  data={"origen_comunidad": "x", "periodo_referencia": "y"}).status_code == 401
     assert c.patch(f"/api/curaduria/activos/{a}", json={"copy": "Cambiado por anónimo"}).status_code == 401
     assert c.post("/api/v1/procesamiento-pendientes").status_code == 401
     assert c.post(f"/api/curaduria/activos/{a}/banners").status_code == 401
@@ -553,3 +550,12 @@ def test_verificar_acceso_recorre_login_real_sin_mostrar_secretos(entorno, monke
     finally:
         servidor.should_exit = True
         hilo.join(10)
+
+
+def test_login_con_dominio_reservado_no_da_500(entorno, c):
+    """Una cuenta creada por terminal con un dominio reservado (.test) inicia sesión sin error 500."""
+    crear_cuenta(entorno, "revision@example.test", rol="administrador")
+    r = c.post("/api/auth/login", data={"username": "revision@example.test", "password": CONTRASENA})
+    assert r.status_code == 200, r.text
+    assert r.json()["usuario"]["email"] == "revision@example.test"
+    assert c.get("/api/auth/sesion").json()["usuario"]["email"] == "revision@example.test"

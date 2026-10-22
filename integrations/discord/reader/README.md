@@ -30,7 +30,7 @@ no sustituye PostgreSQL ni modifica la arquitectura del repositorio del equipo.
 - `examples/mensaje_ficticio.json`: propuesta de evento fuente para Tian.
 - `tests/test_reader.py` y `tests/test_client.py`: 19 pruebas locales aprobadas.
 - `requirements.lock.txt`: versiones exactas instaladas en la validación local.
-- `CONTRATO_PARA_TIAN.md`: campos entregados y decisiones de integración pendientes.
+- `docs/historial/contratos/CONTRATO_PARA_TIAN.md`: campos entregados y decisiones de integración pendientes.
 
 ## Comportamiento y alcance
 

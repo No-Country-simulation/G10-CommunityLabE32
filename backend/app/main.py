@@ -5,8 +5,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Routers del Frontend (Ian) y Autenticación de Seguridad
 from backend.app.routers import mensajes, curaduria, dashboard, auth
-# Router de Procesamientos (Tareck)
-from backend.app.api.routes.procesamientos import router as procesamientos_router
 
 app = FastAPI(
     title="CommunityLab API",
@@ -30,7 +28,6 @@ if _origenes:
 app.include_router(mensajes.router)
 app.include_router(curaduria.router)
 app.include_router(dashboard.router)
-app.include_router(procesamientos_router)
 from backend.app.api.routes.trabajos import router as trabajos_router
 app.include_router(trabajos_router)
 from backend.app.api.routes.solicitudes import router as solicitudes_router
