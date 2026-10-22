@@ -16,6 +16,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import Sidebar from '@/components/Sidebar';
 import CommunityIntro from '@/components/CommunityIntro';
 import ResultadosResumen, { type FiltroResumen } from '@/components/ResultadosResumen';
+import SentimientosResumen from '@/components/SentimientosResumen';
 
 const tonos = {
   info: { fondo: 'bg-info-soft', texto: 'text-info' },
@@ -175,6 +176,8 @@ export default function CommunityDashboard() {
                 })}
               </div>
             )}
+
+            <SentimientosResumen />
 
             <div ref={resultadosRef} className="scroll-mt-6">
               <ResultadosResumen filtro={filtro} onTotal={actualizarTotal} />

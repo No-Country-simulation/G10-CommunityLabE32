@@ -98,12 +98,12 @@ export default function AnaliticaPage() {
     {
       etiqueta: 'Generados',
       cantidad: kpis?.activos_por_estado?.generado ?? 0,
-      color: '#f1f333',
+      color: '#ff90e8',
     },
     {
       etiqueta: 'Revisados',
       cantidad: kpis?.activos_por_estado?.revisado ?? 0,
-      color: '#f1f333',
+      color: '#90a8ed',
     },
     {
       etiqueta: 'Aprobados',
@@ -113,7 +113,7 @@ export default function AnaliticaPage() {
     {
       etiqueta: 'Denegados',
       cantidad: kpis?.activos_por_estado?.rechazado ?? 0,
-      color: '#ff90e8',
+      color: '#ffa8a0',
     },
   ];
   const totalActivos = Math.max(1, kpis?.activos_generados ?? 1);

@@ -765,5 +765,6 @@
   "No se pudo leer el banner.": "Couldn't read the banner.",
   "El navegador no permite dibujar el banner.": "Your browser can't draw the banner.",
   "No se pudo convertir el banner a JPG.": "Couldn't convert the banner to JPG.",
-  "Inténtalo de nuevo.": "Try again."
+  "Inténtalo de nuevo.": "Try again.",
+  "Sentimiento de la comunidad": "Community sentiment"
 }

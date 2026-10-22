@@ -481,15 +481,15 @@ code,pre,kbd,.font-mono { font-family: var(--font-community-sans), Arial, sans-s
 .interaction-search { max-width: 560px; min-width: 200px; }
 .interaction-search .input { padding-left: 42px; width: 100%; }
 .interaction-search > svg { pointer-events: none; }
-.interactions-page .interaction-stat.card {
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card {
   background: #f1f333;
   color: #000;
   border: 1px solid #000;
   box-shadow: 2px 2px 0 #66665f;
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
-.interactions-page .interaction-stat p { color: #000; }
-.interactions-page .interaction-stat.card:hover {
+:is(.interactions-page, .overview-sentiments) .interaction-stat p { color: #000; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card:hover {
   transform: translate(-3px, -3px);
   box-shadow: 6px 6px 0 #b5b5ab;
 }
@@ -511,25 +511,25 @@ code,pre,kbd,.font-mono { font-family: var(--font-community-sans), Arial, sans-s
   box-shadow: 1px 1px 0 #55554d;
 }
 @media (prefers-reduced-motion: reduce) {
-  .interactions-page .interaction-stat.card { transition: none; }
-  .interactions-page .interaction-stat.card:hover,
+  :is(.interactions-page, .overview-sentiments) .interaction-stat.card { transition: none; }
+  :is(.interactions-page, .overview-sentiments) .interaction-stat.card:hover,
   .interactions-page .interaction-filter.btn-secondary:hover,
   .interactions-page .interaction-filter.btn-secondary:active { transform: none; }
 }
 
 /* Un color por sentimiento, el mismo en las tarjetas, las etiquetas de la tabla y Analítica.
    Pasteles acordes a la paleta: el negativo pasa de azul a coral. */
-.interactions-page .interaction-stat.card[data-filtro="todos"] { background: #ff90e8; }
-.interactions-page .interaction-stat.card[data-filtro="positivo"] { background: #b9e9c5; }
-.interactions-page .interaction-stat.card[data-filtro="negativo"] { background: #ffa8a0; }
-.interactions-page .interaction-stat.card[data-filtro="neutral"] { background: #d9d6ce; }
-.interactions-page .interaction-stat.card[data-filtro="indeterminado"] { background: #c9b8ff; }
-.interactions-page .interaction-stat.card[data-filtro="sin_analizar"] { background: #f1f333; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="todos"] { background: #ff90e8; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="positivo"] { background: #b9e9c5; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="negativo"] { background: #ffa8a0; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="neutral"] { background: #d9d6ce; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="indeterminado"] { background: #c9b8ff; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[data-filtro="sin_analizar"] { background: #f1f333; }
 /* La tarjeta elegida se distingue sin depender del color. */
-.interactions-page .interaction-stat.card[aria-pressed="true"] { outline: 3px solid var(--foreground); outline-offset: 2px; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat.card[aria-pressed="true"] { outline: 3px solid var(--foreground); outline-offset: 2px; }
 /* Seis tarjetas en una fila: la etiqueta se achica para que «Indeterminados» no se corte. */
-.interactions-page .interaction-stats .interaction-stat { padding-left: 14px; padding-right: 14px; }
-.interactions-page .interaction-stats .interaction-stat > p:first-child { font-size: 12px; letter-spacing: .02em; overflow-wrap: normal; word-break: keep-all; hyphens: none; }
+:is(.interactions-page, .overview-sentiments) .interaction-stats .interaction-stat { padding-left: 14px; padding-right: 14px; }
+:is(.interactions-page, .overview-sentiments) .interaction-stats .interaction-stat > p:first-child { font-size: 12px; letter-spacing: .02em; overflow-wrap: normal; word-break: keep-all; hyphens: none; }
 
 .gum-community-intro .gum-eyebrow {
   display: inline-block;
@@ -751,11 +751,11 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 
 .discord-connect-footer .discord-auto-connect-note { font-size: 13px; }
 
-.interactions-page .interaction-stat > p:nth-child(2) { text-align: center; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat > p:nth-child(2) { text-align: center; }
 
-.interactions-page .interaction-stat > p:first-child { font-family: var(--font-community-sans), Arial, sans-serif; font-size: 14px; }
+:is(.interactions-page, .overview-sentiments) .interaction-stat > p:first-child { font-family: var(--font-community-sans), Arial, sans-serif; font-size: 14px; }
 
-.interactions-page button.interaction-stat { cursor: pointer; }
+:is(.interactions-page, .overview-sentiments) button.interaction-stat { cursor: pointer; }
 
 .interaction-keyword-search { display: flex; align-items: center; min-width: 0; max-width: 100%; gap: 8px; }
 .interaction-search-toggle { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 4px; color: var(--foreground); cursor: pointer; flex-shrink: 0; }
