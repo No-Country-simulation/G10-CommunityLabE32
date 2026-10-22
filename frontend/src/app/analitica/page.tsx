@@ -88,11 +88,10 @@ export default function AnaliticaPage() {
   const neg = resumen?.por_valor.negativo ?? 0;
   const neu = resumen?.por_valor.neutral ?? 0;
   const ind = resumen?.por_valor.indeterminado ?? 0;
-
-  const pctPos = analizados > 0 ? Math.round((pos / analizados) * 100) : 0;
-  const pctNeu = analizados > 0 ? Math.round((neu / analizados) * 100) : 0;
-  const pctNeg = analizados > 0 ? Math.round((neg / analizados) * 100) : 0;
-  const pctInd = analizados > 0 ? Math.round((ind / analizados) * 100) : 0;
+  const sinAnalizar = resumen?.sin_analizar ?? 0;
+  // La dona muestra los mismos cinco estados que Interacciones, así que el porcentaje es sobre todos los mensajes.
+  const totalDona = analizados + sinAnalizar;
+  const pct = (n: number) => (totalDona > 0 ? Math.round((n / totalDona) * 100) : 0);
 
   // Embudo de Curaduría
   const estadosActivos = [
@@ -149,10 +148,11 @@ export default function AnaliticaPage() {
 
   // Segmentos de la Dona con colores y metadatos
   const segmentos = [
-    { id: 'positivo', nombre: 'Positivos', valor: pctPos, cantidad: pos, stroke: '#b9e9c5', bgHex: '#b9e9c5' },
-    { id: 'neutral', nombre: 'Neutrales', valor: pctNeu, cantidad: neu, stroke: '#d9d6ce', bgHex: '#d9d6ce' },
-    { id: 'negativo', nombre: 'Negativos', valor: pctNeg, cantidad: neg, stroke: '#ffa8a0', bgHex: '#ffa8a0' },
-    { id: 'indeterminado', nombre: 'Indeterminados', valor: pctInd, cantidad: ind, stroke: '#c9b8ff', bgHex: '#c9b8ff' },
+    { id: 'positivo', nombre: 'Positivos', valor: pct(pos), cantidad: pos, stroke: '#b9e9c5', bgHex: '#b9e9c5' },
+    { id: 'negativo', nombre: 'Negativos', valor: pct(neg), cantidad: neg, stroke: '#ffa8a0', bgHex: '#ffa8a0' },
+    { id: 'neutral', nombre: 'Neutrales', valor: pct(neu), cantidad: neu, stroke: '#d9d6ce', bgHex: '#d9d6ce' },
+    { id: 'indeterminado', nombre: 'Indeterminados', valor: pct(ind), cantidad: ind, stroke: '#c9b8ff', bgHex: '#c9b8ff' },
+    { id: 'sin_analizar', nombre: 'Sin analizar', valor: pct(sinAnalizar), cantidad: sinAnalizar, stroke: '#f1f333', bgHex: '#f1f333' },
   ];
 
   const radio = 62;
@@ -288,7 +288,7 @@ export default function AnaliticaPage() {
                     </p>
                   </div>
 
-                  {analizados === 0 ? (
+                  {totalDona === 0 ? (
                     <div className="py-16 text-center text-sm text-subtle-foreground">
                       Aún no hay mensajes analizados en este ámbito para graficar el sentimiento.
                     </div>
@@ -353,10 +353,10 @@ export default function AnaliticaPage() {
                           ) : (
                             <>
                               <span className="text-2xl font-extrabold text-foreground tabular-nums">
-                                {analizados}
+                                {totalDona}
                               </span>
                               <span className="text-[10px] text-subtle-foreground uppercase tracking-wider font-semibold">
-                                Analizados
+                                Mensajes
                               </span>
                             </>
                           )}
@@ -402,7 +402,7 @@ export default function AnaliticaPage() {
                     <span className="flex items-center gap-1.5">
                       <Info className="w-3.5 h-3.5 text-primary" /> Gráfica interactiva
                     </span>
-                    <span>Sin analizar: {resumen?.sin_analizar ?? 0}</span>
+                    <span>Analizados: {analizados}</span>
                   </div>
                 </motion.div>
 

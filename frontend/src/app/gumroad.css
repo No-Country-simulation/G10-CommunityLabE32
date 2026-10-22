@@ -845,7 +845,11 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 .overview-intro .gum-community-intro { margin: 0; }
 .gum-intro-copy h2 { font-size: clamp(34px, 4.4vw, 66px); line-height: .98; letter-spacing: -.055em; margin: 26px 0; }
 .ingestion-support > .discord-pending-card { grid-column: auto; height: 100%; }
-.ingestion-support > .ingestion-requirements { height: auto; align-self: start; margin: 0; }
+.ingestion-support > .ingestion-requirements { height: 100%; margin: 0; display: flex; flex-direction: column; }
+/* Si la tarjeta vecina crece (Discord importando o procesando), el contenido se reparte en el alto disponible. */
+.ingestion-requirements > ul { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-evenly; row-gap: 12px; }
+.ingestion-source > .ingestion-drop-form { flex: 1 1 auto; display: flex; flex-direction: column; }
+.ingestion-drop-form > label { flex: 1 1 auto; }
 .ingestion-support > .ingestion-tracking { grid-column: 1 / -1; }
 .ingestion-requirements li { overflow-wrap: anywhere; }
 .denied-table-card { border-top: 5px solid #90a8ed; overflow: hidden; }
@@ -894,7 +898,8 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
   .datos-lote { grid-template-columns: auto minmax(0, 2fr) 120px minmax(0, 1fr) minmax(0, 1fr) 100px; }
   .datos-lote > :not(input):not(label) { grid-column: auto; }
 }
-.datos-confirmacion { border: 1px solid #ff90e8; border-radius: 12px; background: color-mix(in srgb, #ff90e8 8%, transparent); }
+.datos-confirmacion { border: 1px solid var(--border); border-radius: 12px; background: var(--surface-muted); transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease; }
+.datos-confirmacion:hover, .datos-confirmacion:focus-within { border-color: #ff90e8; background: color-mix(in srgb, #ff90e8 8%, var(--surface-muted)); box-shadow: 0 0 0 3px color-mix(in srgb, #ff90e8 18%, transparent); }
 
 /* Botones de redes en Curaduría: LinkedIn en blanco con su logo y X en negro con su logo. */
 .btn-red { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; border: 1px solid #000; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
@@ -905,3 +910,9 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 :root[data-theme="light"] .btn-red-x { border-color: #0b0b0b; }
 :root[data-theme="light"] .btn-red-x:hover { box-shadow: 3px 3px 0 #0b0b0b; }
 @media (prefers-reduced-motion: reduce) { .btn-red, .btn-red:hover { transition: none; transform: none; } }
+/* Descarga del banner en JPG: ícono pequeño sobre la vista previa. */
+.banner-descarga { position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 12px; font-weight: 700; color: #000; background: #fff; border: 1px solid #000; border-radius: 4px; box-shadow: 3px 3px 0 #000; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+.banner-descarga:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 5px 5px 0 #000; background: #ff90e8; }
+.banner-descarga:focus-visible { outline: 2px solid #ff90e8; outline-offset: 3px; }
+.banner-descarga:disabled { opacity: .6; cursor: progress; }
+@media (prefers-reduced-motion: reduce) { .banner-descarga:hover:not(:disabled) { transform: none; } }
