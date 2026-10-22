@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import UiTree from '@/components/UiTree';
 import { AlertCircle, ArrowUpRight, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 import { describirError, enviarImportacionAAnalisis, obtenerResumenAnalisisDiscord, type ResumenAnalisisDiscord } from '@/services/api';
 
@@ -40,7 +41,7 @@ export default function EnviarAnalisisDiscord({ importacionId }: { importacionId
       : <p className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 size={14} className="animate-spin"/>Revisando qué falta enviar al análisis…</p>;
   }
   const trabajos = enviado?.trabajos ?? [];
-  return <div className="discord-analysis rounded-xl border border-border p-4 space-y-3 text-sm">
+  return <UiTree>{<div className="discord-analysis rounded-xl border border-border p-4 space-y-3 text-sm">
     <div className="flex items-center gap-2 font-semibold text-foreground"><Sparkles size={15}/>Análisis con IA</div>
     <p className="text-muted-foreground text-xs">
       {resumen.total} importados · {resumen.ya_en_analisis} ya están en el análisis · {resumen.sin_contenido} sin texto · <strong className="text-foreground">{resumen.pendientes} por enviar</strong>
@@ -58,5 +59,5 @@ export default function EnviarAnalisisDiscord({ importacionId }: { importacionId
     </>}
     {resumen.pendientes === 0 && trabajos.length === 0 && <p className="text-xs text-muted-foreground">No hay mensajes nuevos para analizar en esta importación.</p>}
     {error && <p className="discord-message text-danger" role="alert"><AlertCircle size={16}/>{error}</p>}
-  </div>;
+  </div>}</UiTree>;
 }
