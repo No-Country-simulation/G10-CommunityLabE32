@@ -23,7 +23,7 @@ from backend.app.schemas.curaduria import (
 from backend.app.services.ambito import ids_activos_de_trabajo, ids_excluidos
 from backend.app.services.fidelidad import advertencias_de
 from backend.app.services.autores import visible
-from backend.app.services.oci import subir_activo_aprobado_oci
+from backend.app.services.oci import datos_para_oci, subir_activo_aprobado_oci
 
 router = APIRouter(prefix="/api/curaduria", tags=["Curaduría de Activos"])
 
@@ -144,6 +144,7 @@ async def obtener_detalle_activo(id_activo: str, db: AsyncSession = Depends(get_
         comentario_curador=activo.comentario_curador,
         advertencias_fidelidad=activo.advertencias_fidelidad,
         posts_redes=activo.posts_redes,
+        almacenamiento_oci=activo.almacenamiento_oci,
         fecha_creacion=activo.fecha_creacion,
         fecha_actualizacion=activo.fecha_actualizacion,
         fuentes_detalle=fuentes_detalle,
@@ -185,14 +186,6 @@ async def actualizar_activo(
                 detail=f"Transición inválida: no se puede pasar de '{activo.estado}' a '{dto.estado.value}'."
             )
         activo.estado = dto.estado.value
-        
-        # Si se aprueba, lo subimos a OCI en /aprobados
-        if dto.estado.value == "aprobado":
-            await subir_activo_aprobado_oci(
-                id_activo=activo.id_activo,
-                formato=activo.formato,
-                copy=nuevo_copy if nuevo_copy else activo.copy
-            )
 
     # 2. Control de cambios y versionado (LinkedIn o X: cualquiera de las dos es una versión nueva)
     redes_actuales = activo.posts_redes or {"linkedin": activo.copy, "x": ""}
@@ -218,6 +211,12 @@ async def actualizar_activo(
     if dto.comentario_curador is not None:
         activo.comentario_curador = dto.comentario_curador
 
+    # Cada versión aprobada se copia en OCI Object Storage (aprobados/<id>/v<versión>/). Un fallo no
+    # impide aprobar: queda en almacenamiento_oci y se reintenta con backend.scripts.oci_almacenamiento.
+    if activo.estado == "aprobado" and (estado_anterior != "aprobado" or cambia_texto):
+        activo.almacenamiento_oci = await subir_activo_aprobado_oci(
+            datos_para_oci(activo), await _banner_svg(db, activo.id_activo, activo.version))
+
     actor = getattr(operador, "solicitante", None)
     if cambia_texto:
         await _registrar(db, activo, "edicion", actor, f"Texto editado (versión {activo.version}).")
@@ -226,6 +225,12 @@ async def actualizar_activo(
     await db.commit()
     await db.refresh(activo)
     return activo
+
+
+async def _banner_svg(db, id_activo, version):
+    """SVG del banner generado para esa versión del texto, si existe."""
+    return (await db.execute(text("""SELECT svg FROM banners WHERE id_activo = :id AND version_texto = :v
+        AND estado = 'generado' AND svg IS NOT NULL"""), {"id": id_activo, "v": version})).scalar_one_or_none()
 
 
 # --- Historial de Curaduría -------------------------------------------------------------------
