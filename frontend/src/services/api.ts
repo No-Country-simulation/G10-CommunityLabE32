@@ -886,3 +886,40 @@ export async function listarAlertasInternas(skip = 0, limit = 9, ambito?: Ambito
   const response = await apiClient.get('/dashboard/alertas', { params: { skip, limit, ...parametrosLotes(ambito) } });
   return response.data;
 }
+
+// --- Datos cargados (Ingesta; solo administradores; la API vuelve a exigir el rol) ---
+export interface LoteCargado {
+  origen: string;
+  periodo: string;
+  fuente_ingesta: 'discord' | 'manual';
+  oculto: boolean;
+  trabajos: number;
+  en_proceso: number;
+  mensajes: number;
+  /** Mensajes que otro lote también usa: se conservan si se elimina este lote. */
+  mensajes_compartidos: number;
+  activos: number;
+  aprobados: number;
+  primero: string | null;
+  ultimo: string | null;
+}
+export type LoteClave = Pick<LoteCargado, 'origen' | 'periodo' | 'fuente_ingesta'>;
+export interface PlanEliminacion {
+  lotes: number; trabajos: number; en_proceso: number; mensajes: number; mensajes_conservados: number;
+  activos: number; aprobados: number; banners: number;
+}
+const claveLote = ({ origen, periodo, fuente_ingesta }: LoteClave): LoteClave => ({ origen, periodo, fuente_ingesta });
+export async function listarLotesCargados(): Promise<LoteCargado[]> {
+  return (await apiClient.get('/v1/datos/lotes')).data.items;
+}
+export async function cambiarVisibilidadLotes(lotes: LoteClave[], oculto: boolean): Promise<number> {
+  return (await apiClient.patch('/v1/datos/lotes/visibilidad', { lotes: lotes.map(claveLote), oculto })).data.trabajos_actualizados;
+}
+export async function previsualizarEliminacion(lotes: LoteClave[]): Promise<PlanEliminacion> {
+  return (await apiClient.post('/v1/datos/lotes/eliminacion/vista-previa', { lotes: lotes.map(claveLote) })).data;
+}
+export async function eliminarLotes(lotes: LoteClave[], incluirAprobados: boolean): Promise<PlanEliminacion> {
+  return (await apiClient.post('/v1/datos/lotes/eliminacion', {
+    lotes: lotes.map(claveLote), confirmacion: 'ELIMINAR', incluir_aprobados: incluirAprobados,
+  })).data;
+}

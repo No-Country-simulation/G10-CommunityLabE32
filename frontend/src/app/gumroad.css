@@ -875,3 +875,17 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
   .overview-intro-disclosure > summary > span:last-child { display: block; margin-top: 6px; }
   .gum-intro-copy h2 { font-size: 36px; }
 }
+
+/* Datos cargados (Ingesta, solo administradores) */
+.ingestion-datos { grid-column: 1 / -1; }
+.datos-lotes { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.datos-lote { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.datos-lote:last-child { border-bottom: 0; }
+.datos-lote > :not(input):not(label) { grid-column: 2; justify-self: start; }
+.datos-lote input[type="checkbox"] { width: 16px; height: 16px; accent-color: #ff90e8; }
+.datos-lote.is-oculto label strong { color: var(--muted-foreground); }
+@media (min-width: 900px) {
+  .datos-lote { grid-template-columns: auto minmax(0, 2fr) 120px minmax(0, 1fr) minmax(0, 1fr) 100px; }
+  .datos-lote > :not(input):not(label) { grid-column: auto; }
+}
+.datos-confirmacion { border: 1px solid #ff90e8; border-radius: 12px; background: color-mix(in srgb, #ff90e8 8%, transparent); }

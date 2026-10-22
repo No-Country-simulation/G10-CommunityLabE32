@@ -16,6 +16,7 @@ import {
 import Sidebar from '@/components/Sidebar';
 import ConectarDiscord from '@/components/ConectarDiscord';
 import PendientesDiscord from '@/components/PendientesDiscord';
+import DatosCargados from '@/components/DatosCargados';
 import RutaProtegida from '@/components/RutaProtegida';
 import { detectarMetadatosArchivo } from '@/utils/metadatosArchivo';
 
@@ -486,6 +487,7 @@ export default function IngestaPage() {
                   <li><strong>Si hay un error, no se procesa nada:</strong> verás la lista de problemas para corregirlos.</li>
                   <li><strong>Reenviar el mismo archivo</strong> con el mismo nombre y período no lo procesa dos veces.</li>
                 </ul></section>
+              <DatosCargados />
 
 
             </div>
