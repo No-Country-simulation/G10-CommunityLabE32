@@ -15,6 +15,7 @@ import Sidebar from '@/components/Sidebar';
 import TablaDenegados from '@/components/TablaDenegados';
 import { esReferenciaPublicada } from '@/services/referenciaPublicada';
 import PanelBanner from '@/components/PanelBanner';
+import EstadoOCI from '@/components/EstadoOCI';
 import RutaProtegida from '@/components/RutaProtegida';
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -269,6 +270,7 @@ function CuraduriaPage() {
                       </span>
                     )}
                     <span className={estadoBadge(a.estado)}>{ETIQUETA_ESTADO[a.estado] ?? a.estado}</span>
+                    {a.estado === 'aprobado' && <EstadoOCI registro={a.almacenamiento_oci} />}
                   </span>
                 </div>
                 <h3 className="text-sm font-medium text-foreground truncate" translate="no">{a.titulo}</h3>
@@ -312,6 +314,7 @@ function CuraduriaPage() {
                   <p className="text-xs text-muted-foreground">
                     Versión {selectedActivo.version} · Actualizado {new Date(selectedActivo.fecha_actualizacion).toLocaleString()}
                   </p>
+                  {selectedActivo.estado === 'aprobado' && selectedActivo.almacenamiento_oci && <div className="mt-2"><EstadoOCI registro={selectedActivo.almacenamiento_oci} conDetalle /></div>}
                 </div>
                 <button onClick={() => setDrawerOpen(true)} className="btn-secondary shrink-0">
                   <BookOpen className="w-4 h-4 text-info" />

@@ -276,8 +276,18 @@ export interface Activo {
   version: number;
   comentario_curador?: string;
   advertencias_fidelidad?: AdvertenciaFidelidad[] | null;
+  /** Copia de la versión aprobada en OCI Object Storage; null o ausente si nunca se aprobó. */
+  almacenamiento_oci?: AlmacenamientoOCI | null;
   fecha_actualizacion: string;
   fuentes_detalle?: FuenteMensajeDetalle[];
+}
+
+export interface AlmacenamientoOCI {
+  estado: 'guardado' | 'error' | 'desactivado';
+  fecha?: string;
+  bucket?: string;
+  objetos?: string[];
+  error?: string;
 }
 
 export interface PaginatedActivosResponse {
