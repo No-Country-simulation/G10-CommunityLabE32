@@ -41,6 +41,9 @@ class UsuarioUpdate(BaseModel):
 
 class UsuarioResponse(UsuarioBase):
     model_config = ConfigDict(from_attributes=True)
+    # La salida no revalida el correo: una cuenta creada por terminal con un dominio reservado
+    # (p. ej. .test) daba 500 al iniciar sesión. La validación sigue en la entrada.
+    email: str
     id: int
     rol: Rol
     is_active: bool

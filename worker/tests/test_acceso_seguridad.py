@@ -553,3 +553,12 @@ def test_verificar_acceso_recorre_login_real_sin_mostrar_secretos(entorno, monke
     finally:
         servidor.should_exit = True
         hilo.join(10)
+
+
+def test_login_con_dominio_reservado_no_da_500(entorno, c):
+    """Una cuenta creada por terminal con un dominio reservado (.test) inicia sesión sin error 500."""
+    crear_cuenta(entorno, "revision@example.test", rol="administrador")
+    r = c.post("/api/auth/login", data={"username": "revision@example.test", "password": CONTRASENA})
+    assert r.status_code == 200, r.text
+    assert r.json()["usuario"]["email"] == "revision@example.test"
+    assert c.get("/api/auth/sesion").json()["usuario"]["email"] == "revision@example.test"
