@@ -783,5 +783,9 @@
   "días": "days",
   "hora": "hour",
   "horas": "hours",
-  ", con un máximo de": ", with a maximum of"
+  ", con un máximo de": ", with a maximum of",
+  "· copia en OCI guardada": "· copy saved in OCI",
+  "· copia en OCI en curso…": "· saving copy in OCI…",
+  "· la copia en OCI falló (se puede reintentar)": "· the OCI copy failed (can be retried)",
+  "· copia en OCI desactivada": "· OCI copy disabled"
 }

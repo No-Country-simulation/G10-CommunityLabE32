@@ -1,7 +1,21 @@
-# OCI Object Storage: copia de los activos aprobados
+# OCI Object Storage: paquetes generados y activos aprobados
 
-Cada vez que un activo se aprueba en Curaduría (o se reaprueba con texto nuevo), la API guarda una copia
-de esa versión en el bucket privado `communitylab-activos-marketing`:
+En el bucket privado `communitylab-activos-marketing` se guardan dos cosas.
+
+**1. El paquete de cada procesamiento** (todo lo que genera la IA, como pide el enunciado). Al terminar un
+trabajo, el worker sube su paquete de distribución: resumen de la comunidad (sentimiento predominante,
+temas y alertas), borradores por formato y el propio registro de almacenamiento.
+
+```
+activos/<período>/<procesamiento_id>/paquete-distribucion.json
+```
+
+El registro queda en `resultado.almacenamiento` del trabajo (`pendiente` mientras sube, luego `guardado`,
+`error` o `desactivado`). La subida ocurre después de guardar el trabajo en PostgreSQL: un fallo de OCI
+nunca hace fallar el procesamiento. `POST /api/v1/procesar` devuelve el mismo paquete en la respuesta.
+
+**2. Cada versión aprobada.** Cada vez que un activo se aprueba en Curaduría (o se reaprueba con texto
+nuevo), la API guarda una copia de esa versión:
 
 ```
 aprobados/<id_activo>/v<versión>/activo.json   # texto, versiones LinkedIn/X, fuentes y advertencias

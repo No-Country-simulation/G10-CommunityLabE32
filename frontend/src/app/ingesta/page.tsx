@@ -26,6 +26,12 @@ const EXTENSIONES = ['.json', '.jsonl', '.csv'];
 const intervaloConsulta = (transcurridoMs: number) => (transcurridoMs < 30_000 ? 2_000 : 5_000);
 const ESPERA_PROLONGADA_MS = 120_000;
 const MAX_FALLOS_CONSULTA = 5;
+// Copia del paquete en OCI (requisito del enunciado): se muestra en el seguimiento del trabajo.
+const ETIQUETA_OCI: Record<string, string> = {
+  guardado: ' · copia en OCI guardada', pendiente: ' · copia en OCI en curso…',
+  error: ' · la copia en OCI falló (se puede reintentar)', desactivado: ' · copia en OCI desactivada',
+};
+const MAX_CONSULTAS_OCI = 10;
 
 const ETIQUETA_ESTADO: Record<EstadoTrabajo, string> = {
   recibido: 'En cola',
@@ -104,6 +110,24 @@ export default function IngestaPage() {
       if (temporizador) clearTimeout(temporizador);
     };
   }, [subida, trabajoFinal, intentoConsulta]);
+
+  // El trabajo termina antes de que el worker confirme la copia en OCI: mientras siga «pendiente» se
+  // vuelve a consultar unas pocas veces para mostrar el estado final.
+  const consultasOci = useRef(0);
+  useEffect(() => {
+    if (!subida || trabajo?.estado !== 'terminado' || trabajo.resultado?.almacenamiento?.estado !== 'pendiente') return;
+    if (consultasOci.current >= MAX_CONSULTAS_OCI) return;
+    consultasOci.current += 1;
+    let vigente = true;
+    const controlador = new AbortController();
+    const temporizador = setTimeout(async () => {
+      try {
+        const actual = await consultarTrabajo(subida.procesamiento_id, controlador.signal);
+        if (vigente) setTrabajo(actual);
+      } catch { /* el seguimiento principal ya informa los errores de red */ }
+    }, 2000);
+    return () => { vigente = false; controlador.abort(); clearTimeout(temporizador); };
+  }, [subida, trabajo]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -442,6 +466,7 @@ export default function IngestaPage() {
                         {trabajo.resultado?.simulado ? 'Modo simulado (sin IA real)' : 'Procesado con IA'}
                         {duracion !== null && ` · ${duracion.toFixed(1)} s desde el registro`}
                         {trabajo.resultado?.persistencia?.postgres === 'guardado' && ' · guardado en la base de datos'}
+                        {ETIQUETA_OCI[trabajo.resultado?.almacenamiento?.estado ?? '']}
                       </p>
                       {advertencias > 0 && (
                         <p className="text-xs text-warning">
