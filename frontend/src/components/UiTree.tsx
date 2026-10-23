@@ -14,6 +14,8 @@ export default function UiTree({ children }: { children: ReactNode }) {
     if (props.translate === 'no' || (typeof node.type === 'string' && ['code', 'pre', 'kbd', 'samp'].includes(node.type))) return node;
     const changes: Record<string, unknown> = {};
     for (const key of ['title', 'placeholder', 'aria-label', 'alt']) if (typeof props[key] === 'string') changes[key] = translateText(props[key], language);
+    // El nombre de un grupo de opciones (<optgroup label>) también es texto visible.
+    if ((node.type === 'optgroup' || node.type === 'option') && typeof props.label === 'string') changes.label = translateText(props.label, language);
     if ('children' in props) changes.children = visit(props.children as ReactNode);
     return cloneElement(node, changes);
   }
