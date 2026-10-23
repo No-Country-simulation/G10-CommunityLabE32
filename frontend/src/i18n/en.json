@@ -1,5 +1,9 @@
 {
   "Error cargando analítica:": "Error loading analytics:",
+  "· copia en OCI guardada": "· copy saved in OCI",
+  "· copia en OCI en curso…": "· saving copy in OCI…",
+  "· la copia en OCI falló (se puede reintentar)": "· the OCI copy failed (can be retried)",
+  "· copia en OCI desactivada": "· OCI copy disabled",
   "Denegar": "Reject",
   "Denegar banner": "Reject banner",
   "Sin resultados": "No results",

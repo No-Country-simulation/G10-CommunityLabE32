@@ -1,5 +1,9 @@
 {
   "Error cargando analítica:": "Erro ao carregar a análise:",
+  "· copia en OCI guardada": "· cópia salva no OCI",
+  "· copia en OCI en curso…": "· salvando cópia no OCI…",
+  "· la copia en OCI falló (se puede reintentar)": "· a cópia no OCI falhou (pode ser repetida)",
+  "· copia en OCI desactivada": "· cópia no OCI desativada",
   "Denegar": "Recusar",
   "Denegar banner": "Recusar banner",
   "Sin resultados": "Nenhum resultado",
