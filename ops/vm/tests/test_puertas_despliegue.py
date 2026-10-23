@@ -20,6 +20,9 @@ DOCKER_FALSO = r"""#!/bin/bash
 echo "docker $*" >> "$REGISTRO"
 falla() { [[ ",$FALLA," == *",$1,"* ]]; }
 case "$*" in
+  "compose ps -q proxy") [ -n "${PROXY_ORIGEN:-}" ] && echo c-proxy ;;
+  "inspect -f {{range .Mounts}}"*" c-proxy") echo "$PROXY_ORIGEN" ;;
+  "compose exec -T proxy cat /etc/nginx/conf.d/default.conf") echo "${PROXY_VISTO:-}" ;;
   "compose ps -q") printf 'c-api\nc-worker\nc-postgres\n' ;;
   "inspect -f {{index .Config.Labels \"com.docker.compose.service\"}} c-api") echo api ;;
   "inspect -f {{index .Config.Labels \"com.docker.compose.service\"}} c-worker") echo worker ;;
@@ -77,9 +80,9 @@ def entorno(tmp_path):
             "ESPERA_SALUD": "1", "GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "safe.directory",
             "GIT_CONFIG_VALUE_0": "*"}
 
-    def desplegar(falla=""):
+    def desplegar(falla="", **extra):
         p = subprocess.run(["bash", str(OPS / "desplegar.sh"), nuevo, str(env_nuevo)], capture_output=True,
-                           text=True, env={**base, "FALLA": falla}, timeout=120)
+                           text=True, env={**base, "FALLA": falla, **extra}, timeout=120)
         llamadas = registro.read_text().splitlines() if registro.exists() else []
         head = subprocess.check_output(["git", "-C", str(app), "rev-parse", "HEAD"], text=True).strip()
         return p, llamadas, head
@@ -112,6 +115,19 @@ def test_exito_sigue_el_orden_y_conserva_las_imagenes_en_ejecucion(entorno):
     assert (estado / "env.anterior").read_text() == "WORKER_MODE=simulado\n"
     assert "api api sha256:api-en-ejecucion" in (estado / "imagenes.anteriores").read_text()
     assert (estado / "env.anterior").stat().st_mode & 0o077 == 0  # privado
+
+
+@pytest.mark.parametrize("visto, recrea", [("server_name viejo;", True), ("server_name nuevo;", False)])
+def test_recrea_el_proxy_solo_si_su_configuracion_cambio(entorno, tmp_path, visto, recrea):
+    # El contenedor sigue viendo el archivo montado antes del checkout; up -d no lo recrea.
+    conf = tmp_path / "nginx.https.conf"
+    conf.write_text("server_name nuevo;\n")
+    p, llamadas, _ = entorno["desplegar"](PROXY_ORIGEN=str(conf), PROXY_VISTO=visto)
+    assert p.returncode == 0, p.stderr
+    recreado = indice(llamadas, "up -d --no-deps --force-recreate proxy")
+    assert (recreado is not None) == recrea
+    if recrea:
+        assert indice(llamadas, "up -d --remove-orphans") < recreado < indice(llamadas, "verificar")
 
 
 @pytest.mark.parametrize("falla, ultima", [("build", " build"), ("probar", "probar "),

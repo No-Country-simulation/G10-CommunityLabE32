@@ -150,7 +150,7 @@ script lo instala recién en el corte. Cada etapa es una puerta: si falla, las s
 | 2 | Construir y probar | Build en un worktree aislado con etiquetas `:<sha>` (las `:local` no se tocan); `probar-imagenes.sh`: importación desde `/app` y suites de worker, grafo, Discord y API **con el usuario de cada imagen** | Nada cambió en producción |
 | 3 | Respaldo y restauración | `respaldo.sh` + `probar-restauracion.sh` (ver abajo) | Nada cambió; el puente se reanuda |
 | 4 | Migración | `db-init` de la versión nueva (aditiva) con la app anterior aún en servicio | Se detiene; la app anterior sigue funcionando sobre el esquema |
-| 5 | Corte | Instala el `.env` nuevo, `checkout` del sha, `:<sha>` → `:local`, `up -d --remove-orphans` | Reversión automática |
+| 5 | Corte | Instala el `.env` nuevo, `checkout` del sha, `:<sha>` → `:local`, `up -d --remove-orphans`; recrea el proxy si cambió `proxy/nginx.https.conf` (el contenedor monta el archivo y no ve el nuevo tras el checkout) | Reversión automática |
 | 6 | Verificación | Todos los servicios sanos + API + `VERIFICAR_URLS` (HTTPS 200 y HTTP→HTTPS 301) | Reversión automática |
 
 Interrupción: solo la etapa 5 (recreación de contenedores). Si la reversión automática también falla,

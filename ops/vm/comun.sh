@@ -50,6 +50,21 @@ repo_de_servicio() {
   esac
 }
 
+# El proxy usa la imagen pública de nginx y monta su configuración como archivo: tras un checkout el
+# contenedor sigue viendo el archivo anterior y `up -d` no lo recrea (su definición no cambió).
+# Se recrea solo cuando lo que ve el contenedor difiere del archivo del checkout.
+CONF_PROXY=/etc/nginx/conf.d/default.conf
+actualizar_proxy() {
+  local id origen
+  id=$(dc ps -q proxy)
+  [ -n "$id" ] || return 0
+  origen=$(docker inspect -f "{{range .Mounts}}{{if eq .Destination \"$CONF_PROXY\"}}{{.Source}}{{end}}{{end}}" "$id")
+  [ -n "$origen" ] && [ -f "$origen" ] || return 0
+  dc exec -T proxy cat "$CONF_PROXY" | cmp -s - "$origen" && return 0
+  log "la configuración del proxy cambió: se recrea el proxy"
+  dc up -d --no-deps --force-recreate proxy
+}
+
 # Espera a que todos los servicios en ejecución estén sanos (db-init puede haber terminado).
 esperar_salud() {
   local limite=$(( $(date +%s) + ${1:-300} )) estado malos
