@@ -3,7 +3,7 @@
 Geometría y reglas de texto de la plantilla de Fabián (generar_tarjeta.py, 15-10-26); estética con la
 identidad vigente del panel (21-10-26): fondo negro, acento por formato con la paleta de CommunityLab
 (rosado #ff90e8 logros, azul #90a8ed FAQ, amarillo #f1f333 highlights, verde #b9e9c5 de detalle), el
-símbolo de tres figuras (frontend/public/brand/communitylab-logo-current.svg) y ABC Favorit con fuentes
+símbolo de tres figuras (frontend/public/brand/communitylab-logo-current.svg) y Space Grotesk con fuentes
 de respaldo. Diferencias deliberadas:
 - SVG en el servidor en lugar de captura con Edge en Windows: no depende de un navegador.
 - Sin emojis (dependen de fuentes del sistema y harían el resultado no determinista).
@@ -22,7 +22,7 @@ PROVEEDOR = "plantilla-svg-v1"
 PLANTILLA = "communitylab-2026-10-1200x630"
 ACENTOS = {"logro": "#ff90e8", "faq": "#90a8ed", "highlights": "#f1f333"}
 VERDE, NEGRO, BLANCO, GRIS, GRIS_CLARO, PANEL = "#b9e9c5", "#0b0b0b", "#ffffff", "#a3a3a3", "#d4d4d4", "#1a1a1a"
-FUENTES = "ABC Favorit, Inter, Segoe UI, system-ui, sans-serif"
+FUENTES = "Space Grotesk, Inter, Segoe UI, system-ui, sans-serif"
 # Símbolo de CommunityLab (tres figuras), mismo trazado que frontend/public/brand/communitylab-logo-current.svg.
 SIMBOLO = (
     '<defs><linearGradient id="cl-v" x1="585" y1="450" x2="628" y2="506" gradientUnits="userSpaceOnUse">'

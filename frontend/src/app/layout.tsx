@@ -1,20 +1,17 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import Topbar from "@/components/Topbar";
 import ReferenciaPublicada from "@/components/ReferenciaPublicada";
 import "./globals.css";
-import "./gumroad.css";
+import "./tema.css";
 
-const communitySans = localFont({
+// Tipografía libre (SIL Open Font License); Next.js la descarga al compilar y la sirve desde la app.
+const communitySans = Space_Grotesk({
   variable: "--font-community-sans",
   display: "swap",
-  src: [
-    { path: "./fonts/ABCFavorit-Regular.woff2", weight: "400", style: "normal" },
-    { path: "./fonts/ABCFavorit-RegularItalic.woff2", weight: "400", style: "italic" },
-    { path: "./fonts/ABCFavorit-Bold.woff2", weight: "700", style: "normal" },
-    { path: "./fonts/ABCFavorit-BoldItalic.woff2", weight: "700", style: "italic" },
-  ],
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
 });
 
 export const metadata: Metadata = {

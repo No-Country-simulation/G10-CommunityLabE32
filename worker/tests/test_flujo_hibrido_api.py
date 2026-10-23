@@ -547,7 +547,7 @@ def test_banner_con_la_paleta_y_el_simbolo_vigentes():
         assert not colores & {"#ff5a1f", "#d43008", "#0f1a2e", "#132240", "#4d8dff", "#8b6cff"}   # plantilla anterior
         assert b.ACENTOS[b.TIPO_POR_FORMATO[formato]] in colores and "#0b0b0b" in colores
         assert {"#f1f333", "#ff90e8", "#b9e9c5"} <= colores                         # símbolo de tres figuras
-        assert 'viewBox="305 160 414 472"' in svg and "ABC Favorit" in svg
+        assert 'viewBox="305 160 414 472"' in svg and "Space Grotesk" in svg
     assert b.PLANTILLA == "communitylab-2026-10-1200x630"
 
 
