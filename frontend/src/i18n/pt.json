@@ -1,9 +1,10 @@
 {
   "Error cargando analítica:": "Erro ao carregar a análise:",
-  "· copia en OCI guardada": "· cópia salva no OCI",
-  "· copia en OCI en curso…": "· salvando cópia no OCI…",
-  "· la copia en OCI falló (se puede reintentar)": "· a cópia no OCI falhou (pode ser repetida)",
-  "· copia en OCI desactivada": "· cópia no OCI desativada",
+  "UTC−08:00 (UTC−07:00 en verano)": "UTC−08:00 (UTC−07:00 no verão)",
+  "Norteamérica (México)": "América do Norte (México)",
+  "Centroamérica y el Caribe": "América Central e Caribe",
+  "Sudamérica": "América do Sul",
+  "Nueva importación": "Nova importação",
   "Denegar": "Recusar",
   "Denegar banner": "Recusar banner",
   "Sin resultados": "Nenhum resultado",
@@ -782,5 +783,9 @@
   "días": "dias",
   "hora": "hora",
   "horas": "horas",
-  ", con un máximo de": ", com um máximo de"
+  ", con un máximo de": ", com um máximo de",
+  "· copia en OCI guardada": "· cópia salva no OCI",
+  "· copia en OCI en curso…": "· salvando cópia no OCI…",
+  "· la copia en OCI falló (se puede reintentar)": "· a cópia no OCI falhou (pode ser repetida)",
+  "· copia en OCI desactivada": "· cópia no OCI desativada"
 }

@@ -104,6 +104,17 @@ def test_tipo_y_tema_se_guardan_sin_pisar_el_tipo_de_origen(cliente, cola):
     assert len(kpi["temas_principales"]) == 4
 
 
+def test_analitica_agrupa_variantes_del_mismo_tema(cliente, cola):
+    procesar(cola, lote(["logro a", "saludo b", "duda c"]))
+    # Mismo asunto escrito distinto en lotes distintos (con y sin tildes, con y sin «del»).
+    with cola.conectar() as c:
+        for ident, tema in (("m-0", "documentacion curso"), ("m-1", "documentación del curso"), ("m-2", "langgraph")):
+            c.execute("UPDATE mensajes SET tema_ref=%s WHERE id_mensaje=%s", (tema, ident))
+    kpi = cliente.get("/api/dashboard/kpis", headers=H_OP).json()
+    assert kpi["temas_principales"] == [{"tema": "documentación del curso", "cantidad": 2},
+                                        {"tema": "langgraph", "cantidad": 1}]
+
+
 def test_reproceso_no_pisa_lo_ya_clasificado(cola):
     procesar(cola, lote(["logro primero"]))
     with cola.conectar() as c:
