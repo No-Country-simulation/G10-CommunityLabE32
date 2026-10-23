@@ -439,16 +439,16 @@ licencia **CDLA-Sharing-1.0**. No contienen datos personales reales.
 
 ## 15. Equipo
 
-| Integrante | Rol |
-|---|---|
-| Elizabeth Aguilar | Gestión del proyecto, metodologías ágiles y control de calidad |
-| Vania Sherel Cruz Hernández | Desarrollo asistido por IA, experiencia de usuario y soporte de integración |
-| José Ángel Olán de los Santos | Ingeniería de datos: PostgreSQL, modelado y ETL |
-| Fredy Pachón | Desarrollo de backend: flujos de datos y lógica del backend |
-| Ianjaner Alfonso Beltrán Guañarita | Desarrollo web: frontend Next.js, autenticación y protección de rutas |
-| Santiago Horta Hurtado | Ingeniería de agentes autónomos e integración con el backend |
-| Fabián Hernández Alejandro | Ingeniería de prompts para análisis y generación de contenido |
-| Paulo Andrés Escobar Saldaña | Ingeniería de agentes: LangGraph, Gemini, integración con Discord y despliegue en OCI |
+| Integrante | Rol | GitHub |
+|---|---|---|
+| Elizabeth Aguilar | Gestión del proyecto, metodologías ágiles y control de calidad | [@LizAg1804](https://github.com/LizAg1804) |
+| Vania Cruz | Desarrollo asistido por IA, experiencia de usuario y soporte de integración | [@vaniasherel](https://github.com/vaniasherel) |
+| José Olán | Ingeniería de datos: PostgreSQL, modelado y ETL | [@JoseOlannn](https://github.com/JoseOlannn) |
+| Fredy Pachón | Desarrollo de backend: flujos de datos y lógica del backend | [@FredyPachon](https://github.com/FredyPachon) |
+| Ianjaner Beltrán | Desarrollo full stack: frontend Next.js, autenticación y protección de rutas | [@ianjaner75](https://github.com/ianjaner75) |
+| Santiago Horta | Ingeniería de agentes autónomos e integración con el backend | [@TIANHH77](https://github.com/TIANHH77) |
+| Fabián Hernández | Ingeniería de prompts para análisis de sentimiento y generación editorial | [@Fabianhernandez23](https://github.com/Fabianhernandez23) |
+| Paulo Escobar | Ingeniería de agentes: LangGraph, Gemini, integración con Discord y despliegue en OCI | [@AndresS-max](https://github.com/AndresS-max) |
 
 ## 16. Licencia
 
