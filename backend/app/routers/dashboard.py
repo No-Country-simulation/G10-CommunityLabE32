@@ -11,6 +11,7 @@ from backend.app.models.activo import Activo
 from backend.app.models.mensaje import Mensaje
 from backend.app.services.ambito import alertas_internas, calcular_ambito, listar_ambitos, parsear_lotes
 from backend.app.services.autores import visible
+from pipelines.communitylab.temas import agrupar_temas
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard KPIs"])
 
@@ -62,8 +63,8 @@ async def obtener_kpis(
             consulta_temas = consulta_temas.where(Mensaje.id_mensaje.in_(sorted(ambito.ids_mensajes) or [""]))
         elif ambito.excluidos_mensajes:
             consulta_temas = consulta_temas.where(Mensaje.id_mensaje.not_in(sorted(ambito.excluidos_mensajes)))
-        filas_temas = (await db.execute(consulta_temas.group_by(tema)
-                                        .order_by(func.count(Mensaje.id_mensaje).desc(), tema).limit(10))).all()
+        # Variantes del mismo tema (tildes, artículos, plural) se suman y se muestra la mejor escrita.
+        filas_temas = agrupar_temas((await db.execute(consulta_temas.group_by(tema))).all(), limite=10)
         filas_activos = (await db.execute(consulta_activos.group_by(Activo.estado))).all()
 
         total_mensajes, por_tipo = 0, {}
@@ -100,7 +101,7 @@ async def obtener_kpis(
             "alertas_internas": len(ambito.alertas_por_fuente),
             "alertas_registradas": ambito.alertas_registradas,
             "trabajos_por_estado": ambito.trabajos_por_estado,
-            # Temas que la IA asignó a los mensajes (normalizados en minúsculas), del más frecuente al menos.
+            # Temas que la IA asignó a los mensajes, con sus variantes agrupadas, del más frecuente al menos.
             "temas_principales": [{"tema": t, "cantidad": n} for t, n in filas_temas],
         }
     except Exception:

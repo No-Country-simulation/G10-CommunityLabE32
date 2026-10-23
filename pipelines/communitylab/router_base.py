@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import math
 import unicodedata
 
+from .temas import clave_tema, etiqueta_tema
+
 
 class EntradaInvalida(ValueError):
     """El lote o su análisis no cumplen el contrato provisional."""
@@ -119,15 +121,19 @@ def enrutar_lote(lote, configuracion=None):
         else:
             motivos[m["id"]] = "Relevancia inferior al umbral configurado."
 
+    # Variantes del mismo tema (tildes, artículos, plural) cuentan como una sola duda recurrente.
     grupos = {}
     for m in elegibles:
         if m["analisis"]["es_duda"]:
-            grupos.setdefault(m["analisis"]["tema"], []).append(m)
-    for tema, grupo in sorted(grupos.items()):
+            grupos.setdefault(clave_tema(m["analisis"]["tema"]), []).append(m)
+    for _, grupo in sorted(grupos.items()):
         autores = {_canonico(m["autor"]) for m in grupo}
         if len(autores) >= cfg.autores_minimos_duda and any(not m["previo"] for m in grupo):
+            variantes = {}
+            for m in grupo:
+                variantes[m["analisis"]["tema"]] = variantes.get(m["analisis"]["tema"], 0) + 1
             agregar("dudas", "generador_faq_tip", [m["id"] for m in grupo],
-                    f"Duda recurrente sobre '{tema}' entre {len(autores)} autores distintos.")
+                    f"Duda recurrente sobre '{etiqueta_tema(variantes)}' entre {len(autores)} autores distintos.")
 
     for m in elegibles:
         if not asignadas[m["id"]] and m["analisis"]["es_logro"] and not m["previo"]:
