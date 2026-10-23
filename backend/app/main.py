@@ -30,6 +30,8 @@ app.include_router(curaduria.router)
 app.include_router(dashboard.router)
 from backend.app.api.routes.trabajos import router as trabajos_router
 app.include_router(trabajos_router)
+from backend.app.api.routes.procesar import router as procesar_router
+app.include_router(procesar_router)
 from backend.app.api.routes.solicitudes import router as solicitudes_router
 from backend.app.api.routes.banners import router as banners_router
 app.include_router(solicitudes_router)

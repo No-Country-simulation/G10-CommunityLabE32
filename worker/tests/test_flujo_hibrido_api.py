@@ -259,6 +259,81 @@ def test_puente_consulta_mensajes_ya_analizados_por_otra_via(cliente, cola):
                         json={"ids": [f"discord-{i}" for i in range(1001)]}).status_code == 422
 
 
+# --- Contrato del enunciado (proyecto.pdf) y paquete en OCI ----------------------------
+
+EJEMPLO_ENUNCIADO = {   # Solicitud del enunciado tal cual: sin id, sin fecha y sin cierre_periodo.
+    "origen_comunidad": "Discord_Grupo_ONE_G10", "periodo_referencia": "Semana_04",
+    "interacciones": [
+        {"autor": "Mariana Souza", "canal": "#logros-y-empleos", "tipo": "testimonio",
+         "texto": "Comunidad, quede seleccionada para el puesto de Desarrolladora Junior de IA!"},
+        {"autor": "Lucas Albuquerque", "canal": "#dudas-langgraph", "tipo": "pregunta_tecnica",
+         "texto": "Tengo dudas sobre como estructurar los nodos condicionales en LangGraph."},
+    ],
+}
+
+
+def test_procesar_acepta_el_json_del_enunciado_y_responde_con_su_forma(cliente, cola):
+    r = cliente.post("/api/v1/procesar?espera=0", headers=H_OP, json=EJEMPLO_ENUNCIADO)
+    assert r.status_code == 202 and r.json()["status"] == "en_proceso"
+    pid = r.json()["procesamiento_id"]
+    # IDs y fechas estables: reenviar el mismo lote reutiliza el mismo trabajo.
+    assert cliente.post("/api/v1/procesar?espera=0", headers=H_OP, json=EJEMPLO_ENUNCIADO).json()["procesamiento_id"] == pid
+    Worker(cola, lambda e, r: ejecutar_grafo(e, "simulado")).ejecutar_uno()
+    fin = cliente.get(f"/api/v1/procesar/{pid}", headers=H_OP)
+    assert fin.status_code == 200
+    cuerpo = fin.json()
+    assert cuerpo["status"] == "exito" and cuerpo["periodo_referencia"] == "Semana_04"
+    assert cuerpo["resumen_comunidad"]["total_interacciones_procesadas"] == 2
+    activos = cuerpo["activos_distribucion_generados"]
+    assert set(activos) == {"post_linkedin", "destaque_newsletter_semanal", "sugerencia_contenido_faq"}
+    assert len(activos["post_linkedin"]) == 1                  # el testimonio
+    assert len(activos["destaque_newsletter_semanal"]) == 1    # cierre_periodo por defecto
+    assert cuerpo["almacenamiento_oci"]["estado"] == "desactivado"
+    with cola.conectar() as c:
+        entrada = c.execute("SELECT entrada FROM trabajos_worker WHERE id=%s", (pid,)).fetchone()["entrada"]
+    assert entrada["cierre_periodo"] is True
+    assert all(m["id"].startswith("api-") and m["fecha"] == entrada["interacciones"][0]["fecha"]
+               for m in entrada["interacciones"])
+
+
+def test_procesar_valida_y_exige_credencial(cliente, cola):
+    assert cliente.post("/api/v1/procesar?espera=0", json=EJEMPLO_ENUNCIADO).status_code == 401
+    malo = {**EJEMPLO_ENUNCIADO, "interacciones": [{"autor": "Ana", "canal": "c", "texto": ""}]}
+    assert cliente.post("/api/v1/procesar?espera=0", headers=H_OP, json=malo).status_code == 422
+    assert cliente.get("/api/v1/procesar/no-existe", headers=H_OP).status_code == 404
+
+
+def test_worker_sube_el_paquete_de_cada_procesamiento_a_oci(cola, monkeypatch):
+    from backend.app.services import oci
+    subidos = {}
+    monkeypatch.setattr(oci, "habilitado", lambda: True)
+    monkeypatch.setattr(oci, "subir_objeto", lambda nombre, contenido, tipo: subidos.update({nombre: json.loads(contenido)}))
+    pid = cola.encolar(lote(["p-1", "p-2"]))
+    Worker(cola, lambda e, r: ejecutar_grafo(e, "simulado")).ejecutar_uno()
+    trabajo = cola.obtener(pid)
+    ruta = f"activos/2026-W42/{pid}/paquete-distribucion.json"
+    assert trabajo["estado"] == "terminado"
+    assert trabajo["resultado"]["almacenamiento"]["estado"] == "guardado"
+    assert trabajo["resultado"]["almacenamiento"]["ruta_objeto"] == ruta
+    assert subidos[ruta]["resumen_comunidad"]["total_interacciones_procesadas"] == 2
+    assert subidos[ruta]["almacenamiento_oci"]["ruta_objeto"] == ruta
+
+
+def test_un_fallo_de_oci_no_hace_fallar_el_procesamiento(cola, monkeypatch):
+    from backend.app.services import oci
+
+    def falla(*_):
+        raise RuntimeError("OCI caído")
+    monkeypatch.setattr(oci, "habilitado", lambda: True)
+    monkeypatch.setattr(oci, "subir_objeto", falla)
+    pid = cola.encolar(lote(["p-1"]))
+    Worker(cola, lambda e, r: ejecutar_grafo(e, "simulado")).ejecutar_uno()
+    trabajo = cola.obtener(pid)
+    assert trabajo["estado"] == "terminado"
+    assert trabajo["resultado"]["almacenamiento"] == {**trabajo["resultado"]["almacenamiento"],
+                                                      "estado": "error", "error": "RuntimeError"}
+
+
 # --- Extremo a extremo: puente real + API real + worker -------------------------------
 
 class _Resp(io.BytesIO):
