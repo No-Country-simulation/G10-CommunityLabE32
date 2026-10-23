@@ -36,6 +36,7 @@ done < "$ESTADO/imagenes.anteriores"
 
 log "revertir 4/5: up con la configuración anterior"
 dc up -d --remove-orphans --no-build || fallar "up anterior falló"
+actualizar_proxy || fallar "no se pudo recrear el proxy con la configuración anterior"
 log "revertir 5/5: verificación"
 esperar_salud "${ESPERA_SALUD:-300}" || fallar "la versión anterior no quedó sana"
 "$VERIFICAR" || fallar "verificación de la versión anterior falló"

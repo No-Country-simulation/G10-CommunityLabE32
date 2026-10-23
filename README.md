@@ -25,7 +25,7 @@ semanales (*Community Highlights*) y alertas internas cuando alguien está bloqu
 conserva sus mensajes fuente y pasa por curaduría humana. El paquete de cada procesamiento y cada versión
 aprobada se guardan en **OCI Object Storage**.
 
-- **Producción:** https://communitylab.alyntai.com (VM ARM Always Free en OCI, con HTTPS).
+- **Producción:** https://communitylab.nodnexa.com (VM ARM Always Free en OCI, con HTTPS).
 - **Repositorio:** https://github.com/No-Country-simulation/G10-CommunityLabE32
 - **Idiomas de la interfaz:** español, inglés y portugués de Brasil.
 
@@ -276,8 +276,14 @@ Todo usa recursos **Always Free**. Detalle completo en `docs/operacion-vm.md`.
 
 1. **VM:** instancia Ampere A1 (ARM) con Ubuntu, IP pública y los puertos 80 y 443 abiertos en la lista
    de seguridad. Instalar Docker y Compose.
-2. **Dominio:** un registro A hacia la IP de la VM y certificados de Let's Encrypt en
-   `/etc/letsencrypt/live/<dominio>/`.
+2. **Dominio:** un registro A hacia la IP de la VM (en producción, `communitylab.nodnexa.com`; si el DNS está
+   en Cloudflare, en modo **DNS only**, sin proxy) y el certificado de Let's Encrypt en
+   `/etc/letsencrypt/live/<dominio>/`, emitido con los hooks que detienen y levantan el proxy:
+   ```bash
+   sudo certbot certonly --standalone --key-type ecdsa -d <dominio> \
+     --pre-hook /usr/local/sbin/communitylab-certbot-pre --post-hook /usr/local/sbin/communitylab-certbot-post
+   ```
+   La renovación es automática (`certbot.timer`) y reutiliza esos hooks.
 3. **Bucket:** en *Storage → Buckets*, un bucket **privado** y estándar
    (`communitylab-activos-marketing`).
 4. **Acceso sin llaves (instance principal):**

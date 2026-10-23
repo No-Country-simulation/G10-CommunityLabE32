@@ -1,6 +1,6 @@
 # Guion de la demo · CommunityLab
 
-Duración objetivo: **7 minutos** + preguntas. Se presenta en https://communitylab.alyntai.com con una cuenta
+Duración objetivo: **7 minutos** + preguntas. Se presenta en https://communitylab.nodnexa.com con una cuenta
 de administrador. El documento de la hackathon pide mostrar **el procesamiento de un lote de mensajes y la
 generación simultánea de los activos de distribución**: el bloque 2 es el centro de la demo.
 

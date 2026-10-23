@@ -11,7 +11,8 @@
 #   3 respaldar   respaldo.sh + probar-restauracion.sh. Falla -> nada cambió (puente reanudado).
 #   4 migrar      db-init de la versión nueva (migración aditiva) con la app vieja aún en servicio.
 #                 Falla -> se detiene; la app anterior sigue funcionando sobre el esquema.
-#   5 cortar      Instala el .env nuevo, checkout del sha, :<sha> -> :local, up -d --remove-orphans.
+#   5 cortar      Instala el .env nuevo, checkout del sha, :<sha> -> :local, up -d --remove-orphans;
+#                 recrea el proxy si su configuración cambió.
 #   6 verificar   Salud de todos los servicios + comprobación HTTP(S).
 #                 Falla en 5 o 6 -> revertir.sh automático (imágenes, .env, commit) y salida 1.
 source "$(dirname "${BASH_SOURCE[0]}")/comun.sh"
@@ -110,6 +111,7 @@ for repo in $REPOS_IMAGEN; do
 done
 unset API_IMAGE WORKER_IMAGE WEB_IMAGE DISCORD_IMAGE
 dc up -d --remove-orphans --no-build || revertir "5/6 up"
+actualizar_proxy || revertir "5/6 proxy"
 esperar_salud "$ESPERA_SALUD" || revertir "6/6 salud"
 "$VERIFICAR" || revertir "6/6 verificación"
 log "6/6 desplegado $CORTO y verificado (anterior conservado en $ESTADO)"
