@@ -439,16 +439,18 @@ licencia **CDLA-Sharing-1.0**. No contienen datos personales reales.
 
 ## 15. Equipo
 
+Nombres y roles tal como figuran en la plataforma de No Country (equipo G10-LATAM-equipo 32).
+
 | Integrante | Rol | GitHub |
 |---|---|---|
-| Elizabeth Aguilar | Gestión del proyecto, metodologías ágiles y control de calidad | [@LizAg1804](https://github.com/LizAg1804) |
-| Vania Cruz | Desarrollo asistido por IA, experiencia de usuario y soporte de integración | [@vaniasherel](https://github.com/vaniasherel) |
-| José Olán | Ingeniería de datos: PostgreSQL, modelado y ETL | [@JoseOlannn](https://github.com/JoseOlannn) |
-| Fredy Pachón | Desarrollo de backend: flujos de datos y lógica del backend | [@FredyPachon](https://github.com/FredyPachon) |
-| Ianjaner Beltrán | Desarrollo full stack: frontend Next.js, autenticación y protección de rutas | [@ianjaner75](https://github.com/ianjaner75) |
-| Santiago Horta | Ingeniería de agentes autónomos e integración con el backend | [@TIANHH77](https://github.com/TIANHH77) |
-| Fabián Hernández | Ingeniería de prompts para análisis de sentimiento y generación editorial | [@Fabianhernandez23](https://github.com/Fabianhernandez23) |
-| Paulo Escobar | Ingeniería de agentes: LangGraph, Gemini, integración con Discord y despliegue en OCI | [@AndresS-max](https://github.com/AndresS-max) |
+| Ianjaner Alfonso Beltran Guañarita | Full Stack Developer | [@ianjaner75](https://github.com/ianjaner75) |
+| Fredy Pachon | Backend Developer | [@FredyPachon](https://github.com/FredyPachon) |
+| Paulo Andres Escobar Solorzano | Autonomous Agent Engineer | [@AndresS-max](https://github.com/AndresS-max) |
+| Santiago Horta Hurtado | Autonomous Agent Engineer | [@TIANHH77](https://github.com/TIANHH77) |
+| Fabian Hernández Alejandro | Prompt Engineer | [@Fabianhernandez23](https://github.com/Fabianhernandez23) |
+| Jose Angel Olan de los Santos | Data Engineer | [@JoseOlannn](https://github.com/JoseOlannn) |
+| Vania Sherel Cruz Hernandez | Vibe Coder | [@vaniasherel](https://github.com/vaniasherel) |
+| Elizabeth Aguilar | Project Manager | [@LizAg1804](https://github.com/LizAg1804) |
 
 ## 16. Licencia
 

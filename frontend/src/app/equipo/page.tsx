@@ -44,7 +44,7 @@ interface MiembroEquipo {
 const integrantes: MiembroEquipo[] = [
   {
     nombre: 'Elizabeth Aguilar',
-    rol: 'Gestión de proyectos',
+    rol: 'Project Manager',
     especialidad: 'Gestión del proyecto • Metodologías ágiles • Control de calidad',
     bio: 'Coordinación general del equipo en No Country, planificación de los ciclos de trabajo y control de calidad para la presentación del proyecto.',
     stack: ['Agile', 'Scrum', 'Jira', 'Quality Assurance', 'Team Leadership'],
@@ -53,7 +53,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Vania Cruz',
-    rol: 'Desarrollo asistido por IA',
+    rol: 'Vibe Coder',
     especialidad: 'Experiencia de usuario • Soporte de integración',
     bio: 'Colaboración en el desarrollo del flujo del frontend, las pruebas y el refinamiento general de la experiencia de la plataforma.',
     stack: ['Frontend', 'JavaScript', 'Tailwind CSS', 'UI Testing', 'User Experience'],
@@ -62,7 +62,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'José Olán',
-    rol: 'Ingeniería de datos',
+    rol: 'Data Engineer',
     especialidad: 'PostgreSQL • Modelado de datos • ETL',
     bio: 'Estructuración de esquemas relacionales, optimización de consultas asíncronas y gestión de bases de datos.',
     stack: ['PostgreSQL', 'SQLAlchemy', 'Python', 'Docker', 'ETL'],
@@ -71,7 +71,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Fredy Pachón',
-    rol: 'Desarrollo de backend',
+    rol: 'Backend Developer',
     especialidad: 'Ciencia de datos • Modelado y lógica',
     bio: 'Construcción y validación de flujos de datos analíticos y soporte en la lógica del backend.',
     stack: ['Python', 'FastAPI', 'SQLAlchemy', 'Data Science', 'Data Modeling'],
@@ -80,7 +80,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Ianjaner Beltrán',
-    rol: 'Desarrollo de aplicaciones web',
+    rol: 'Full Stack Developer',
     especialidad: 'Next.js • UI/UX • Autenticación con JWT y FastAPI',
     bio: 'Desarrollo de la interfaz de usuario, el centro de operaciones, la seguridad con JWT y la protección de rutas del frontend.',
     stack: ['Python', 'FastAPI', 'Gemini / LLMs (Generative AI)', 'PostgreSQL', 'TypeScript'],
@@ -89,7 +89,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Santiago Horta',
-    rol: 'Ingeniería de agentes autónomos',
+    rol: 'Autonomous Agent Engineer',
     especialidad: 'Agentes inteligentes • Integración con el backend',
     bio: 'Desarrollo y optimización de componentes de automatización y de la lógica de agentes de inteligencia artificial.',
     stack: ['Software Architecture', 'API Integrations', 'Data Pipelines', 'ETL Processes', 'Prompt Engineering'],
@@ -98,7 +98,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Fabián Hernández',
-    rol: 'Ingeniería de prompts',
+    rol: 'Prompt Engineer',
     especialidad: 'Ingeniería de prompts • Modelos de lenguaje',
     bio: 'Diseño de prompts para análisis de sentimiento y generación editorial.',
     stack: ['Prompt Architecture', 'Few-Shot Prompting', 'Structured Outputs', 'Sentiment Analysis', 'Context Framing'],
@@ -107,7 +107,7 @@ const integrantes: MiembroEquipo[] = [
   },
   {
     nombre: 'Paulo Escobar',
-    rol: 'Ingeniería de agentes autónomos',
+    rol: 'Autonomous Agent Engineer',
     especialidad: 'LangGraph • Gemini • Infraestructura en la nube',
     bio: 'Arquitectura de agentes autónomos con Gemini, integración con Discord y despliegue de la plataforma en OCI.',
     stack: ['Autonomous AI Agents', 'LLMs & Prompt Engineering', 'Automation Workflows', 'REST APIs & Integrations', 'Cloud Deployment (OCI)'],

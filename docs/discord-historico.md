@@ -2,7 +2,8 @@
 
 Permite que un operador traiga a CommunityLab los mensajes **ya existentes** de un canal autorizado dentro de
 un rango de fechas. Es independiente del lector en vivo, del bot y de la bandeja: no escucha de forma
-permanente, no responde en Discord, no envía alertas, no cierra períodos, no publica y **no llama a Gemini**.
+permanente, no responde en Discord, no envía alertas y no publica. Importar **no llama a Gemini**: el análisis
+es un paso aparte que la persona confirma (fase 3).
 
 ## Fases
 
@@ -10,7 +11,7 @@ permanente, no responde en Discord, no envía alertas, no cierra períodos, no p
 |---|---|---|
 | 1. Verificar y previsualizar | Comprueba lista autorizada, canal, servidor, membresía del bot, permisos y tipo; normaliza el rango; lee **una** página para estimar. No guarda nada. | API (`POST /verificar`, `POST /previsualizar`) |
 | 2. Importar | Crea un trabajo persistente (202). Un runner aparte lo ejecuta página a página y guarda en tablas protegidas. | API (`POST /importaciones`) + servicio `discord-historico` de `compose.discord.yml` (`python -m backend.app.discord_historico.runner`) |
-| 3. Procesar con IA | **No implementado.** Paso explícito futuro (ver abajo). | — |
+| 3. Enviar al análisis | Encola en el worker los mensajes importados que aún no se analizaron, con confirmación explícita del uso de Gemini. Repetirlo no duplica. | API (`GET`/`POST /importaciones/{id}/analisis`) + botón «Enviar al análisis» en Ingesta |
 
 Módulos (`backend/app/discord_historico/`): `fechas` (rango e instantes), `permisos` (algoritmo oficial de
 permisos efectivos), `configuracion` (entorno), `cliente` (HTTP solo GET, 429/reintentos), `servicio`
@@ -179,21 +180,20 @@ Canales de texto (0) y anuncios (5). Hilos (10–12), foros (15), medios (16), v
 dentro de los hilos **no** se importan (`alcance = canal_sin_hilos`). Si se detectó algún hilo, la importación
 **no** se declara completa: termina `completada_con_limite` con `motivos_parcial = ["hilos_excluidos"]`.
 
-## Fase 3 (plan, sin implementar)
+## Fase 3: enviar al análisis
 
-Endpoint futuro explícito, p. ej. `POST /api/v1/discord/historico/importaciones/{id}/procesar`.
+`GET /api/v1/discord/historico/importaciones/{id}/analisis` resume cuántos mensajes de la importación ya están en
+el análisis y cuántos faltan; `POST` (202) encola los que faltan (`backend/app/discord_historico/analisis.py`).
 
-1. **Selección:** toma los mensajes cuyo estado **calculado en ese momento** (`SQL_ESTADO_IA` de `store.py`)
-   sea `sin_evidencia` o `fallido`. Nunca usa la instantánea `estado_ia_captura` ni la columna `procesado_ia`.
-   Omite los `pendiente`, para no duplicar un trabajo en curso.
-2. **Lotes:** los construye con el contrato de ingesta existente, con `interacciones[].id = id_mensaje`. Así la
-   evidencia queda vinculada sin columnas nuevas, y otra vía de procesamiento (la ingesta en vivo) también se
-   reconoce.
-3. **Encolado:** los encola en `trabajos_worker` con `Idempotency-Key` estable, después de confirmar el costo
-   estimado de Gemini.
-4. **Cierre:** no hace falta «marcar procesado». El estado sale de `trabajos_worker`. Si se quiere refrescar la
-   instantánea, se actualiza `estado_ia_captura` solo al terminar el trabajo.
-5. **Autorización:** requiere autorización específica antes de consumir Gemini.
+1. **Mismo mensaje que en vivo:** cada mensaje se convierte igual que en el lector en vivo (`discord-<message_id>`,
+   `discord_<canal_id>`, fecha UTC), así un mensaje que también llegó en vivo es el mismo registro.
+2. **Lotes por semana:** origen propio `discord-historico` y un período por semana ISO; el último lote de cada
+   semana cierra ese período (genera su resumen).
+3. **Sin duplicar:** lo ya enviado queda fuera y la cola deriva la clave del contenido, así repetir el envío
+   reutiliza los mismos trabajos. El puente en vivo tampoco vuelve a analizar estos mensajes: los consulta en
+   `POST /api/v1/puente/mensajes/analizados` y los trata como contexto.
+4. **Confirmación:** en Ingesta, la persona confirma que se usará Gemini antes de enviar («Entiendo que se usará
+   la IA…» y «Enviar al análisis»).
 
 ## Reversión
 

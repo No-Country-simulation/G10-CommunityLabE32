@@ -1,10 +1,12 @@
-# Integrar Discord en vivo — aporte de Paulo
+# Lector de Discord en vivo (`discord-reader`)
 
-Trabajo local iniciado el 7 de octubre de 2026 para CommunityLab, equipo 32.
-Esta entrega implementa la recepción de mensajes nuevos de canales de texto
-autorizados y su almacenamiento local para el posterior trabajo de Santiago.
-La implementación local pasó 19 pruebas automatizadas con datos ficticios.
-La conexión a un servidor real de Discord sigue pendiente. Ver VALIDACION.md.
+Recibe los mensajes nuevos de los canales de texto autorizados y los guarda en una bandeja local (SQLite)
+que el puente (`pipelines/communitylab/puente_discord.py`) entrega a la API. Desarrollado por Paulo con el
+contrato acordado con Santiago; inició el 7 de octubre de 2026.
+
+**Estado:** en producción en la VM de OCI desde mediados de octubre de 2026 (servicio `discord-reader` de
+`compose.discord.yml`), conectado al servidor real del equipo. Verificado de punta a punta el 22/10/2026.
+La validación local original está en `docs/historial/discord/validacion-lector-09-10.md`.
 
 ## División confirmada del trabajo
 
@@ -119,10 +121,8 @@ pero sustituyendo las solicitudes y la conexión por simulaciones. También se v
 la configuración ficticia y la consistencia de las dependencias. No se abrió una
 conexión real, ni se utilizaron credenciales reales.
 
-Pendiente externo: disponer del bot, el servidor y los canales autorizados; habilitar
-los permisos e intents necesarios; comprobar recepción y reconexión reales; acordar
-el contrato con Santiago e integrar el normalizador. Esta entrega cubre la preparación
-local de Paulo, no acredita todavía el cierre de la actividad compartida.
+Lo que quedaba pendiente al preparar esta entrega (bot, servidor, canales autorizados, permisos, recepción
+real y normalizador de Santiago) se completó al desplegar en la VM; ver el estado al inicio de este archivo.
 
 No se añadió la pantalla ni el flujo OAuth de conexión de usuarios: esa idea quedó
 fuera de este alcance. La capacidad de la bandeja es configurable y la política de

@@ -111,8 +111,9 @@ del esquema, contenido del bloque) en el próximo intento.
 - Real y opcional (consume cuota): `COMMUNITYLAB_GEMINI_REAL=1 python tools/probar_gemini_real.py`.
   Verifica primero que los modelos de `GEMINI_MODELOS` existan en el proyecto.
 
-## Pendiente fuera de este cambio
+## Estado
 
-- Servicios permanentes de Discord, operación de la VM y redespliegue (paso 2).
-- El módulo legacy `community_processor:procesar` del bot conserva su proveedor OpenRouter;
-  el bot productivo usa `community_processor.integrated:procesar` (Gemini).
+- Los servicios de Discord (lector, puente y bot) corren en la VM de OCI; la operación y el redespliegue
+  están en [`operacion-vm.md`](operacion-vm.md).
+- El punto de entrada histórico `community_processor:procesar` delega en
+  `community_processor.integrated:procesar` (Gemini); OpenRouter se retiró el 15/10/2026.
