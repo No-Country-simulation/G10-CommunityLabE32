@@ -1,4 +1,20 @@
-# CommunityLab
+# CommunityLab 🚀
+
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![LangGraph](https://img.shields.io/badge/LangGraph-1.2-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini-API-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Oracle Cloud](https://img.shields.io/badge/Oracle_Cloud-Object_Storage_%2B_Compute-F80000?style=for-the-badge)
+![Discord](https://img.shields.io/badge/Discord-bot_%2B_import-5865F2?style=for-the-badge&logo=discord&logoColor=white)
+![Licencia](https://img.shields.io/badge/Licencia-MIT-F1F333?style=for-the-badge)
+![Estado](https://img.shields.io/badge/Estado-Hackathon_ONE_G10-FF90E8?style=for-the-badge)
 
 **Motor inteligente de transformación y distribución para comunidades digitales.**
 Hackathon ONE G10 (Oracle Next Education + Alura) · No Country · Equipo 32.
@@ -6,10 +22,12 @@ Hackathon ONE G10 (Oracle Next Education + Alura) · No Country · Equipo 32.
 CommunityLab escucha lo que pasa en una comunidad (Discord o lotes JSON/CSV), lo analiza con Gemini y lo
 convierte en contenido listo para revisar y publicar: posts para LinkedIn y X, FAQ y tips, resúmenes
 semanales (*Community Highlights*) y alertas internas cuando alguien está bloqueado. Cada contenido
-conserva sus mensajes fuente, pasa por curaduría humana y, al aprobarse, se guarda en **OCI Object Storage**.
+conserva sus mensajes fuente y pasa por curaduría humana. El paquete de cada procesamiento y cada versión
+aprobada se guardan en **OCI Object Storage**.
 
 - **Producción:** https://communitylab.alyntai.com (VM ARM Always Free en OCI, con HTTPS).
 - **Repositorio:** https://github.com/No-Country-simulation/G10-CommunityLabE32
+- **Idiomas de la interfaz:** español, inglés y portugués de Brasil.
 
 ---
 
@@ -30,6 +48,7 @@ conserva sus mensajes fuente, pasa por curaduría humana y, al aprobarse, se gua
 13. [Datos de demostración](#13-datos-de-demostración)
 14. [Documentación detallada](#14-documentación-detallada)
 15. [Equipo](#15-equipo)
+16. [Licencia](#16-licencia)
 
 ---
 
@@ -59,20 +78,26 @@ CommunityLab automatiza la parte repetitiva y deja la decisión en manos de una 
 | Automatización con LangGraph o equivalente | Grafo LangGraph con nodos condicionales (sección 5), ejecutado por un worker en segundo plano |
 | Bifurcación de condiciones | Router: bloqueo → alerta interna; duda de ≥ 2 autores → FAQ; logro relevante → post; cierre de período → highlights |
 | Interfaz de visualización y aprobación | Panel Next.js con Resumen, Interacciones, Curaduría (aprobar, editar, denegar con motivo) y Analítica |
-| **OCI Object Storage (obligatorio)** | Cada versión aprobada se guarda en el bucket privado `communitylab-activos-marketing` (`aprobados/<id>/v<versión>/activo.json` y `banner.svg`), con la identidad de la VM y sin llaves |
+| **OCI Object Storage (obligatorio)** | En el bucket privado `communitylab-activos-marketing`, con la identidad de la VM y sin llaves: el paquete de **cada procesamiento** (`activos/<período>/<id>/paquete-distribucion.json`) y **cada versión aprobada** (`aprobados/<id>/v<versión>/activo.json` y `banner.svg`). Ingesta muestra «copia en OCI guardada» |
+| Endpoint de procesamiento del enunciado | `POST /api/v1/procesar` acepta el JSON del documento tal cual y responde con su forma: `resumen_comunidad`, `activos_distribucion_generados` y `almacenamiento_oci` (sección 10) |
+| Al menos 3 ejemplos de transformación | Guion de demo (`docs/guion-demo.md`) y lotes de prueba |
 | OCI Compute (diferencial) | Toda la aplicación corre en una VM ARM Always Free con Docker Compose y HTTPS |
+| Bot de comunidad (diferencial) | Bot de Discord que responde dudas técnicas y avisa de bloqueos en un canal interno |
+| Imágenes para publicaciones (diferencial) | Banner por contenido aprobado (plantilla SVG), descargable en JPG |
 | README con diagrama y guía de despliegue | Este archivo (secciones 4 y 9) |
 
 ## 3. Funcionalidades
 
 | Pantalla | Qué permite |
 |---|---|
-| **Resumen** | Totales de mensajes, borradores pendientes, aprobados y alertas internas; cada tarjeta abre su listado |
-| **Ingesta de datos** | Conectar canales de Discord (hasta cuatro, con período y zona horaria); subir lotes JSON/JSONL/CSV; «Procesar pendientes» de Discord sin cerrar la semana; **Datos cargados**: ocultar o eliminar lotes (solo administradores) |
-| **Interacciones** | Todos los mensajes con autor, tipo, tema y sentimiento; búsqueda en el servidor y filtros |
-| **Curaduría** | Revisar cada borrador frente a sus fuentes, ver advertencias de fidelidad, editar versiones LinkedIn y X, regenerar con IA, generar el banner, aprobar o denegar con motivo. Cada aprobado muestra si ya se guardó en OCI |
-| **Analítica** | Sentimiento, embudo de curaduría, temas detectados y tipos de participación, filtrables por lotes |
-| **Usuarios** | Alta de cuentas, roles (usuario, operador, administrador) y restablecimiento de contraseñas |
+| **Resumen** | Seis tarjetas de sentimiento (total, positivos, negativos, neutrales, indeterminados y sin analizar) que filtran los mensajes, más borradores pendientes, aprobados y alertas internas |
+| **Ingesta de datos** | Conectar un canal de Discord con período y zona horaria (agrupadas por región de América Latina); la tarjeta recuerda la última importación. Subir lotes JSON/JSONL/CSV con seguimiento hasta la copia en OCI. «Procesar pendientes» de Discord sin cerrar la semana, sin volver a analizar lo ya importado. **Datos cargados**: ocultar o eliminar lotes (solo administradores) |
+| **Interacciones** | Todos los mensajes con autor, tipo, tema y sentimiento; filtros por sentimiento y búsqueda en el servidor |
+| **Curaduría** | Revisar cada borrador frente a sus fuentes, ver advertencias de fidelidad, editar versiones LinkedIn y X, regenerar con IA, compartir en LinkedIn o X, generar el banner y descargarlo en JPG, aprobar o denegar con motivo. Cada aprobado muestra si ya se guardó en OCI |
+| **Analítica** | Distribución del sentimiento, embudo de curaduría (generados, pendientes, aprobados y denegados), temas recurrentes (las variantes del mismo tema se agrupan) y tipos de participación, filtrables por lotes |
+| **Usuarios del equipo** | Alta de cuentas, roles (usuario, operador, administrador) y restablecimiento de contraseñas; en celular, cada cuenta es una tarjeta |
+| **Configuraciones** | Perfil, contraseña, idioma (español, inglés, portugués de Brasil) y tema claro u oscuro |
+| **Acerca del equipo** | Integrantes, roles, habilidades y enlaces a LinkedIn y GitHub |
 
 Además, un **bot de Discord** responde dudas en tiempo real y avisa al equipo cuando detecta a alguien bloqueado.
 
@@ -98,10 +123,11 @@ flowchart LR
     Q --> W[Worker<br/>grafo LangGraph]
     W <--> G[Gemini API]
     W --> PG[(PostgreSQL<br/>mensajes · activos · alertas)]
+    W -->|paquete de cada procesamiento| OCI[(OCI Object Storage<br/>communitylab-activos-marketing)]
 
     PG --> UI[Panel Next.js<br/>curaduría humana]
     UI -->|aprobar| API
-    API -->|versión aprobada| OCI[(OCI Object Storage<br/>communitylab-activos-marketing)]
+    API -->|versión aprobada| OCI
 
     D -.-> BOT[discord-bot<br/>respuestas y alertas en vivo]
     BOT <--> G
@@ -125,14 +151,15 @@ flowchart TB
     BOT --> GEM
     RD & BOT & HIS --> DIS[Discord]
     API -->|instance principal| OS[(OCI Object Storage<br/>bucket privado)]
+    WK -->|instance principal| OS
 ```
 
 | Servicio | Función |
 |---|---|
 | `proxy` | nginx: HTTPS, redirección HTTP → HTTPS, cabeceras de seguridad, `/api` hacia la API |
 | `web` | Panel Next.js |
-| `api` | FastAPI: ingesta, curaduría, métricas, cuentas y sesiones, copia en OCI |
-| `worker` | Ejecuta el grafo LangGraph de cada lote con Gemini (o en modo simulado, sin red) |
+| `api` | FastAPI: ingesta, procesamiento del enunciado, curaduría, métricas, cuentas y sesiones, copia en OCI de los aprobados |
+| `worker` | Ejecuta el grafo LangGraph de cada lote con Gemini (o en modo simulado, sin red) y sube su paquete a OCI |
 | `postgres` / `db-init` | Base de datos y migraciones aditivas |
 | `discord-reader` | Captura mensajes de los canales autorizados |
 | `discord-bridge` | Agrupa por período y entrega los lotes a la API |
@@ -165,7 +192,7 @@ flowchart TD
 |---|---|---|
 | El análisis marca bloqueo | `bloqueo` | Alerta interna; el mensaje queda fuera de todo contenido público |
 | Relevancia < 0,6 | — | Se descarta con motivo registrado |
-| Duda sobre el mismo tema de ≥ 2 autores distintos | `dudas` | FAQ / Tip técnico |
+| Duda sobre el mismo tema de ≥ 2 autores distintos (las variantes del tema con o sin tildes, artículos o plural cuentan como una) | `dudas` | FAQ / Tip técnico |
 | Logro relevante sin otra ruta | `logro` | Post LinkedIn / X |
 | `cierre_periodo = true` | `periodo` | Community Highlights con todos los mensajes relevantes |
 
@@ -182,13 +209,13 @@ flowchart TD
 
 | Capa | Tecnología |
 |---|---|
-| Frontend | Next.js 16, React, TypeScript, Tailwind CSS, Framer Motion |
-| API | FastAPI, SQLAlchemy async, Pydantic |
-| Orquestación | LangGraph, worker propio con cola en PostgreSQL (reintentos, *lease*, idempotencia) |
+| Frontend | Next.js 16.3, React 19.2, TypeScript 5, Tailwind CSS 4, Framer Motion; interfaz en español, inglés y portugués de Brasil |
+| API | FastAPI, SQLAlchemy async, Pydantic 2 (Python 3.12) |
+| Orquestación | LangGraph 1.2, worker propio con cola en PostgreSQL (reintentos, *lease*, idempotencia) |
 | IA | Google Gemini (`flash-lite` y escalamiento a un modelo mayor), cliente HTTP propio |
 | Datos | PostgreSQL 16 |
-| Integraciones | Discord (gateway y API REST), bot con Gemini |
-| Nube | OCI Compute (Ampere A1, Always Free) y OCI Object Storage (SDK `oci`, instance principal) |
+| Integraciones | Discord (discord.py 2.7: gateway y API REST), bot con Gemini |
+| Nube | OCI Compute (Ampere A1, Always Free) y OCI Object Storage (SDK `oci` 2.175, instance principal) |
 | Operación | Docker Compose, nginx, Let's Encrypt, scripts `cl-*` con respaldo y reversión |
 
 ## 7. Estructura del repositorio
@@ -304,6 +331,7 @@ Documentación interactiva en `/docs` (Swagger). Principales rutas:
 
 | Área | Rutas |
 |---|---|
+| Procesamiento del enunciado | `POST /api/v1/procesar`, `GET /api/v1/procesar/{id}` |
 | Ingesta | `POST /api/mensajes/procesamientos` (archivo), `POST /api/v1/trabajos`, `GET /api/v1/trabajos/{id}` |
 | Mensajes y métricas | `GET /api/mensajes` (búsqueda `q`, lotes, sentimiento), `GET /api/dashboard/kpis`, `/alertas`, `/ambitos` |
 | Curaduría | `GET/PATCH /api/curaduria/activos/{id}`, `POST .../posts/generar`, `GET/POST .../banners` |
@@ -311,20 +339,58 @@ Documentación interactiva en `/docs` (Swagger). Principales rutas:
 | Discord | `/api/v1/discord/historico/*` (importar por rango), `/api/v1/discord/canales/{id}/escucha`, `/api/v1/procesamiento-pendientes` |
 | Cuentas | `POST /api/auth/login`, `/logout`, `GET /api/auth/sesion`, `GET/POST/PATCH /api/auth/usuarios` |
 
-Ejemplo de lote (formato del documento de la hackathon):
+### Procesamiento con el contrato del enunciado
+
+`POST /api/v1/procesar` recibe el JSON del documento de la hackathon tal cual. Si faltan `id`, `fecha` o
+`cierre_periodo`, se completan: ID y fecha estables, de modo que reenviar el mismo lote no lo duplica, y
+cierre del período por defecto para generar también el resumen semanal. Requiere una sesión de operador o
+el token del puente.
 
 ```json
 {
   "origen_comunidad": "Discord_Grupo_ONE_G10",
-  "periodo_referencia": "2026-W43",
-  "cierre_periodo": true,
+  "periodo_referencia": "Semana_04",
   "interacciones": [
-    {"id": "m-01", "autor": "Mariana Souza", "canal": "#logros-y-empleos", "tipo": "testimonio",
-     "fecha": "2026-10-19T14:10:00Z",
-     "texto": "¡Quedé seleccionada como Desarrolladora Junior de IA gracias al proyecto de LangChain y OCI!"}
+    {"autor": "Mariana Souza", "canal": "#logros-y-empleos", "tipo": "testimonio",
+     "texto": "¡Quedé seleccionada como Desarrolladora Junior de IA gracias al proyecto de LangChain y OCI!"},
+    {"autor": "Lucas Albuquerque", "canal": "#dudas-langgraph", "tipo": "pregunta_tecnica",
+     "texto": "¿Cómo estructuro los nodos condicionales en LangGraph cuando el LLM necesita reintento?"}
   ]
 }
 ```
+
+Respuesta (resumida):
+
+```json
+{
+  "status": "exito",
+  "procesamiento_id": "…",
+  "resumen_comunidad": {
+    "total_interacciones_procesadas": 2,
+    "sentimiento_predominante": "Altamente positivo",
+    "temas_principales": ["contratación", "langgraph"],
+    "alertas_internas": 0
+  },
+  "activos_distribucion_generados": {
+    "post_linkedin": [{"titulo": "Logro de la comunidad", "copy": "…", "fuentes": ["…"], "estado": "borrador"}],
+    "destaque_newsletter_semanal": [{"titulo": "Resumen de la comunidad", "copy": "…"}],
+    "sugerencia_contenido_faq": []
+  },
+  "revision_humana": "pendiente_en_curaduria",
+  "almacenamiento_oci": {
+    "estado": "guardado",
+    "bucket": "communitylab-activos-marketing",
+    "ruta_objeto": "activos/Semana_04/<id>/paquete-distribucion.json"
+  }
+}
+```
+
+La respuesta llega en cuanto termina el análisis, con una espera máxima de 50 s. Si tarda más, devuelve
+202 con `status: en_proceso` y el resultado se consulta en `GET /api/v1/procesar/{id}`. Los activos nunca
+se publican solos: quedan como borradores en Curaduría.
+
+`POST /api/v1/trabajos` es la vía asíncrona de la app y del puente de Discord: exige `id` y `fecha` por
+mensaje y devuelve `202` con el ID del trabajo.
 
 ## 11. Seguridad
 
@@ -363,7 +429,8 @@ licencia **CDLA-Sharing-1.0**. No contienen datos personales reales.
 | `docs/operacion-vm.md` | Operación de la VM: rutas, variables, despliegue, respaldo y reversión |
 | `docs/http-local-https-vm.md` | HTTP local y HTTPS en la VM |
 | `docs/gemini-grafo-worker.md` | Cliente Gemini, presupuesto por lote y política de errores |
-| `docs/oci-object-storage.md` | Copia de los aprobados en OCI y acceso por instance principal |
+| `docs/oci-object-storage.md` | Paquetes de cada procesamiento y copia de los aprobados en OCI; acceso por instance principal |
+| `docs/guion-demo.md` | Guion de la demostración |
 | `docs/ingesta-lotes.md` | Formatos de lote, resultados del worker y datos cargados |
 | `docs/flujo-hibrido-banners.md` | «Procesar pendientes», cierre de período y banners |
 | `docs/discord-historico.md` | Importación histórica de canales de Discord |
@@ -382,3 +449,8 @@ licencia **CDLA-Sharing-1.0**. No contienen datos personales reales.
 | Santiago Horta Hurtado | Ingeniería de agentes autónomos e integración con el backend |
 | Fabián Hernández Alejandro | Ingeniería de prompts para análisis y generación de contenido |
 | Paulo Andrés Escobar Saldaña | Ingeniería de agentes: LangGraph, Gemini, integración con Discord y despliegue en OCI |
+
+## 16. Licencia
+
+El código se distribuye bajo la licencia [MIT](LICENSE) · © 2026 Equipo 32 · CommunityLab (No Country,
+Hackathon ONE G10). Los datos de demostración conservan su propia licencia (sección 13).
