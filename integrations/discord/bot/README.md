@@ -1,13 +1,13 @@
-# Bot Discord: respuestas y alertas — aporte de Paulo
+# Bot de Discord: respuestas y alertas (`discord-bot`)
 
-Implementación local del 08/10, preparada para PR el 09/10/2026 para la actividad compartida con Fabián, prevista
-para el 09/10. Implementa conexión, recepción, ejecución de decisiones y transporte
-de respuestas/alertas. La lógica de clasificación y generación corresponde a
-Fabián y se incorpora como función asíncrona configurable.
+Responde dudas en los canales de la comunidad y avisa al equipo en un canal interno cuando alguien está
+bloqueado. Paulo hizo la conexión, la recepción, la ejecución de decisiones y el transporte de respuestas y
+alertas; la clasificación y la redacción las aporta el procesador integrado de Fabián con Gemini
+(`integrations/discord/processor/`, `community_processor.integrated:procesar`).
 
-El código está preparado para esa conexión, pero todavía no se ha usado un bot
-real ni se ha recibido la implementación final de Fabián. La aceptación de la
-división de trabajo no equivale a aceptación del contrato técnico aquí propuesto.
+**Estado:** en producción en la VM de OCI desde mediados de octubre de 2026 (servicio `discord-bot` de `compose.discord.yml`).
+El 22/10/2026 respondió una duda en el canal de pruebas y publicó la alerta de un bloqueo en `#alertas-internas`.
+La validación local original está en `docs/historial/discord/validacion-bot-09-10.md`.
 
 ## Comportamiento
 
@@ -38,7 +38,7 @@ división de trabajo no equivale a aceptación del contrato técnico aquí propu
 - `config.example.json`: IDs ficticios; no es una configuración utilizable en vivo.
 - `tests/`: pruebas de transporte, privacidad, fallos y compatibilidad.
 - `tools/validate_local.py`: comprobación reproducible con red externa bloqueada.
-- `VALIDACION.md`: alcance de las pruebas. `evidencias/` se genera localmente y no se versiona.
+- Validación local original: `docs/historial/discord/validacion-bot-09-10.md`. `evidencias/` se genera localmente y no se versiona.
 - El validador utiliza el repositorio que contiene esta carpeta; no necesita una copia externa.
 
 ## Usar lo preparado localmente

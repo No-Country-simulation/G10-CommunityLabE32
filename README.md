@@ -439,16 +439,18 @@ licencia **CDLA-Sharing-1.0**. No contienen datos personales reales.
 
 ## 15. Equipo
 
-| Integrante | Rol |
-|---|---|
-| Elizabeth Aguilar | Gestión del proyecto, metodologías ágiles y control de calidad |
-| Vania Sherel Cruz Hernández | Desarrollo asistido por IA, experiencia de usuario y soporte de integración |
-| José Ángel Olán de los Santos | Ingeniería de datos: PostgreSQL, modelado y ETL |
-| Fredy Pachón | Desarrollo de backend: flujos de datos y lógica del backend |
-| Ianjaner Alfonso Beltrán Guañarita | Desarrollo web: frontend Next.js, autenticación y protección de rutas |
-| Santiago Horta Hurtado | Ingeniería de agentes autónomos e integración con el backend |
-| Fabián Hernández Alejandro | Ingeniería de prompts para análisis y generación de contenido |
-| Paulo Andrés Escobar Saldaña | Ingeniería de agentes: LangGraph, Gemini, integración con Discord y despliegue en OCI |
+Nombres y roles tal como figuran en la plataforma de No Country (equipo G10-LATAM-equipo 32).
+
+| Integrante | Rol | GitHub |
+|---|---|---|
+| Ianjaner Alfonso Beltran Guañarita | Full Stack Developer | [@ianjaner75](https://github.com/ianjaner75) |
+| Fredy Pachon | Backend Developer | [@FredyPachon](https://github.com/FredyPachon) |
+| Paulo Andres Escobar Solorzano | Autonomous Agent Engineer | [@AndresS-max](https://github.com/AndresS-max) |
+| Santiago Horta Hurtado | Autonomous Agent Engineer | [@TIANHH77](https://github.com/TIANHH77) |
+| Fabian Hernández Alejandro | Prompt Engineer | [@Fabianhernandez23](https://github.com/Fabianhernandez23) |
+| Jose Angel Olan de los Santos | Data Engineer | [@JoseOlannn](https://github.com/JoseOlannn) |
+| Vania Sherel Cruz Hernandez | Vibe Coder | [@vaniasherel](https://github.com/vaniasherel) |
+| Elizabeth Aguilar | Project Manager | [@LizAg1804](https://github.com/LizAg1804) |
 
 ## 16. Licencia
 

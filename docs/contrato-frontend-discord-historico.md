@@ -467,8 +467,8 @@ El Discord falso tiene el canal `222222222222222222` del servidor `1111111111111
 DISCORD_HISTORICO_TEST_DATABASE_URL=postgresql://USUARIO:CLAVE@127.0.0.1:15441/discord_historico_test python -m pytest -q -p no:cacheprovider worker/tests/test_discord_historico.py
 ```
 
-**En la VM:** el runner **no** está todavía en `docker-compose.yml` ni desplegado. Añadirlo como servicio es un paso
-posterior que requiere autorización.
+**En la VM:** el runner corre como servicio `discord-historico` de `compose.discord.yml`
+(`python -m backend.app.discord_historico.runner`); ver [`discord-historico.md`](discord-historico.md).
 
 ---
 
@@ -486,6 +486,6 @@ posterior que requiere autorización.
 - No se cierra ningún período.
 - No se descarga ningún adjunto.
 
-**Procesar con IA (fase 3)** está **sin implementar**. Será una acción explícita aparte, con estimación de costo y
-autorización; el plan está en [`discord-historico.md`](discord-historico.md). El frontend no debe ofrecer ese botón
-todavía.
+**Enviar al análisis (fase 3)** es una acción explícita aparte: `GET`/`POST /importaciones/{id}/analisis` y el botón
+«Enviar al análisis» en Ingesta, que pide confirmar el uso de Gemini. Detalle en
+[`discord-historico.md`](discord-historico.md#fase-3-enviar-al-análisis).

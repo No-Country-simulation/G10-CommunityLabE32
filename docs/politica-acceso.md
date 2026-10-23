@@ -12,7 +12,7 @@ Las tres credenciales **no son intercambiables**.
 |---|---|---|---|
 | Sesión de persona | Navegador | Cookie `cl_sesion` (HttpOnly, Secure, SameSite=Strict, Path=/api) + cabecera `X-CSRF-Token` en POST/PATCH | Según el rol de la cuenta |
 | Token de operador (`OPERADOR_TOKEN`) | Scripts y terminal | Cabecera `X-Operador-Token` | Rutas de rol operador. **Nunca** administración ni puente. No se usa en el navegador. |
-| Token del puente (`PUENTE_TOKEN`) | Servicio `discord-bridge` | `Authorization: Bearer …` | `/api/v1/puente/*` y entrega/consulta de lotes en `/api/v1/trabajos` |
+| Token del puente (`PUENTE_TOKEN`) | Servicio `discord-bridge` | `Authorization: Bearer …` | `/api/v1/puente/*` y entrega/consulta de lotes en `/api/v1/trabajos` y `/api/v1/procesar` |
 
 ### Roles
 
@@ -103,7 +103,8 @@ de datos enviados por el cliente.
 | `POST /api/mensajes/procesamientos` (subir archivo) | ✖ | ✖ | ✔ | ✔ | ✖ | ✔ |
 | `POST/GET /api/v1/procesamiento-pendientes…` | ✖ | ✖ | ✔ | ✔ | ✖ | ✔ |
 | `POST/GET /api/v1/trabajos…` (lotes) | ✖ | ✖ | ✔ | ✔ | ✔ | ✔ |
-| `POST /api/v1/puente/solicitudes/…` | ✖ | ✖ | ✖ | ✖ | ✔ | ✖ |
+| `POST/GET /api/v1/procesar…` (procesamiento con el JSON del enunciado) | ✖ | ✖ | ✔ | ✔ | ✔ | ✔ |
+| `POST /api/v1/puente/solicitudes/…` y `POST /api/v1/puente/mensajes/analizados` | ✖ | ✖ | ✖ | ✖ | ✔ | ✖ |
 | `/api/v1/discord/historico/*` y `/api/v1/discord/canales/{id}/escucha` | ✖ | ✖ | ✔ (solo las suyas) | ✔ (todas) | ✖ | ✔ (las del token) |
 
 **Respuestas de error.**
