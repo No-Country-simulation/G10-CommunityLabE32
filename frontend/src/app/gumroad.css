@@ -922,3 +922,16 @@ html, body, button, input, select, option, optgroup, textarea, summary, table, c
 .overview-operativo button:hover, .overview-operativo button[aria-pressed="true"] { color: var(--foreground); border-bottom-color: #ff90e8; }
 .overview-operativo button:focus-visible { outline: 2px solid #ff90e8; outline-offset: 3px; }
 .overview-operativo strong { color: var(--foreground); }
+
+/* Usuarios del equipo en celular: cada cuenta es una tarjeta, sin desplazamiento horizontal. */
+@media(max-width:767px) {
+  .users-table-card { overflow: visible; }
+  .users-table, .users-table tbody, .users-table tr, .users-table td { display: block; width: 100%; min-width: 0; }
+  .users-table thead { display: none; }
+  .users-table tr { padding: 14px 16px; }
+  .users-table td { padding: 6px 0; overflow-wrap: anywhere; }
+  .users-table td[data-label]::before { content: attr(data-label); display: block; color: var(--muted-foreground); font-size: 12px; margin-bottom: 5px; }
+  .users-table select { width: 100%; }
+  .users-table .users-actions { justify-content: flex-start; }
+  .users-table .users-own { text-align: left; }
+}

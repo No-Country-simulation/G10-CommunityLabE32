@@ -99,8 +99,8 @@ export default function UsuariosPage() {
             <div className="card p-8 text-sm text-muted-foreground">Esta sección es solo para cuentas con rol administrador.</div>
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
-              <section className="card p-0 overflow-x-auto" aria-label="Cuentas">
-                <table className="w-full text-sm">
+              <section className="card p-0 overflow-x-auto users-table-card" aria-label="Cuentas">
+                <table className="w-full text-sm users-table">
                   <thead className="text-left text-xs uppercase tracking-wider text-subtle-foreground border-b border-border">
                     <tr><th className="p-4">Cuenta</th><th className="p-4">Rol</th><th className="p-4">Estado</th><th className="p-4 text-right">Acciones</th></tr>
                   </thead>
@@ -108,17 +108,17 @@ export default function UsuariosPage() {
                     {usuarios.map((u) => {
                       const propia = u.id === yo.id;
                       return <tr key={u.id} className="border-b border-border last:border-0">
-                        <td className="p-4"><p className="font-semibold text-foreground">{u.full_name || '—'}</p><p className="text-xs text-muted-foreground">{u.email}</p></td>
-                        <td className="p-4">
+                        <td className="p-4" data-label="Cuenta"><p className="font-semibold text-foreground">{u.full_name || '—'}</p><p className="text-xs text-muted-foreground">{u.email}</p></td>
+                        <td className="p-4" data-label="Rol">
                           <select className="input py-1.5!" aria-label={`Rol de ${u.email}`} value={u.rol} disabled={propia || ocupado !== null}
                             onChange={(e) => void actualizar(u, { rol: e.target.value as RolUsuario })}>
                             {ROLES.map((r) => <option key={r.valor} value={r.valor}>{r.etiqueta}</option>)}
                           </select>
                         </td>
-                        <td className="p-4"><span className={u.is_active ? 'badge-success' : 'badge-neutral'}>{u.is_active ? 'Activa' : 'Deshabilitada'}</span></td>
-                        <td className="p-4">
-                          {propia ? <p className="text-xs text-muted-foreground text-right">Tu cuenta (cámbiala en Configuraciones)</p> :
-                            <div className="flex flex-wrap justify-end gap-2">
+                        <td className="p-4" data-label="Estado"><span className={u.is_active ? 'badge-success' : 'badge-neutral'}>{u.is_active ? 'Activa' : 'Deshabilitada'}</span></td>
+                        <td className="p-4" data-label="Acciones">
+                          {propia ? <p className="users-own text-xs text-muted-foreground text-right">Tu cuenta (cámbiala en Configuraciones)</p> :
+                            <div className="users-actions flex flex-wrap justify-end gap-2">
                               <button type="button" className="btn-secondary text-xs inline-flex items-center gap-1.5" disabled={ocupado !== null}
                                 onClick={() => { if (window.confirm(`¿Generar una contraseña temporal nueva para ${u.email}?`)) void actualizar(u, { restablecer: true }); }}>
                                 {ocupado === u.id ? <Loader2 size={13} className="animate-spin"/> : <KeyRound size={13}/>}Restablecer contraseña
