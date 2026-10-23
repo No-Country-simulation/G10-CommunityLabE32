@@ -430,6 +430,8 @@ export interface Trabajo {
     activos_distribucion_generados?: { advertencias_fidelidad?: AdvertenciaFidelidad[] }[];
     alertas_internas?: unknown[];
     persistencia?: { postgres: string; activos: number; sentimientos?: number };
+    // Copia del paquete del procesamiento en OCI Object Storage (la hace el worker al terminar).
+    almacenamiento?: { capa?: string; estado?: 'pendiente' | 'guardado' | 'error' | 'desactivado'; ruta_objeto?: string };
     diagnostico?: DiagnosticoIA;
   } | null;
 }

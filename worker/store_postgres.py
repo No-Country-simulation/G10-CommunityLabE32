@@ -14,6 +14,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from worker.core import Trabajo
+from worker import paquete_oci
 from pipelines.communitylab.diagnostico import normalizar_diagnostico
 from pipelines.communitylab.fechas import fecha_utc
 
@@ -243,8 +244,16 @@ class ColaPostgres:
             resultado["persistencia"] = {"postgres": "guardado",
                                          "activos": len(resultado["activos_distribucion_generados"]),
                                          "sentimientos": sentimientos, "clasificaciones": clasificaciones}
+            resultado["almacenamiento"] = paquete_oci.estado_inicial()
             c.execute("""UPDATE trabajos_worker SET estado='terminado', resultado=%s,
                 token=NULL, vence=NULL, error_codigo=NULL,
                 historial=historial || '["terminado"]'::jsonb, actualizado=clock_timestamp()
                 WHERE id=%s""", (Jsonb(resultado), trabajo.id))
+        # Copia del paquete en OCI después de confirmar el trabajo: una demora o un fallo de OCI no
+        # retrasa ni deshace lo guardado en PostgreSQL.
+        if resultado["almacenamiento"]["estado"] == "pendiente":
+            registro = paquete_oci.subir_paquete(trabajo.id, trabajo.entrada, resultado)
+            with self.conectar() as c:
+                c.execute("""UPDATE trabajos_worker SET resultado=jsonb_set(resultado, '{almacenamiento}', %s)
+                    WHERE id=%s""", (Jsonb(registro), trabajo.id))
         return True

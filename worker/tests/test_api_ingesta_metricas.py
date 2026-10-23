@@ -207,7 +207,8 @@ def test_resultado_aclara_persistencia_y_curaduria_filtra_por_trabajo(cliente, c
     procesar_todo(cola)
     trabajo = cliente.get(f"/api/v1/trabajos/{primero}").json()
     assert trabajo["resultado"]["persistencia"]["postgres"] == "guardado"
-    assert trabajo["resultado"]["almacenamiento"]["capa"] == "objetos_externos_oci"
+    # Copia del paquete en OCI: sin OCI configurado (pruebas) queda «desactivado».
+    assert trabajo["resultado"]["almacenamiento"] == {"capa": "oci_object_storage", "estado": "desactivado"}
     propios = cliente.get("/api/curaduria/activos", params={"trabajo": primero}).json()
     todos = cliente.get("/api/curaduria/activos").json()
     assert 0 < propios["total"] < todos["total"]

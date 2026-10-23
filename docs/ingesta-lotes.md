@@ -54,8 +54,12 @@ abre `/curaduria?trabajo=<id>` (`GET /api/curaduria/activos?trabajo=<id>`).
 ## Resultado
 
 - `persistencia: {postgres: "guardado", activos: N}`: los activos se guardaron en PostgreSQL.
-- `almacenamiento: {capa: "objetos_externos_oci", estado: "no_persistido"}`: el lote en sí no se copia a
-  OCI; lo que se copia en Object Storage es cada activo aprobado (ver `docs/oci-object-storage.md`).
+- `almacenamiento: {capa: "oci_object_storage", estado, bucket, ruta_objeto}`: copia del paquete de
+  distribución del trabajo en OCI (`activos/<período>/<id>/paquete-distribucion.json`); `desactivado` si
+  OCI no está configurado. Los activos aprobados se copian aparte (ver `docs/oci-object-storage.md`).
+- `POST /api/v1/procesar` acepta el JSON del enunciado (sin `id`, `fecha` ni `cierre_periodo`), espera
+  hasta 50 s y responde con la forma del enunciado (`resumen_comunidad`, `activos_distribucion_generados`,
+  `almacenamiento_oci`); si tarda más, devuelve 202 y se consulta en `GET /api/v1/procesar/{id}`.
 - Trabajos con error de IA: `error_codigo` y, si el proveedor rechazó la petición,
   `resultado.diagnostico`: estado HTTP, categoría y valores de catálogo; nunca texto del proveedor
   ni del lote (ver `docs/gemini-grafo-worker.md`).

@@ -133,6 +133,10 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-communitylab}:${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-communitylab}
       WORKER_MODE: ${WORKER_MODE:?Definir simulado o gemini explícitamente}
       WORKER_TIMEOUT: ${WORKER_TIMEOUT:-300}
+      # Copia del paquete de cada procesamiento en OCI (misma configuración que la API).
+      OCI_ALMACENAMIENTO: ${OCI_ALMACENAMIENTO:-desactivado}
+      OCI_BUCKET_NAME: ${OCI_BUCKET_NAME:-communitylab-activos-marketing}
+      OCI_NAMESPACE: ${OCI_NAMESPACE:-}
       # Solo en modo gemini. La clave y los modelos se definen en .env privado, nunca en Git.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODELOS: ${GEMINI_MODELOS:-}

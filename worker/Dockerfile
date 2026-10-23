@@ -13,6 +13,8 @@ RUN pip install --no-cache-dir -r ./backend/requirements.txt \
 
 COPY backend/app/core ./backend/app/core
 COPY backend/app/models ./backend/app/models
+# Copia del paquete de cada procesamiento en OCI Object Storage (worker/paquete_oci.py).
+COPY backend/app/services/oci.py ./backend/app/services/oci.py
 
 USER worker
 CMD ["python", "-m", "worker.run"]
