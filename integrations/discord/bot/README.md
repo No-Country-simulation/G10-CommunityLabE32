@@ -34,7 +34,7 @@ La validación local original está en `docs/historial/discord/validacion-bot-09
 ## Archivos
 
 - `bot_discord/`: contratos, cliente discord.py, orquestación, cola y CLI.
-- `CONTRATO_PARA_FABIAN.md`: entrada, salida, responsabilidades y ejemplos.
+- Contrato de entrada y salida acordado durante el desarrollo: `docs/historial/contratos/CONTRATO_PARA_FABIAN.md`.
 - `config.example.json`: IDs ficticios; no es una configuración utilizable en vivo.
 - `tests/`: pruebas de transporte, privacidad, fallos y compatibilidad.
 - `tools/validate_local.py`: comprobación reproducible con red externa bloqueada.

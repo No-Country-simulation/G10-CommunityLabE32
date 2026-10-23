@@ -1,5 +1,0 @@
-Open Doodles by Pablo Stanley
-Source: https://www.opendoodles.com/
-Assets: reading.svg, plant.svg
-The official site permits free commercial and personal use without required credit.
-Local adaptations: accent colors changed to the CommunityLab palette.
