@@ -25,7 +25,7 @@ semanales (*Community Highlights*) y alertas internas cuando alguien está bloqu
 conserva sus mensajes fuente y pasa por curaduría humana. El paquete de cada procesamiento y cada versión
 aprobada se guardan en **OCI Object Storage**.
 
-- **Producción:** https://communitylab.alyntai.com (VM ARM Always Free en OCI, con HTTPS).
+- **Producción:** https://communitylab.nodnexa.com (VM ARM Always Free en OCI, con HTTPS).
 - **Repositorio:** https://github.com/No-Country-simulation/G10-CommunityLabE32
 - **Idiomas de la interfaz:** español, inglés y portugués de Brasil.
 

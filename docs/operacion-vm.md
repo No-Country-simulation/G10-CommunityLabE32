@@ -181,7 +181,7 @@ en la documentación.
      Debe imprimir `login=200` y `sesion=200 rol=administrador lectura_administrador=200`.
    - Alternativa sin TTY: un archivo temporal 600 fuera del repositorio, con `--contrasena-stdin` y
      `-T ... < archivo`; borrarlo al terminar.
-3. **Desde el navegador.** Entrar en `https://communitylab.alyntai.com/login`, crear las cuentas de
+3. **Desde el navegador.** Entrar en `https://communitylab.nodnexa.com/login`, crear las cuentas de
    operador (`POST /api/auth/usuarios`) y comprobar «Procesar pendientes» con una de ellas.
 4. **Si algo falla.**
    - **El login da 503 (`autenticacion_no_configurada`):** falta la clave o es inválida. Corregir el `.env`

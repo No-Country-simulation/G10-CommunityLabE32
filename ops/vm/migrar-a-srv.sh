@@ -25,7 +25,7 @@ VISUDO=${VISUDO:-visudo}
 HOOKS="certbot-pre certbot-post"
 RESPALDO_CMD=${RESPALDO_CMD:-}
 RESTAURAR_CMD=${RESTAURAR_CMD:-}
-export VERIFICAR_URLS=${VERIFICAR_URLS-"https://communitylab.alyntai.com/healthz=200 http://communitylab.alyntai.com/=301"}
+export VERIFICAR_URLS=${VERIFICAR_URLS-"https://communitylab.nodnexa.com/healthz=200 http://communitylab.nodnexa.com/=301"}
 
 MODO=${1:?Uso: migrar-a-srv.sh comprobar|ejecutar|deshacer}
 log() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$*" >&2; }

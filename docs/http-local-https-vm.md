@@ -15,7 +15,7 @@ Abrir http://127.0.0.1:8080. HTTP_BIND_ADDRESS y HTTP_PORT permiten cambiar la d
 
 ## VM HTTPS
 
-Usar el mismo .env con la plataforma de la VM y credenciales privadas. El dominio de esta configuración es communitylab.alyntai.com y debe apuntar a la VM. Deben existir certificados válidos en /etc/letsencrypt/live/communitylab.alyntai.com/; emisión y renovación siguen a cargo del mecanismo de Let's Encrypt de la VM.
+Usar el mismo .env con la plataforma de la VM y credenciales privadas. El dominio de esta configuración es communitylab.nodnexa.com y debe apuntar a la VM. Deben existir certificados válidos en /etc/letsencrypt/live/communitylab.nodnexa.com/; emisión y renovación siguen a cargo del mecanismo de Let's Encrypt de la VM.
 
 ```sh
 docker compose -f docker-compose.yml -f compose.https.yml config --quiet

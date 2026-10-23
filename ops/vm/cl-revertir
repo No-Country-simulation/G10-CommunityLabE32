@@ -2,5 +2,5 @@
 # Uso: sudo cl-revertir /var/lib/communitylab/despliegues/<id>
 set -eu
 logger -t cl-operador "revertir $* por ${SUDO_USER:-?}"
-export VERIFICAR_URLS=${VERIFICAR_URLS:-"https://communitylab.alyntai.com/healthz=200 http://communitylab.alyntai.com/=301"}
+export VERIFICAR_URLS=${VERIFICAR_URLS:-"https://communitylab.nodnexa.com/healthz=200 http://communitylab.nodnexa.com/=301"}
 exec /srv/communitylab/ops/vm/revertir.sh "$@"
